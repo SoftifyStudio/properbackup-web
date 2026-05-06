@@ -8,6 +8,7 @@ import RecoveryWizard from '../recovery/RecoveryWizard.jsx';
 import InventoryPanel from './InventoryPanel.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
 import DocumentationTab from './DocumentationTab.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import { fetchInventory, fetchInventoryMeta, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
@@ -305,6 +306,7 @@ export default function BackupsPage({ server, onBack }) {
 
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 max-w-4xl w-full mx-auto">
         {serviceTab === 'backups' && (
+          <ErrorBoundary title={t('backups.tabBackups')} retryLabel={t('backups.refresh')}>
           <DirectoryView
             nodes={nodes}
             onRestore={(snap) => {
@@ -312,8 +314,13 @@ export default function BackupsPage({ server, onBack }) {
               setRecoveryTarget({ snap, node });
             }}
           />
+          </ErrorBoundary>
         )}
-        {serviceTab === 'inventory' && <InventoryPanel server={server} token={token} />}
+        {serviceTab === 'inventory' && (
+          <ErrorBoundary title={t('backups.tabInventory')} retryLabel={t('backups.refresh')}>
+            <InventoryPanel server={server} token={token} />
+          </ErrorBoundary>
+        )}
         {isSystemAdmin && serviceTab === 'logs' && (
           <div className="space-y-3">
             <div className="flex gap-2">
@@ -349,6 +356,7 @@ export default function BackupsPage({ server, onBack }) {
           </div>
         )}
         {serviceTab === 'files' && (
+          <ErrorBoundary title={t('backups.tabFiles')} retryLabel={t('backups.refresh')}>
           <div className="space-y-4">
             <AgentIndexBanner
               serverName={server.name}
@@ -396,8 +404,13 @@ export default function BackupsPage({ server, onBack }) {
               </table>
             </div>
           </div>
+          </ErrorBoundary>
         )}
-        {serviceTab === 'docs' && <DocumentationTab />}
+        {serviceTab === 'docs' && (
+          <ErrorBoundary title={t('backups.tabDocs')} retryLabel={t('backups.refresh')}>
+            <DocumentationTab />
+          </ErrorBoundary>
+        )}
       </main>
 
       {recoveryTarget && (

@@ -3,7 +3,6 @@ import { useI18n } from '../i18n/I18nContext.jsx';
 
 const STALE_MS = 15 * 60 * 1000;
 
-/** Powoduje rerender co 1 s — pod „X s temu” bez ciężkiego pollingu. */
 function useRerenderEverySecond() {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -28,10 +27,16 @@ function relativeUpdatedLabel(iso, t) {
   return t('common.relativeDaysAgo', { count: day });
 }
 
-function IndexingProgressBar({ phase, loading }) {
-  const indeterminate = loading || phase === 'indexing' || phase === 'uploading';
+function IndexingProgressBar({ phase, loading, totalFiles, scannedFiles }) {
+  const hasDeterminate = phase === 'indexing'
+    && typeof totalFiles === 'number' && totalFiles > 0
+    && typeof scannedFiles === 'number';
+  const pct = hasDeterminate ? Math.min(100, Math.round((scannedFiles / totalFiles) * 100)) : 0;
+
+  const indeterminate = !hasDeterminate && (loading || phase === 'indexing' || phase === 'uploading');
   const idle = phase === 'idle';
   const waiting = phase === 'waiting';
+  const uploading = !hasDeterminate && phase === 'uploading';
 
   return (
     <div
@@ -39,21 +44,28 @@ function IndexingProgressBar({ phase, loading }) {
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuetext={indeterminate ? 'in progress' : idle ? 'ready' : waiting ? 'waiting' : 'pending'}
+      aria-valuenow={hasDeterminate ? pct : undefined}
+      aria-valuetext={hasDeterminate ? `${pct}%` : indeterminate ? 'in progress' : idle ? 'ready' : waiting ? 'waiting' : 'pending'}
     >
-      {indeterminate && (
+      {hasDeterminate && (
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-700 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      )}
+      {(indeterminate || uploading) && (
         <div
           className="absolute inset-y-0 w-[38%] rounded-full bg-gradient-to-r from-transparent via-accent to-transparent opacity-90 shadow-sm animate-agent-index-bar"
           style={{ willChange: 'transform' }}
         />
       )}
-      {!indeterminate && idle && (
+      {!hasDeterminate && !indeterminate && !uploading && idle && (
         <div className="h-full w-full rounded-full bg-gradient-to-r from-success/80 to-success/55 transition-all duration-500" />
       )}
-      {!indeterminate && waiting && (
+      {!hasDeterminate && !indeterminate && !uploading && waiting && (
         <div className="h-full w-[24%] rounded-full bg-warn/55 animate-pulse" />
       )}
-      {!indeterminate && !idle && !waiting && (
+      {!hasDeterminate && !indeterminate && !uploading && !idle && !waiting && (
         <div className="h-full w-[10%] rounded-full bg-text4/30" />
       )}
     </div>
@@ -61,7 +73,9 @@ function IndexingProgressBar({ phase, loading }) {
 }
 
 /**
- * Karta stanu agenta (OneDrive-style): pasek postępu, ostatnia aktualizacja (odświeżana co 1 s), kompaktowe wiersze metadanych.
+ * Karta stanu agenta (macOS Tahoe / Spotlight style):
+ * pasek postępu (determinate gdy agent raportuje totalFiles/scannedFiles),
+ * aktualny plik, ostatnia aktualizacja co 1 s, kompaktowe wiersze metadanych.
  */
 export default function AgentIndexBanner({
   serverName,
@@ -76,6 +90,18 @@ export default function AgentIndexBanner({
 
   const updatedAt = agentStatus?.updatedAt ? new Date(agentStatus.updatedAt) : null;
   const stale = updatedAt && Date.now() - updatedAt.getTime() > STALE_MS;
+
+  const agentTotalFiles = agentStatus?.totalFiles;
+  const agentScannedFiles = agentStatus?.scannedFiles;
+  const agentCurrentFile = agentStatus?.currentFile;
+
+  const hasDeterminateProgress = agentStatus?.phase === 'indexing'
+    && typeof agentTotalFiles === 'number' && agentTotalFiles > 0
+    && typeof agentScannedFiles === 'number';
+
+  const pct = hasDeterminateProgress
+    ? Math.min(100, Math.round((agentScannedFiles / agentTotalFiles) * 100))
+    : null;
 
   const derivedSubtitle = useMemo(() => {
     if (loading) return t('backups.agentDerivedLoading');
@@ -95,6 +121,14 @@ export default function AgentIndexBanner({
   const phaseTranslated = t(phaseKey);
   const phaseLabel = phaseTranslated === phaseKey ? phase : phaseTranslated;
   const subtitle = agentStatus?.detail ?? derivedSubtitle ?? '';
+
+  const progressLabel = hasDeterminateProgress
+    ? t('backups.agentProgressCount', {
+        scanned: agentScannedFiles.toLocaleString(),
+        total: agentTotalFiles.toLocaleString(),
+        pct,
+      })
+    : null;
 
   const relative = relativeUpdatedLabel(agentStatus?.updatedAt, t);
   const absolute = agentStatus?.updatedAt
@@ -143,16 +177,36 @@ export default function AgentIndexBanner({
           <div className="min-w-0 flex-1 space-y-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1 space-y-2">
-                <h2 className={`${titleClass} font-semibold text-text1 tracking-tight leading-tight`}>
-                  {phaseLabel}
-                </h2>
+                <div className="flex items-baseline gap-3">
+                  <h2 className={`${titleClass} font-semibold text-text1 tracking-tight leading-tight`}>
+                    {phaseLabel}
+                  </h2>
+                  {pct != null && (
+                    <span className="text-sm font-semibold text-accent tabular-nums">{pct}%</span>
+                  )}
+                </div>
                 {subtitle ? (
                   <p className="text-sm text-text3 leading-snug">{subtitle}</p>
                 ) : null}
-                <IndexingProgressBar phase={phase} loading={loading} />
-                <p className="text-xs text-text4 tabular-nums">
-                  {t('backups.agentIndexStats', { roots: rootsCount, files: totalFiles })}
-                </p>
+                <IndexingProgressBar
+                  phase={phase}
+                  loading={loading}
+                  totalFiles={agentTotalFiles}
+                  scannedFiles={agentScannedFiles}
+                />
+                <div className="space-y-0.5">
+                  {progressLabel && (
+                    <p className="text-xs text-text3 tabular-nums">{progressLabel}</p>
+                  )}
+                  {agentCurrentFile && phase === 'indexing' && (
+                    <p className="text-[11px] text-text4 font-mono truncate max-w-sm" title={agentCurrentFile}>
+                      {agentCurrentFile}
+                    </p>
+                  )}
+                  <p className="text-xs text-text4 tabular-nums">
+                    {t('backups.agentIndexStats', { roots: rootsCount, files: totalFiles })}
+                  </p>
+                </div>
               </div>
 
               <div className="shrink-0 lg:text-right lg:pl-6 lg:ml-2 lg:border-l lg:border-border/70 space-y-0.5">

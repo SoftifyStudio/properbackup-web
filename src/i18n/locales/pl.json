@@ -111,6 +111,7 @@
     "agentLastSignal": "Ostatnia wiadomość od agenta",
     "agentNeverConnected": "brak sygnału",
     "agentIndexStats": "{{roots}} źródeł backupu · {{files}} plików w indeksie",
+    "agentProgressCount": "{{scanned}} / {{total}} plików ({{pct}}%)",
     "agentStaleWarning": "Ostatnia wiadomość od agenta: {{time}}. Jeśli to nieaktualne, sprawdź czy proces agenta działa.",
     "agentDerivedLoading": "Ładowanie…",
     "agentDerivedNoSignal": "Oczekiwanie na agenta — tu pojawi się status i pasek postępu.",

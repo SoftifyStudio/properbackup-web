@@ -111,6 +111,7 @@
     "agentLastSignal": "Last message from agent",
     "agentNeverConnected": "no signal yet",
     "agentIndexStats": "{{roots}} backup roots · {{files}} files indexed",
+    "agentProgressCount": "{{scanned}} / {{total}} files ({{pct}}%)",
     "agentStaleWarning": "Last agent update: {{time}}. If this looks stale, check whether the agent process is running.",
     "agentDerivedLoading": "Loading…",
     "agentDerivedNoSignal": "Waiting for the agent — status and the progress bar will update here.",
