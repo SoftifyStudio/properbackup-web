@@ -390,6 +390,7 @@
     "featureRestore": "1-Click Restore z panelu",
     "featureSupport": "Wsparcie Facebook / Discord (SLA 48h)",
     "selectPlan": "Wybierz ten plan",
+    "redirecting": "Przekierowanie do płatności…",
     "storageUsed": "Użyta przestrzeń",
     "storageExceeded": "Limit przestrzeni został przekroczony. Nowe backupy są wstrzymane do czasu zwolnienia miejsca lub zmiany planu.",
     "status": {

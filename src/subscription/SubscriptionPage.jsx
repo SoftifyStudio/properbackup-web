@@ -6,12 +6,25 @@ import { useI18n } from '../i18n/I18nContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
 
+async function startCheckout(token, planId) {
+  const res = await fetch(`${BASE_URL}/account/checkout?plan=${planId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  const { checkoutUrl } = await res.json();
+  window.open(checkoutUrl, '_blank');
+}
+
 export default function SubscriptionPage({ onBack }) {
   const { token } = useAuth();
   const { t } = useI18n();
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(null);
 
   const loadSub = useCallback(async () => {
     if (!token) return;
@@ -151,10 +164,21 @@ export default function SubscriptionPage({ onBack }) {
                       </li>
                     </ul>
                     <button
-                      className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors"
-                      onClick={() => {/* Lemon Squeezy checkout - przyszła integracja */}}
+                      className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                      disabled={checkoutLoading === plan.id}
+                      onClick={async () => {
+                        setCheckoutLoading(plan.id);
+                        setError('');
+                        try {
+                          await startCheckout(token, plan.id);
+                        } catch (e) {
+                          setError(e.message);
+                        } finally {
+                          setCheckoutLoading(null);
+                        }
+                      }}
                     >
-                      {t('subscription.selectPlan')}
+                      {checkoutLoading === plan.id ? t('subscription.redirecting') : t('subscription.selectPlan')}
                     </button>
                   </div>
                 ))}
