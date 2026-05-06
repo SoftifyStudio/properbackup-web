@@ -87,6 +87,34 @@ export default function SubscriptionPage({ onBack }) {
                 </div>
               </div>
 
+              {/* Storage usage bar */}
+              {sub.storageUsedBytes != null && (
+                <div className="mt-5 pt-4 border-t border-border">
+                  <div className="flex items-center justify-between text-xs text-text3 mb-1.5">
+                    <span>{t('subscription.storageUsed')}</span>
+                    <span className={sub.storageExceeded ? 'text-red-600 font-semibold' : ''}>
+                      {sub.storageUsedLabel} / {sub.storageLimitLabel}
+                      {' '}({(sub.storageUsedPercent || 0).toFixed(1)}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        sub.storageExceeded ? 'bg-red-500' :
+                        (sub.storageUsedPercent || 0) > 80 ? 'bg-amber-500' :
+                        'bg-accent'
+                      }`}
+                      style={{ width: `${Math.min(100, sub.storageUsedPercent || 0)}%` }}
+                    />
+                  </div>
+                  {sub.storageExceeded && (
+                    <p className="text-xs text-red-600 mt-1.5 font-medium">
+                      {t('subscription.storageExceeded')}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {sub.trialExpiresAt && sub.status === 'trial' && (
                 <p className="text-xs text-text4 mt-4">
                   {t('subscription.trialExpires', { date: new Date(sub.trialExpiresAt).toLocaleDateString() })}
