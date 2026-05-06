@@ -130,8 +130,8 @@ export default function SubscriptionPage({ onBack }) {
                   <div key={plan.id} className="rounded-xl border border-border bg-panel p-5 shadow-card hover:border-accent/40 transition-colors">
                     <h3 className="text-base font-bold text-text1 mb-1">{plan.name}</h3>
                     <div className="flex items-baseline gap-1 mb-3">
-                      <span className="text-2xl font-bold text-accent">{plan.pricePln}</span>
-                      <span className="text-sm text-text3">PLN / {t('subscription.year')}</span>
+                      <span className="text-2xl font-bold text-accent">{'$'}{plan.priceUsd}</span>
+                      <span className="text-sm text-text3">/ {t('subscription.year')}</span>
                     </div>
                     <p className="text-sm text-text3 mb-4">
                       {t('subscription.storageIncluded', { limit: plan.storageLimitLabel })}
