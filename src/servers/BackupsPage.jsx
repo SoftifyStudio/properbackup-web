@@ -67,6 +67,7 @@ export default function BackupsPage({ server, onBack }) {
   const [error, setError]                   = useState(null);
   const [logs, setLogs]                     = useState([]);
   const [fileStates, setFileStates]         = useState([]);
+  const [fileSortMode, setFileSortMode]     = useState('recent');
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
     rootsCount: 0,
@@ -185,13 +186,15 @@ export default function BackupsPage({ server, onBack }) {
       let firstInv = null;
       const maxPages = 50;
       while (hasMore && page <= maxPages) {
-        const inv = await fetchInventory(server.id, token, page, 1000);
+        const inv = await fetchInventory(server.id, token, page, 1000, fileSortMode);
         if (page === 1) firstInv = inv;
         rows.push(...(inv.files ?? []));
         hasMore = !!inv.hasMore;
         page += 1;
       }
-      rows.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+      if (fileSortMode === 'path') {
+        rows.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+      }
       setFileStates(rows);
       setLiveIndexMeta({
         agentStatus: firstInv?.agentStatus ?? null,
@@ -202,7 +205,7 @@ export default function BackupsPage({ server, onBack }) {
     } catch {
       setLiveIndexMeta((m) => ({ ...m, loading: false }));
     }
-  }, [token, server.id]);
+  }, [token, server.id, fileSortMode]);
 
   useEffect(() => {
     if (!isSystemAdmin) return;
@@ -221,17 +224,18 @@ export default function BackupsPage({ server, onBack }) {
     }
   }, [isAllowedTab, serviceTab, isSystemAdmin, setServiceTab]);
 
+  const isIndexing = liveIndexMeta.agentStatus?.phase === 'indexing';
+  const filesPollMs = isIndexing ? 2000 : 4000;
+
   useEffect(() => {
-    // Live index should refresh independently from active tab to avoid stale/empty state
-    // when navigation enters directly via URL query params.
     fetchLiveFileStates(true);
     const metaId = setInterval(fetchLiveMeta, 1000);
-    const filesId = setInterval(() => fetchLiveFileStates(false), 4000);
+    const filesId = setInterval(() => fetchLiveFileStates(false), filesPollMs);
     return () => {
       clearInterval(metaId);
       clearInterval(filesId);
     };
-  }, [fetchLiveFileStates, fetchLiveMeta]);
+  }, [fetchLiveFileStates, fetchLiveMeta, filesPollMs]);
 
   const nodes = useMemo(() => buildTree(objectNames, pathsIdx), [objectNames, pathsIdx]);
   const snapshotCount = nodes.reduce((s, n) => s + n.snapshots.length, 0);
@@ -366,6 +370,21 @@ export default function BackupsPage({ server, onBack }) {
               loading={liveIndexMeta.loading}
               variant="spotlight"
             />
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-xs text-text4">{t('backups.filesSortLabel')}</span>
+              <button
+                className={`text-xs px-2 py-1 rounded ${fileSortMode === 'recent' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2'}`}
+                onClick={() => setFileSortMode('recent')}
+              >
+                {t('backups.filesSortRecent')}
+              </button>
+              <button
+                className={`text-xs px-2 py-1 rounded ${fileSortMode === 'path' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2'}`}
+                onClick={() => setFileSortMode('path')}
+              >
+                {t('backups.filesSortPath')}
+              </button>
+            </div>
             <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
               <table className="w-full text-[13px]">
                 <thead className="bg-surface/90 border-b border-border">
@@ -382,17 +401,24 @@ export default function BackupsPage({ server, onBack }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {fileStates.map(r => (
-                    <tr key={r.fullPath} className="hover:bg-surface/50 transition-colors">
-                      <td className="py-1.5 px-3 font-mono text-[12px] text-text2 leading-snug align-middle">
-                        {r.fullPath}
-                      </td>
-                      <td className="py-1.5 px-3 text-text2 align-middle">{r.status}</td>
-                      <td className="py-1.5 px-3 text-text3 tabular-nums text-[12px] align-middle">
-                        {formatDateTime(r.updatedAt)}
-                      </td>
-                    </tr>
-                  ))}
+                  {fileStates.map(r => {
+                    const isRecent = r.updatedAt && (Date.now() - new Date(r.updatedAt).getTime()) < 10000;
+                    return (
+                      <tr
+                        key={r.fullPath}
+                        className={`transition-colors ${isRecent ? 'bg-accent/[0.06]' : 'hover:bg-surface/50'}`}
+                      >
+                        <td className="py-1.5 px-3 font-mono text-[12px] text-text2 leading-snug align-middle">
+                          {isRecent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent mr-2 align-middle" />}
+                          {r.fullPath}
+                        </td>
+                        <td className="py-1.5 px-3 text-text2 align-middle">{r.status}</td>
+                        <td className="py-1.5 px-3 text-text3 tabular-nums text-[12px] align-middle">
+                          {formatDateTime(r.updatedAt)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {fileStates.length === 0 && (
                     <tr>
                       <td className="py-4 px-3 text-text4 text-sm align-top" colSpan={3}>

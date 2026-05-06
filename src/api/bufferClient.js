@@ -37,10 +37,11 @@ export async function forceFlush(sessionToken) {
 }
 
 /** Paginated live file index + configured roots (JWT). */
-export async function fetchInventory(serverId, sessionToken, page = 1, pageSize = 1000) {
+export async function fetchInventory(serverId, sessionToken, page = 1, pageSize = 1000, sort = 'path') {
   const u = new URL(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/inventory`);
   u.searchParams.set('page', String(page));
   u.searchParams.set('pageSize', String(pageSize));
+  if (sort !== 'path') u.searchParams.set('sort', sort);
   const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
   if (!res.ok) throw new Error(`inventory failed: ${res.status}`);
   return res.json();
