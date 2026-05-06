@@ -91,6 +91,7 @@
     "flushError": "Could not flush: {{message}}",
     "refreshBusy": "Refreshing…",
     "refresh": "Refresh",
+    "auditReport": "Audit Report PDF",
     "bufferError": "Backup service unreachable — showing demo data. ({{message}})",
     "pathsIdxPartial": "Path index (paths.idx) returned HTTP {{status}}. Archive object listing still works — path IDs may show as unknown (orphans). Hit Refresh or check buffer logs.",
     "paths": "{{count}} paths",

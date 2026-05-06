@@ -305,6 +305,27 @@ export default function BackupsPage({ server, onBack }) {
         <button className="btn-ghost text-xs py-1.5 min-w-[90px]" onClick={fetchServerData} disabled={refreshing}>
           {refreshing ? t('backups.refreshBusy') : t('backups.refresh')}
         </button>
+        <a
+          href={`${BASE_URL}/servers/${server.id}/audit-report`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-ghost text-xs py-1.5"
+          onClick={(e) => {
+            e.preventDefault();
+            fetch(`${BASE_URL}/servers/${server.id}/audit-report`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then(r => r.blob()).then(blob => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `ProperBackup-Audit-Report-${server.id}.pdf`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }).catch(err => setError(err.message));
+          }}
+        >
+          {t('backups.auditReport')}
+        </a>
         {import.meta.env.DEV && (
           <button
             className={`btn-ghost text-xs py-1.5 ml-auto font-mono ${showDebug ? 'ring-1 ring-amber-400 bg-amber-50 text-amber-700' : 'text-text4'}`}

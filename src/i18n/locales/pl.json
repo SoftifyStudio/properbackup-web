@@ -91,6 +91,7 @@
     "flushError": "Flush nie powiódł się: {{message}}",
     "refreshBusy": "Odświeżam…",
     "refresh": "Odśwież",
+    "auditReport": "Raport audytu PDF",
     "bufferError": "Bufor niedostępny — wyświetlam fixture’y. ({{message}})",
     "pathsIdxPartial": "Indeks ścieżek (paths.idx): błąd HTTP {{status}}. Lista obiektów z archiwum działa — brak mapowania ID→ścieżka; użyj Odśwież albo sprawdź buffer.",
     "paths": "{{count}} ścieżek",
