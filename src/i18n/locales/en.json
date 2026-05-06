@@ -86,6 +86,7 @@
     "tabFiles": "Files live",
     "tabInventory": "Index",
     "tabDocs": "Documentation",
+    "tabSettings": "Settings",
     "flush": "Flush",
     "flushError": "Could not flush: {{message}}",
     "refreshBusy": "Refreshing…",
@@ -368,6 +369,15 @@
     "okSkip": "Backup resumed",
     "okExclude": "Exclude list updated",
     "okFooter": "The agent will scan on the next cron run."
+  },
+  "folderConfig": {
+    "title": "Backup folders",
+    "description": "Choose which folders to back up. The agent will pick up changes on its next scan cycle.",
+    "placeholder": "/home/user/documents",
+    "add": "Add",
+    "remove": "Remove",
+    "loading": "Loading configuration…",
+    "empty": "No folders configured yet. Add a folder path above to start backing up."
   },
   "trial": {
     "daysLeft": "Trial: {{count}} days remaining",

@@ -9,6 +9,7 @@ import InventoryPanel from './InventoryPanel.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
 import DocumentationTab from './DocumentationTab.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
+import FolderConfigPanel from './FolderConfigPanel.jsx';
 import { fetchInventory, fetchInventoryMeta, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
@@ -79,7 +80,7 @@ export default function BackupsPage({ server, onBack }) {
   const [logComponent, setLogComponent]     = useState('');
   const [showDebug, setShowDebug]           = useState(false);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'docs'].includes(urlTab || '');
+  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'docs', 'settings'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'backups';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -293,6 +294,9 @@ export default function BackupsPage({ server, onBack }) {
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'docs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('docs')}>
           {t('backups.tabDocs')}
         </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('settings')}>
+          {t('backups.tabSettings')}
+        </button>
         {mode === 'live' && (
           <button className="btn-ghost text-xs py-1.5" onClick={handleFlush}>
             {t('backups.flush')}
@@ -490,6 +494,11 @@ export default function BackupsPage({ server, onBack }) {
         {serviceTab === 'docs' && (
           <ErrorBoundary title={t('backups.tabDocs')} retryLabel={t('backups.refresh')}>
             <DocumentationTab />
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'settings' && (
+          <ErrorBoundary title={t('backups.tabSettings')} retryLabel={t('backups.refresh')}>
+            <FolderConfigPanel serverId={server.id} />
           </ErrorBoundary>
         )}
       </main>

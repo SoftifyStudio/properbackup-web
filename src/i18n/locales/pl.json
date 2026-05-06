@@ -86,6 +86,7 @@
     "tabFiles": "Pliki na żywo",
     "tabInventory": "Indeks",
     "tabDocs": "Dokumentacja",
+    "tabSettings": "Ustawienia",
     "flush": "Odświeć bufor",
     "flushError": "Flush nie powiódł się: {{message}}",
     "refreshBusy": "Odświeżam…",
@@ -368,6 +369,15 @@
     "okSkip": "Backup wznowiony",
     "okExclude": "Exclude zaktualizowany",
     "okFooter": "Agent wykona skan przy następnym uruchomieniu crona."
+  },
+  "folderConfig": {
+    "title": "Foldery do backupu",
+    "description": "Wybierz foldery do kopiowania. Agent zastosuje zmiany przy następnym skanie.",
+    "placeholder": "/home/user/documents",
+    "add": "Dodaj",
+    "remove": "Usuń",
+    "loading": "Ładowanie konfiguracji…",
+    "empty": "Brak skonfigurowanych folderów. Dodaj ścieżkę powyżej."
   },
   "trial": {
     "daysLeft": "Wersja próbna: {{count}} dni do końca",
