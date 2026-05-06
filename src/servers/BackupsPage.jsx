@@ -308,7 +308,7 @@ export default function BackupsPage({ server, onBack }) {
         </div>
       )}
 
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 max-w-4xl w-full mx-auto">
+      <main className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto ${serviceTab === 'files' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {serviceTab === 'backups' && (
           <ErrorBoundary title={t('backups.tabBackups')} retryLabel={t('backups.refresh')}>
           <DirectoryView
@@ -370,50 +370,75 @@ export default function BackupsPage({ server, onBack }) {
               loading={liveIndexMeta.loading}
               variant="spotlight"
             />
-            <div className="flex items-center gap-2 px-1">
-              <span className="text-xs text-text4">{t('backups.filesSortLabel')}</span>
-              <button
-                className={`text-xs px-2 py-1 rounded ${fileSortMode === 'recent' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2'}`}
-                onClick={() => setFileSortMode('recent')}
-              >
-                {t('backups.filesSortRecent')}
-              </button>
-              <button
-                className={`text-xs px-2 py-1 rounded ${fileSortMode === 'path' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2'}`}
-                onClick={() => setFileSortMode('path')}
-              >
-                {t('backups.filesSortPath')}
-              </button>
+
+            {/* Toolbar: file count + sort toggle */}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-text3">
+                {fileStates.length > 0
+                  ? t('backups.filesCount', { count: fileStates.length })
+                  : ''}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-text4">{t('backups.filesSortLabel')}</span>
+                <button
+                  className={`text-xs px-2.5 py-1 rounded-md transition-colors ${fileSortMode === 'recent' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'}`}
+                  onClick={() => setFileSortMode('recent')}
+                >
+                  {t('backups.filesSortRecent')}
+                </button>
+                <button
+                  className={`text-xs px-2.5 py-1 rounded-md transition-colors ${fileSortMode === 'path' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'}`}
+                  onClick={() => setFileSortMode('path')}
+                >
+                  {t('backups.filesSortPath')}
+                </button>
+              </div>
             </div>
+
+            {/* OneDrive-style file list */}
             <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
               <table className="w-full text-[13px]">
-                <thead className="bg-surface/90 border-b border-border">
+                <thead className="bg-surface/90 border-b border-border sticky top-0 z-10">
                   <tr>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-text4">
+                    <th className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-text4">
                       {t('backups.filesColPath')}
                     </th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[7rem]">
+                    <th className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[8rem]">
                       {t('backups.filesColStatus')}
                     </th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[10.5rem]">
+                    <th className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[11rem]">
                       {t('backups.filesColUpdated')}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/60">
                   {fileStates.map(r => {
                     const isRecent = r.updatedAt && (Date.now() - new Date(r.updatedAt).getTime()) < 10000;
+                    const statusColor = r.status === 'changed' ? 'bg-amber-100 text-amber-700'
+                      : r.status === 'deleted' ? 'bg-red-100 text-red-700'
+                      : 'bg-emerald-50 text-emerald-700';
                     return (
                       <tr
                         key={r.fullPath}
-                        className={`transition-colors ${isRecent ? 'bg-accent/[0.06]' : 'hover:bg-surface/50'}`}
+                        className={`transition-colors duration-300 ${isRecent ? 'bg-accent/[0.05]' : 'hover:bg-surface/60'}`}
                       >
-                        <td className="py-1.5 px-3 font-mono text-[12px] text-text2 leading-snug align-middle">
-                          {isRecent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent mr-2 align-middle" />}
-                          {r.fullPath}
+                        <td className="py-2 px-4 align-middle">
+                          <div className="flex items-center gap-2.5">
+                            {isRecent && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-accent" />}
+                            {!isRecent && <span className="shrink-0 w-1.5" />}
+                            <svg className="shrink-0 w-4 h-4 text-text4" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 2.5A1.5 1.5 0 014.5 1h4.379a1.5 1.5 0 011.06.44l2.122 2.12A1.5 1.5 0 0112.5 4.622V13.5A1.5 1.5 0 0111 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1"/>
+                              <path d="M9 1v3.5h3.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+                            </svg>
+                            <span className="font-mono text-[12.5px] text-text2 leading-snug truncate">{r.fullPath}</span>
+                          </div>
                         </td>
-                        <td className="py-1.5 px-3 text-text2 align-middle">{r.status}</td>
-                        <td className="py-1.5 px-3 text-text3 tabular-nums text-[12px] align-middle">
+                        <td className="py-2 px-4 align-middle">
+                          <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full ${statusColor}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="py-2 px-4 text-text3 tabular-nums text-[12px] align-middle">
                           {formatDateTime(r.updatedAt)}
                         </td>
                       </tr>
@@ -421,7 +446,7 @@ export default function BackupsPage({ server, onBack }) {
                   })}
                   {fileStates.length === 0 && (
                     <tr>
-                      <td className="py-4 px-3 text-text4 text-sm align-top" colSpan={3}>
+                      <td className="py-8 px-4 text-center text-text4 text-sm" colSpan={3}>
                         {t('backups.filesEmpty')}
                       </td>
                     </tr>

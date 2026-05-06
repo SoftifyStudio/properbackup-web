@@ -103,6 +103,7 @@
     "filesColPath": "Path",
     "filesColStatus": "Status",
     "filesColUpdated": "Updated",
+    "filesCount": "{{count}} files",
     "filesEmpty": "No rows in this table yet — overall status is above.",
     "filesSortLabel": "Sort:",
     "filesSortRecent": "Recently added",

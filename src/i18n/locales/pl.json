@@ -103,6 +103,7 @@
     "filesColPath": "Ścieżka",
     "filesColStatus": "Status",
     "filesColUpdated": "Zaktualizowano",
+    "filesCount": "{{count}} plików",
     "filesEmpty": "Brak wierszy w tabeli — stan indeksu jest nad tym komunikatem.",
     "filesSortLabel": "Sortuj:",
     "filesSortRecent": "Ostatnio dodane",
