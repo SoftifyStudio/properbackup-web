@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  body {
+    @apply bg-surface text-text1;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { @apply box-border; }
+}
+
+@layer components {
+  .card {
+    @apply bg-panel border border-border rounded-xl2 shadow-card;
+  }
+  .btn-primary {
+    @apply bg-accent text-white text-sm font-medium px-4 py-2 rounded-lg
+           hover:bg-accentHover active:scale-95 transition-all duration-100
+           focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1;
+  }
+  .btn-secondary {
+    @apply bg-panel text-accent text-sm font-medium px-4 py-2 rounded-lg border border-accent
+           hover:bg-accentLight active:scale-95 transition-all duration-100
+           focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-text2 text-sm font-medium px-4 py-2 rounded-lg border border-border
+           hover:bg-surface active:scale-95 transition-all duration-100;
+  }
+  .btn-danger {
+    @apply bg-danger text-white text-sm font-medium px-4 py-2 rounded-lg
+           hover:opacity-90 active:scale-95 transition-all duration-100;
+  }
+  .badge {
+    @apply text-xs px-2 py-0.5 rounded-full font-medium;
+  }
+  .input {
+    @apply w-full bg-panel border border-border rounded-lg px-3 py-2 text-sm text-text1
+           focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+           placeholder:text-text4 transition-colors;
+  }
+}
+
+/* Auth landing — subtelne tło i wejście panelu (bez dodatkowych bibliotek) */
+@keyframes auth-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes auth-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes auth-scale-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes auth-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(2%, 3%) scale(1.05); }
+}
+.auth-aurora {
+  position: absolute;
+  width: min(120vw, 900px);
+  height: min(120vw, 900px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(15, 108, 189, 0.18), transparent 58%);
+  top: -35%;
+  left: -40%;
+  animation: auth-float 20s ease-in-out infinite;
+}
+.auth-aurora--2 {
+  top: auto;
+  bottom: -40%;
+  left: auto;
+  right: -35%;
+  background: radial-gradient(circle at 65% 65%, rgba(17, 94, 163, 0.12), transparent 55%);
+  animation: auth-float 26s ease-in-out infinite reverse;
+}
+.animate-fade-up {
+  animation: auth-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-fade-in {
+  animation: auth-fade-in 0.35s ease-out forwards;
+}
+.animate-scale-in {
+  animation: auth-scale-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

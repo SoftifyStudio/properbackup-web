@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "updated": "2026-05-02T10:00:00Z",
+  "paths": {
+    "aB3x9Q2k": "/home/minecraft/world",
+    "9fB2kP7w": "/home/minecraft/plugins",
+    "k3Lm8nXa": "/home/minecraft/config",
+    "pQ7rT1wZ": "/var/www/mojastrona",
+    "Hj4mN6sY": "/var/www/mojastrona/wp-content",
+    "Xc2vB8eR": "/var/lib/postgresql",
+    "Wd5gF3qU": "/etc/nginx"
+  }
+}

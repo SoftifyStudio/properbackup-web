@@ -1,0 +1,13 @@
+{
+  "id": "alert-20260502-001",
+  "service": "strona_wizytowka",
+  "detectedAt": "2026-05-02T09:47:00Z",
+  "status": "pending",
+  "patterns": [".env", "*.pem"],
+  "files": [
+    "/var/www/mojastrona/.env",
+    "/var/www/mojastrona/.env.production",
+    "/var/www/mojastrona/ssl/cert.pem",
+    "/var/www/mojastrona/ssl/privkey.pem"
+  ]
+}
