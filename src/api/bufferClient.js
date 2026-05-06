@@ -65,6 +65,24 @@ export async function fetchFileEvents(serverId, sessionToken, query = {}) {
   return res.json();
 }
 
+/** Lightweight inventory summary for fast polling (agent status, file/root counts). */
+export async function fetchInventorySummary(serverId, sessionToken) {
+  const u = new URL(`${BASE_URL}/health/inventory-summary`);
+  u.searchParams.set('serverId', serverId);
+  const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
+  if (!res.ok) throw new Error(`inventory-summary failed: ${res.status}`);
+  return res.json();
+}
+
+/** Fetch subscription / trial status (JWT). */
+export async function fetchSubscription(sessionToken) {
+  const res = await fetch(`${BASE_URL}/account/subscription`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`subscription failed: ${res.status}`);
+  return res.json();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = new URL(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);

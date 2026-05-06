@@ -368,5 +368,33 @@
     "okSkip": "Backup resumed",
     "okExclude": "Exclude list updated",
     "okFooter": "The agent will scan on the next cron run."
+  },
+  "trial": {
+    "daysLeft": "Trial: {{count}} days remaining",
+    "expired": "Your trial has expired. Choose a plan to continue.",
+    "upgrade": "Choose plan"
+  },
+  "subscription": {
+    "back": "Panel",
+    "title": "Subscription",
+    "loading": "Loading subscription data…",
+    "currentPlan": "Current plan",
+    "trialPlan": "Trial (30 days)",
+    "daysRemaining": "Days remaining",
+    "storageLimit": "Storage limit",
+    "trialExpires": "Trial expires: {{date}}",
+    "availablePlans": "Available plans",
+    "year": "year",
+    "storageIncluded": "{{limit}} storage included",
+    "featureEncryption": "Zero-Knowledge encryption (AES-256-GCM)",
+    "featureRestore": "1-Click Restore from panel",
+    "featureSupport": "Facebook / Discord support (SLA 48h)",
+    "selectPlan": "Select this plan",
+    "status": {
+      "trial": "Trial",
+      "active": "Active",
+      "expired": "Expired",
+      "trial_expired": "Trial expired"
+    }
   }
 }

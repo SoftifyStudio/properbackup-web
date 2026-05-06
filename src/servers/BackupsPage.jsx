@@ -77,6 +77,7 @@ export default function BackupsPage({ server, onBack }) {
   const [logsSince, setLogsSince]           = useState(null);
   const [logLevel, setLogLevel]             = useState('');
   const [logComponent, setLogComponent]     = useState('');
+  const [showDebug, setShowDebug]           = useState(false);
   const urlTab = searchParams.get('tab');
   const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'docs'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'backups';
@@ -300,11 +301,40 @@ export default function BackupsPage({ server, onBack }) {
         <button className="btn-ghost text-xs py-1.5 min-w-[90px]" onClick={fetchServerData} disabled={refreshing}>
           {refreshing ? t('backups.refreshBusy') : t('backups.refresh')}
         </button>
+        {import.meta.env.DEV && (
+          <button
+            className={`btn-ghost text-xs py-1.5 ml-auto font-mono ${showDebug ? 'ring-1 ring-amber-400 bg-amber-50 text-amber-700' : 'text-text4'}`}
+            onClick={() => setShowDebug(d => !d)}
+            title="Toggle debug panel (dev only)"
+          >
+            {showDebug ? 'DEBUG ON' : 'DBG'}
+          </button>
+        )}
       </div>
 
       {error && (
         <div className="shrink-0 mx-6 mt-2 px-4 py-2.5 bg-warnLight border border-warn/25 rounded-xl2 text-warn text-xs">
           {error}
+        </div>
+      )}
+
+      {showDebug && import.meta.env.DEV && (
+        <div className="shrink-0 mx-6 mt-2 px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl text-xs font-mono overflow-x-auto">
+          <div className="font-sans font-semibold text-amber-800 mb-2">Debug Panel (dev only)</div>
+          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <span className="text-amber-600">agentStatus:</span>
+            <pre className="text-amber-900 whitespace-pre-wrap break-all">{JSON.stringify(liveIndexMeta.agentStatus, null, 2)}</pre>
+            <span className="text-amber-600">files.length:</span>
+            <span className="text-amber-900">{fileStates.length}</span>
+            <span className="text-amber-600">totalFiles:</span>
+            <span className="text-amber-900">{liveIndexMeta.totalFiles}</span>
+            <span className="text-amber-600">rootsCount:</span>
+            <span className="text-amber-900">{liveIndexMeta.rootsCount}</span>
+            <span className="text-amber-600">mode:</span>
+            <span className="text-amber-900">{mode}</span>
+            <span className="text-amber-600">pollInterval:</span>
+            <span className="text-amber-900">{filesPollMs}ms</span>
+          </div>
         </div>
       )}
 

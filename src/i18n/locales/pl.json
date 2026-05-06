@@ -368,5 +368,33 @@
     "okSkip": "Backup wznowiony",
     "okExclude": "Exclude zaktualizowany",
     "okFooter": "Agent wykona skan przy następnym uruchomieniu crona."
+  },
+  "trial": {
+    "daysLeft": "Wersja próbna: {{count}} dni do końca",
+    "expired": "Twoja wersja próbna wygasła. Wybierz plan, aby kontynuować.",
+    "upgrade": "Wybierz plan"
+  },
+  "subscription": {
+    "back": "Panel",
+    "title": "Subskrypcja",
+    "loading": "Ładuję dane subskrypcji…",
+    "currentPlan": "Aktualny plan",
+    "trialPlan": "Wersja próbna (30 dni)",
+    "daysRemaining": "Pozostało dni",
+    "storageLimit": "Limit przestrzeni",
+    "trialExpires": "Wersja próbna wygasa: {{date}}",
+    "availablePlans": "Dostępne plany",
+    "year": "rok",
+    "storageIncluded": "{{limit}} przestrzeni w cenie",
+    "featureEncryption": "Szyfrowanie Zero-Knowledge (AES-256-GCM)",
+    "featureRestore": "1-Click Restore z panelu",
+    "featureSupport": "Wsparcie Facebook / Discord (SLA 48h)",
+    "selectPlan": "Wybierz ten plan",
+    "status": {
+      "trial": "Wersja próbna",
+      "active": "Aktywna",
+      "expired": "Wygasła",
+      "trial_expired": "Trial wygasł"
+    }
   }
 }
