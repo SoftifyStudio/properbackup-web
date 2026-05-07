@@ -221,10 +221,9 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
         const tb = b.sealedAt ? new Date(b.sealedAt).getTime() : 0;
         return tb - ta;
       });
-      setSnapshots(sorted.length > 0 ? sorted : generateFixtureSnapshots());
+      setSnapshots(sorted);
     } catch (e) {
-      const fixtures = generateFixtureSnapshots();
-      setSnapshots(fixtures);
+      setSnapshots([]);
     } finally {
       setLoading(false);
     }

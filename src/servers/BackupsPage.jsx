@@ -17,6 +17,7 @@ import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
+// Fixture imports kept only for legacy StatusBar (tree view) — not used for file list
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
 import fixtureIdxData from '../fixtures/mock-paths-idx.json';
 
@@ -71,33 +72,7 @@ export default function BackupsPage({ server, onBack }) {
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState(null);
   const [logs, setLogs]                     = useState([]);
-  const [fileStates, setFileStates]         = useState(() => {
-    const now = new Date();
-    const ago = (mins) => new Date(now.getTime() - mins * 60_000).toISOString();
-    return [
-      { fullPath: '/home/daniel/mc-server/world/level.dat', status: 'current', updatedAt: ago(2) },
-      { fullPath: '/home/daniel/mc-server/world/region/r.0.0.mca', status: 'changed', updatedAt: ago(5) },
-      { fullPath: '/home/daniel/mc-server/server.properties', status: 'current', updatedAt: ago(12) },
-      { fullPath: '/home/daniel/mc-server/plugins/EssentialsX.jar', status: 'current', updatedAt: ago(60) },
-      { fullPath: '/home/daniel/mc-server/logs/latest.log', status: 'changed', updatedAt: ago(1) },
-      { fullPath: '/var/www/wordpress/wp-config.php', status: 'current', updatedAt: ago(180) },
-      { fullPath: '/var/www/wordpress/wp-content/uploads/photo-2026.jpg', status: 'current', updatedAt: ago(300) },
-      { fullPath: '/var/www/wordpress/wp-content/themes/flavor/style.css', status: 'current', updatedAt: ago(420) },
-      { fullPath: '/etc/nginx/nginx.conf', status: 'current', updatedAt: ago(1440) },
-      { fullPath: '/home/daniel/projects/api/src/main/kotlin/App.kt', status: 'changed', updatedAt: ago(8) },
-      { fullPath: '/home/daniel/projects/api/build.gradle.kts', status: 'current', updatedAt: ago(90) },
-      { fullPath: '/home/daniel/projects/api/docker-compose.yml', status: 'current', updatedAt: ago(200) },
-      { fullPath: '/home/daniel/backups/db-dump-2026-05-05.sql', status: 'current', updatedAt: ago(720) },
-      { fullPath: '/home/daniel/Documents/Audit-Report-May.pdf', status: 'current', updatedAt: ago(1200) },
-      { fullPath: '/home/daniel/mc-server/world/playerdata/uuid.dat', status: 'deleted', updatedAt: ago(30) },
-      { fullPath: '/opt/properbackup/config.json', status: 'current', updatedAt: ago(2000) },
-      { fullPath: '/home/daniel/projects/webapp/package.json', status: 'changed', updatedAt: ago(15) },
-      { fullPath: '/home/daniel/projects/webapp/src/App.tsx', status: 'current', updatedAt: ago(45) },
-      { fullPath: '/home/daniel/mc-server/backups/world-2026-05-04.tar.gz', status: 'current', updatedAt: ago(1500) },
-      { fullPath: '/home/daniel/Music/podcast-ep42.mp3', status: 'current', updatedAt: ago(3000) },
-      { fullPath: '/home/daniel/Screenshots/screen-2026-05-01.png', status: 'current', updatedAt: ago(5000) },
-    ];
-  });
+  const [fileStates, setFileStates]         = useState([]);
   const [fileSortMode, setFileSortMode]     = useState('recent');
   const [statusFilter, setStatusFilter]     = useState('all');
   const [activityLog, setActivityLog]       = useState([]);
@@ -105,6 +80,7 @@ export default function BackupsPage({ server, onBack }) {
   const activityIdRef = useRef(0);
   const [snapshotFiles, setSnapshotFiles]   = useState(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotError, setSnapshotError]     = useState(false);
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
     rootsCount: 0,
@@ -346,6 +322,7 @@ export default function BackupsPage({ server, onBack }) {
   const fetchSnapshotFiles = useCallback(async (snap) => {
     if (!token || !snap?.sealedAt) return;
     setSnapshotLoading(true);
+    setSnapshotError(false);
     try {
       const rows = [];
       let page = 1;
@@ -359,6 +336,7 @@ export default function BackupsPage({ server, onBack }) {
       setSnapshotFiles(rows);
     } catch {
       setSnapshotFiles(null);
+      setSnapshotError(true);
     } finally {
       setSnapshotLoading(false);
     }
@@ -369,6 +347,7 @@ export default function BackupsPage({ server, onBack }) {
       fetchSnapshotFiles(selectedSnapshot);
     } else {
       setSnapshotFiles(null);
+      setSnapshotError(false);
     }
   }, [selectedSnapshot, fetchSnapshotFiles]);
 
@@ -524,13 +503,39 @@ export default function BackupsPage({ server, onBack }) {
                 </span>
               </div>
 
+              {/* Snapshot fetch error */}
+              {selectedSnapshot && snapshotError && !snapshotLoading && (
+                <div className="flex items-center gap-3 px-5 py-3 bg-red-50 border border-red-200 rounded-lg">
+                  <svg className="w-5 h-5 text-red-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                  </svg>
+                  <div className="text-sm text-red-700">
+                    <span className="font-semibold">Cannot load snapshot data.</span>
+                    <span className="ml-1">Buffer service may be unavailable. Showing live files instead.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state when no files indexed */}
+              {!selectedSnapshot && fileStates.length === 0 && !liveIndexMeta.loading && (
+                <div className="flex flex-col items-center justify-center py-16 text-text4">
+                  <svg className="w-12 h-12 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <p className="text-sm font-medium text-text3">Waiting for agent to index files...</p>
+                  <p className="text-xs text-text4 mt-1">Files will appear here as the agent scans your system</p>
+                </div>
+              )}
+
               {/* OneDrive-style folder tree view */}
-              <FolderTreeView
-                files={filteredFiles}
-                newPaths={newPaths}
-                formatDateTime={formatDateTime}
-                snapshotLabel={selectedSnapshot ? formatDateTime(selectedSnapshot.sealedAt) : null}
-              />
+              {(fileStates.length > 0 || selectedSnapshot) && (
+                <FolderTreeView
+                  files={filteredFiles}
+                  newPaths={newPaths}
+                  formatDateTime={formatDateTime}
+                  snapshotLabel={selectedSnapshot ? formatDateTime(selectedSnapshot.sealedAt) : null}
+                />
+              )}
             </div>
           </ErrorBoundary>
         )}
