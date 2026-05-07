@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import ServiceAdminModal from '../auth/ServiceAdminModal.jsx';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import LanguageMenu from './LanguageMenu.jsx';
+import TrialBadge from '../subscription/TrialBadge.jsx';
 
 function UserAvatar({ email }) {
   const initial = (email?.trim()?.[0] ?? '?').toUpperCase();
@@ -108,6 +109,7 @@ export default function AppHeader({ onBack, backLabel, children }) {
               <span className="min-w-0 flex-1 text-xs font-medium leading-snug text-text2 break-all sm:break-words">
                 {email || t('header.userPlaceholder')}
               </span>
+              <TrialBadge />
             </div>
 
             <button

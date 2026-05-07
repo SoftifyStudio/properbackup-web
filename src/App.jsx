@@ -5,7 +5,7 @@ import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
 import SubscriptionPage from './subscription/SubscriptionPage.jsx';
-import TrialBanner from './subscription/TrialBanner.jsx';
+
 import {
   BrowserRouter,
   Navigate,
@@ -69,7 +69,6 @@ function AppRoutes() {
   const navigate = useNavigate();
   return (
     <>
-      <TrialBanner onUpgrade={() => navigate('/account/subscription')} />
       <Routes>
         <Route path="/" element={<Navigate to={token ? '/servers' : '/login'} replace />} />
         <Route path="/login" element={<AppRoutesInner />} />
@@ -81,6 +80,7 @@ function AppRoutes() {
     </>
   );
 }
+
 
 export default function App() {
   return (

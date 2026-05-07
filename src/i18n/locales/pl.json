@@ -384,7 +384,9 @@
   "trial": {
     "daysLeft": "Wersja próbna: {{count}} dni do końca",
     "expired": "Twoja wersja próbna wygasła. Wybierz plan, aby kontynuować.",
-    "upgrade": "Wybierz plan"
+    "upgrade": "Wybierz plan",
+    "daysShort": "Trial: {{count}}d",
+    "expiredShort": "Wygasł"
   },
   "subscription": {
     "back": "Panel",
