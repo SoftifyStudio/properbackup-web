@@ -11,7 +11,7 @@ import DocumentationTab from './DocumentationTab.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import FileListItem from './FileListItem.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
-import { fetchInventory, fetchInventoryMeta, forceFlush } from '../api/bufferClient.js';
+import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
@@ -191,11 +191,11 @@ export default function BackupsPage({ server, onBack }) {
   const fetchLiveMeta = useCallback(async () => {
     if (!token) return;
     try {
-      const inv = await fetchInventoryMeta(server.id, token);
+      const inv = await fetchInventorySummary(server.id, token);
       setLiveIndexMeta((m) => ({
         ...m,
         agentStatus: inv.agentStatus ?? null,
-        rootsCount: inv.roots?.length ?? 0,
+        rootsCount: inv.rootsCount ?? 0,
         totalFiles: inv.totalFiles ?? 0,
         latestVerification: inv.latestVerification ?? null,
       }));
