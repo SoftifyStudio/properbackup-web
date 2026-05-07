@@ -166,7 +166,7 @@ export default function BackupsPage({ server, onBack }) {
     if (!token || !isSystemAdmin) return;
     try {
       const authHeaders = { Authorization: `Bearer ${token}` };
-      const logsUrl = new URL(`${BASE_URL}/admin/logs`);
+      const logsUrl = new URL(`${BASE_URL}/admin/logs`, window.location.origin);
       logsUrl.searchParams.set('machineId', server.id);
       logsUrl.searchParams.set('limit', '300');
       if (logsSince) logsUrl.searchParams.set('since', logsSince);

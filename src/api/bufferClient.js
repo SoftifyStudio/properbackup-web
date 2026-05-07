@@ -7,6 +7,14 @@ import { bufferBaseUrl } from '../bufferConfig.js';
 
 const BASE_URL = bufferBaseUrl();
 
+function resolveUrl(path) {
+  try {
+    return new URL(path);
+  } catch {
+    return new URL(path, window.location.origin);
+  }
+}
+
 function sessionHeaders(sessionToken) {
   if (!sessionToken) {
     throw new Error('Not authenticated');
@@ -38,7 +46,7 @@ export async function forceFlush(sessionToken) {
 
 /** Paginated live file index + configured roots (JWT). */
 export async function fetchInventory(serverId, sessionToken, page = 1, pageSize = 1000, sort = 'path') {
-  const u = new URL(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/inventory`);
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/inventory`);
   u.searchParams.set('page', String(page));
   u.searchParams.set('pageSize', String(pageSize));
   if (sort !== 'path') u.searchParams.set('sort', sort);
@@ -54,7 +62,7 @@ export async function fetchInventoryMeta(serverId, sessionToken) {
 
 /** Append-only file status history (JWT). */
 export async function fetchFileEvents(serverId, sessionToken, query = {}) {
-  const u = new URL(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/file-events`);
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/file-events`);
   if (query.path) u.searchParams.set('path', query.path);
   if (query.prefix) u.searchParams.set('prefix', query.prefix);
   if (query.status) u.searchParams.set('status', query.status);
@@ -67,7 +75,7 @@ export async function fetchFileEvents(serverId, sessionToken, query = {}) {
 
 /** Lightweight inventory summary for fast polling (agent status, file/root counts). */
 export async function fetchInventorySummary(serverId, sessionToken) {
-  const u = new URL(`${BASE_URL}/health/inventory-summary`);
+  const u = resolveUrl(`${BASE_URL}/health/inventory-summary`);
   u.searchParams.set('serverId', serverId);
   const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
   if (!res.ok) throw new Error(`inventory-summary failed: ${res.status}`);
@@ -85,7 +93,7 @@ export async function fetchSubscription(sessionToken) {
 
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
-  const u = new URL(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
   if (query.pathId) u.searchParams.set('pathId', query.pathId);
   if (query.limit != null) u.searchParams.set('limit', String(query.limit));
   const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
