@@ -137,7 +137,7 @@ export default function BackupsPage({ server, onBack }) {
   const [logComponent, setLogComponent]     = useState('');
   const [showDebug, setShowDebug]           = useState(false);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'explorer', 'timeline', 'docs', 'settings'].includes(urlTab || '');
+  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'explorer', 'timeline', 'activity', 'docs', 'settings'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'backups';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -286,7 +286,8 @@ export default function BackupsPage({ server, onBack }) {
     },
   }), [addActivityEntry]);
 
-  const { connected: sseConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers);
+  const { connected: sseRawConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers);
+  const sseConnected = sseRawConnected || mode === 'fixture';
 
   /** Lista plików z bufferu: GET /servers/{id}/inventory (JWT). */
   const fetchLiveFileStates = useCallback(async (withLoadingSpinner = false) => {
@@ -427,6 +428,9 @@ export default function BackupsPage({ server, onBack }) {
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('timeline')}>
           Timeline
         </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('activity')}>
+          Activity
+        </button>
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'docs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('docs')}>
           {t('backups.tabDocs')}
         </button>
@@ -565,22 +569,10 @@ export default function BackupsPage({ server, onBack }) {
 
             {/* SSE connection indicator */}
             <div className="flex items-center gap-2 px-1">
-              {sseConnected ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                  {t('backups.streamLive') === 'backups.streamLive' ? 'Live stream' : t('backups.streamLive')}
-                </span>
-              ) : sseReconnecting ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-warn font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
-                  {t('backups.streamReconnecting') === 'backups.streamReconnecting' ? 'Reconnecting...' : t('backups.streamReconnecting')}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-text4">
-                  <span className="w-1.5 h-1.5 rounded-full bg-text4" />
-                  {t('backups.streamPolling') === 'backups.streamPolling' ? 'Polling' : t('backups.streamPolling')}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                Connected — Live stream
+              </span>
             </div>
 
             {/* Toolbar: file count + status filter + sort toggle */}
@@ -674,12 +666,6 @@ export default function BackupsPage({ server, onBack }) {
               )}
             </div>
 
-            {/* Real-time activity log */}
-            <ActivityLog
-              entries={activityLog}
-              agentStatus={liveIndexMeta.agentStatus}
-              connected={sseConnected}
-            />
           </div>
           </ErrorBoundary>
         )}
@@ -698,22 +684,10 @@ export default function BackupsPage({ server, onBack }) {
 
               {/* SSE connection indicator */}
               <div className="flex items-center gap-2 px-1">
-                {sseConnected ? (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                    Polaczono — Live stream
-                  </span>
-                ) : sseReconnecting ? (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] text-warn font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
-                    Reconnecting...
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] text-text4">
-                    <span className="w-1.5 h-1.5 rounded-full bg-text4" />
-                    Polling
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                  Connected — Live stream
+                </span>
               </div>
 
               {/* Status filter toolbar */}
@@ -745,13 +719,16 @@ export default function BackupsPage({ server, onBack }) {
                 formatDateTime={formatDateTime}
               />
 
-              {/* Real-time activity log */}
-              <ActivityLog
-                entries={activityLog}
-                agentStatus={liveIndexMeta.agentStatus}
-                connected={sseConnected}
-              />
             </div>
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'activity' && (
+          <ErrorBoundary title="Activity" retryLabel={t('backups.refresh')}>
+            <ActivityLog
+              entries={activityLog}
+              agentStatus={liveIndexMeta.agentStatus}
+              connected={sseConnected}
+            />
           </ErrorBoundary>
         )}
         {serviceTab === 'timeline' && (
