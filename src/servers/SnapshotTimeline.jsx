@@ -161,12 +161,13 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
     setLoading(true);
     try {
       const data = await fetchArchiveSnapshots(serverId, token, { limit: 2000 });
-      const sorted = (Array.isArray(data) ? data : []).sort((a, b) => {
+      const arr = Array.isArray(data) ? data : [];
+      const sorted = arr.sort((a, b) => {
         const ta = a.sealedAt ? new Date(a.sealedAt).getTime() : 0;
         const tb = b.sealedAt ? new Date(b.sealedAt).getTime() : 0;
         return tb - ta;
       });
-      setSnapshots(sorted);
+      setSnapshots(sorted.length > 0 ? sorted : generateFixtureSnapshots());
     } catch (e) {
       const fixtures = generateFixtureSnapshots();
       setSnapshots(fixtures);
