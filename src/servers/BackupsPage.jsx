@@ -9,6 +9,7 @@ import InventoryPanel from './InventoryPanel.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
 import DocumentationTab from './DocumentationTab.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
+import FileListItem from './FileListItem.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
 import { fetchInventory, fetchInventoryMeta, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
@@ -452,62 +453,36 @@ export default function BackupsPage({ server, onBack }) {
 
             {/* OneDrive-style file list */}
             <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
-              <table className="w-full text-[13px]">
-                <thead className="bg-surface/90 border-b border-border sticky top-0 z-10">
-                  <tr>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-text4">
-                      {t('backups.filesColPath')}
-                    </th>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[8rem]">
-                      {t('backups.filesColStatus')}
-                    </th>
-                    <th className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[11rem]">
-                      {t('backups.filesColUpdated')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {fileStates.map(r => {
-                    const isRecent = r.updatedAt && (Date.now() - new Date(r.updatedAt).getTime()) < 10000;
-                    const statusColor = r.status === 'changed' ? 'bg-amber-100 text-amber-700'
-                      : r.status === 'deleted' ? 'bg-red-100 text-red-700'
-                      : 'bg-emerald-50 text-emerald-700';
-                    return (
-                      <tr
-                        key={r.fullPath}
-                        className={`transition-colors duration-300 ${isRecent ? 'bg-accent/[0.05]' : 'hover:bg-surface/60'}`}
-                      >
-                        <td className="py-2 px-4 align-middle">
-                          <div className="flex items-center gap-2.5">
-                            {isRecent && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-accent" />}
-                            {!isRecent && <span className="shrink-0 w-1.5" />}
-                            <svg className="shrink-0 w-4 h-4 text-text4" viewBox="0 0 16 16" fill="none">
-                              <path d="M3 2.5A1.5 1.5 0 014.5 1h4.379a1.5 1.5 0 011.06.44l2.122 2.12A1.5 1.5 0 0112.5 4.622V13.5A1.5 1.5 0 0111 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1"/>
-                              <path d="M9 1v3.5h3.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
-                            </svg>
-                            <span className="font-mono text-[12.5px] text-text2 leading-snug truncate">{r.fullPath}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-4 align-middle">
-                          <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full ${statusColor}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="py-2 px-4 text-text3 tabular-nums text-[12px] align-middle">
-                          {formatDateTime(r.updatedAt)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {fileStates.length === 0 && (
-                    <tr>
-                      <td className="py-8 px-4 text-center text-text4 text-sm" colSpan={3}>
-                        {t('backups.filesEmpty')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              {/* Column header */}
+              <div className="flex items-center gap-3 px-4 py-2 bg-surface/90 border-b border-border">
+                <span className="shrink-0 w-1.5" />
+                <span className="shrink-0 w-5" />
+                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-text4">
+                  {t('backups.filesColName')}
+                </span>
+                <div className="shrink-0 flex items-center gap-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-text4 w-[5.5rem] text-center">
+                    {t('backups.filesColStatus')}
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-text4 w-[9rem] text-right">
+                    {t('backups.filesColUpdated')}
+                  </span>
+                </div>
+              </div>
+              {/* File rows */}
+              <div className="max-h-[70vh] overflow-y-auto">
+                {fileStates.map(r => (
+                  <FileListItem key={r.fullPath} file={r} formatDateTime={formatDateTime} />
+                ))}
+                {fileStates.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-16 text-text4">
+                    <svg className="w-10 h-10 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                    </svg>
+                    <p className="text-sm">{t('backups.filesEmpty')}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           </ErrorBoundary>

@@ -102,6 +102,7 @@
     "logLevelAll": "Wszystkie poziomy",
     "logsEmpty": "Brak logów dla wybranych filtrów.",
     "logDropped": "porzucone={{count}}",
+    "filesColName": "Nazwa",
     "filesColPath": "Ścieżka",
     "filesColStatus": "Status",
     "filesColUpdated": "Zaktualizowano",

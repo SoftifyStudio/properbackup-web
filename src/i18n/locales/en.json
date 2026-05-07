@@ -102,6 +102,7 @@
     "logLevelAll": "All levels",
     "logsEmpty": "No log lines for current filters.",
     "logDropped": "dropped={{count}}",
+    "filesColName": "Name",
     "filesColPath": "Path",
     "filesColStatus": "Status",
     "filesColUpdated": "Updated",
