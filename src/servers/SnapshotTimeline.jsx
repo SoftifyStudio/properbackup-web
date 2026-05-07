@@ -44,14 +44,14 @@ function IntegrityBadge({ flag, sealedAt }) {
   );
 }
 
-function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, onClick }) {
+function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, isActive: isHighlighted, onClick }) {
   const sealDate = snap.sealedAt ? new Date(snap.sealedAt) : null;
-  const isActive = snap.flag === 'A';
+  const isActiveFlag = snap.flag === 'A';
 
   return (
     <div
       className={`px-4 py-3 border-b border-border/50 last:border-0 cursor-pointer transition-colors ${
-        isSelected ? 'bg-accent/[0.06] ring-1 ring-accent/20 ring-inset' : 'hover:bg-surface/60'
+        isHighlighted ? 'bg-accent/[0.08] ring-2 ring-accent/30 ring-inset' : isSelected ? 'bg-accent/[0.04] ring-1 ring-accent/15 ring-inset' : 'hover:bg-surface/60'
       }`}
       onClick={onClick}
     >
@@ -60,7 +60,7 @@ function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, onClick }) 
           {/* Timeline dot */}
           <div className="flex flex-col items-center shrink-0">
             <div className={`w-3 h-3 rounded-full border-2 ${
-              isActive ? 'border-accent bg-accent/20' : 'border-text4 bg-surface'
+              isActiveFlag ? 'border-accent bg-accent/20' : 'border-text4 bg-surface'
             }`} />
           </div>
 
@@ -78,7 +78,7 @@ function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, onClick }) 
           </div>
         </div>
 
-        {isActive && (
+        {isActiveFlag && (
           <button
             className="btn-primary py-1.5 px-3 text-xs shrink-0 opacity-0 group-hover:opacity-100"
             style={{ opacity: isSelected ? 1 : undefined }}
@@ -110,16 +110,16 @@ function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, onClick }) 
             <span className="text-text4">Flag:</span>
             <span className="text-text2 ml-1">{snap.flag === 'A' ? 'Active' : 'Deleted'}</span>
           </div>
-          {isActive && (
+          {isActiveFlag && (
             <div className="col-span-2 mt-1">
               <button
-                className="btn-primary py-1.5 px-4 text-xs"
+                className="bg-accent hover:bg-accent/90 text-white font-semibold py-2.5 px-6 rounded-xl text-sm shadow-md transition-all"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRestore(snap);
                 }}
               >
-                Restore from this snapshot
+                Restore to this moment
               </button>
             </div>
           )}
@@ -148,13 +148,13 @@ function generateFixtureSnapshots() {
   ];
 }
 
-export default function SnapshotTimeline({ serverId, onRestore, verification }) {
+export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification }) {
   const { token } = useAuth();
   const { formatDateTime } = useI18n();
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedIdx, setSelectedIdx] = useState(null);
+  const [expandedIdx, setExpandedIdx] = useState(null);
   const [filterFlag, setFilterFlag] = useState('all');
 
   const load = useCallback(async () => {
@@ -253,6 +253,26 @@ export default function SnapshotTimeline({ serverId, onRestore, verification }) 
         </div>
       )}
 
+      {/* Selected snapshot restore bar */}
+      {selectedSnapshot && (
+        <div className="px-5 py-4 rounded-xl2 border-2 border-accent bg-accent/[0.04] flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-text1">Time travel to this moment</div>
+            <div className="text-xs text-text3 mt-0.5">
+              {selectedSnapshot.sealedAt ? formatDateTime(selectedSnapshot.sealedAt) : 'Unknown time'}
+              {' — '}
+              {fmtBytes(selectedSnapshot.sizeBytes || 0)}
+            </div>
+          </div>
+          <button
+            className="bg-accent hover:bg-accent/90 text-white font-semibold py-3 px-8 rounded-xl text-sm shadow-lg transition-all hover:shadow-xl active:scale-[0.98] shrink-0"
+            onClick={() => onRestore(selectedSnapshot)}
+          >
+            Restore to this moment
+          </button>
+        </div>
+      )}
+
       {/* Timeline list */}
       <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
         <div className="px-4 py-2 border-b border-border bg-surface/90 flex items-center justify-between">
@@ -288,30 +308,45 @@ export default function SnapshotTimeline({ serverId, onRestore, verification }) 
               width="100%"
               overscanCount={10}
             >
-              {({ index, style }) => (
-                <div style={style}>
-                  <SnapshotCard
-                    snap={filtered[index]}
-                    onRestore={onRestore}
-                    formatDateTime={formatDateTime}
-                    isSelected={selectedIdx === index}
-                    onClick={() => setSelectedIdx(selectedIdx === index ? null : index)}
-                  />
-                </div>
-              )}
+              {({ index, style }) => {
+                const snap = filtered[index];
+                const isActive = selectedSnapshot?.objectName === snap.objectName;
+                return (
+                  <div style={style}>
+                    <SnapshotCard
+                      snap={snap}
+                      onRestore={onRestore}
+                      formatDateTime={formatDateTime}
+                      isSelected={expandedIdx === index}
+                      isActive={isActive}
+                      onClick={() => {
+                        setExpandedIdx(expandedIdx === index ? null : index);
+                        if (onSelectSnapshot) onSelectSnapshot(isActive ? null : snap);
+                      }}
+                    />
+                  </div>
+                );
+              }}
             </VirtualList>
           ) : (
             <div className="max-h-[60vh] overflow-y-auto">
-              {filtered.map((snap, i) => (
-                <SnapshotCard
-                  key={snap.objectName}
-                  snap={snap}
-                  onRestore={onRestore}
-                  formatDateTime={formatDateTime}
-                  isSelected={selectedIdx === i}
-                  onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
-                />
-              ))}
+              {filtered.map((snap, i) => {
+                const isActive = selectedSnapshot?.objectName === snap.objectName;
+                return (
+                  <SnapshotCard
+                    key={snap.objectName}
+                    snap={snap}
+                    onRestore={onRestore}
+                    formatDateTime={formatDateTime}
+                    isSelected={expandedIdx === i}
+                    isActive={isActive}
+                    onClick={() => {
+                      setExpandedIdx(expandedIdx === i ? null : i);
+                      if (onSelectSnapshot) onSelectSnapshot(isActive ? null : snap);
+                    }}
+                  />
+                );
+              })}
             </div>
           )
         )}

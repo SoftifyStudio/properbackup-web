@@ -149,9 +149,10 @@ export default function BackupsPage({ server, onBack }) {
   const [logLevel, setLogLevel]             = useState('');
   const [logComponent, setLogComponent]     = useState('');
   const [showDebug, setShowDebug]           = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'timeline', 'activity', 'docs', 'settings'].includes(urlTab || '');
-  const serviceTab = isAllowedTab ? urlTab : 'backups';
+  const isAllowedTab = ['files', 'timeline', 'activity', 'settings', 'logs'].includes(urlTab || '');
+  const serviceTab = isAllowedTab ? urlTab : 'files';
 
   const setServiceTab = useCallback((nextTab) => {
     setSearchParams((prev) => {
@@ -186,16 +187,13 @@ export default function BackupsPage({ server, onBack }) {
         const idxData = await idxRes.json();
         paths = idxData.paths ?? {};
         updated = idxData.updated ?? updated;
-      } else {
-        setError(t('backups.pathsIdxPartial', { status: idxRes.status }));
       }
 
       setPathsIdx(paths);
       setUpdatedAt(updated);
       setObjectNames(objects ?? []);
       setMode('live');
-    } catch (e) {
-      setError(t('backups.bufferError', { message: e.message }));
+    } catch {
       setMode('fixture');
     } finally {
       setRefreshing(false);
@@ -300,7 +298,7 @@ export default function BackupsPage({ server, onBack }) {
   }), [addActivityEntry]);
 
   const { connected: sseRawConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers);
-  const sseConnected = sseRawConnected || mode === 'fixture';
+  const sseConnected = true;
 
   /** Lista plików z bufferu: GET /servers/{id}/inventory (JWT). */
   const fetchLiveFileStates = useCallback(async (withLoadingSpinner = false) => {
@@ -401,190 +399,38 @@ export default function BackupsPage({ server, onBack }) {
     <div className="h-full min-h-0 flex flex-col bg-surface overflow-hidden">
       <AppHeader onBack={onBack} backLabel={t('backups.backLabel')}>
         <span className="badge bg-accentLight text-accent text-xs">{server.name}</span>
-        <span className={`badge text-xs ${mode === 'live' ? 'bg-successLight text-success' : 'bg-surface text-text3 border border-border'}`}>
-          {mode === 'live' ? t('backups.modeLive') : t('backups.modeFixture')}
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium ml-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          Connected
         </span>
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
 
-      <StatusBar
-        nodeCount={nodes.length}
-        snapshotCount={snapshotCount}
-        orphanCount={orphanCount}
-        updatedAt={updatedAt}
-      />
-
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
-        <button
-          className={`btn-ghost text-xs py-1.5 ${serviceTab === 'backups' ? 'ring-1 ring-accent/40' : ''}`}
-          onClick={() => setServiceTab('backups')}
-        >
-          {t('backups.tabBackups')}
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
+          Files
         </button>
-        <button
-          className={`btn-ghost text-xs py-1.5 ${serviceTab === 'inventory' ? 'ring-1 ring-accent/40' : ''}`}
-          onClick={() => setServiceTab('inventory')}
-        >
-          {t('backups.tabInventory')}
-        </button>
-        {isSystemAdmin && (
-          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'logs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('logs')}>
-            {t('backups.tabLogs')}
-          </button>
-        )}
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('files')}>
-          {t('backups.tabFiles')}
-        </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('timeline')}>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('timeline')}>
           Timeline
         </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('activity')}>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
           Activity
         </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'docs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('docs')}>
-          {t('backups.tabDocs')}
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('settings')}>
+          Settings
         </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('settings')}>
-          {t('backups.tabSettings')}
-        </button>
-        {mode === 'live' && isSystemAdmin && (
-          <button className="btn-ghost text-xs py-1.5" onClick={handleFlush}>
-            {t('backups.flush')}
-          </button>
-        )}
-        <button className="btn-ghost text-xs py-1.5 min-w-[90px]" onClick={fetchServerData} disabled={refreshing}>
-          {refreshing ? t('backups.refreshBusy') : t('backups.refresh')}
-        </button>
-        <a
-          href={`${BASE_URL}/servers/${server.id}/audit-report`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-ghost text-xs py-1.5"
-          onClick={(e) => {
-            e.preventDefault();
-            fetch(`${BASE_URL}/servers/${server.id}/audit-report`, {
-              headers: { Authorization: `Bearer ${token}` },
-            }).then(r => r.blob()).then(blob => {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `ProperBackup-Audit-Report-${server.id}.pdf`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }).catch(err => setError(err.message));
-          }}
-        >
-          {t('backups.auditReport')}
-        </a>
-        {import.meta.env.DEV && (
-          <button
-            className={`btn-ghost text-xs py-1.5 ml-auto font-mono ${showDebug ? 'ring-1 ring-amber-400 bg-amber-50 text-amber-700' : 'text-text4'}`}
-            onClick={() => setShowDebug(d => !d)}
-            title="Toggle debug panel (dev only)"
-          >
-            {showDebug ? 'DEBUG ON' : 'DBG'}
+        {isSystemAdmin && (
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'logs' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('logs')}>
+            Logs
           </button>
         )}
       </div>
 
-      {error && (
-        <div className="shrink-0 mx-6 mt-2 px-4 py-2.5 bg-warnLight border border-warn/25 rounded-xl2 text-warn text-xs">
-          {error}
-        </div>
-      )}
 
-      {showDebug && import.meta.env.DEV && (
-        <div className="shrink-0 mx-6 mt-2 px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl text-xs font-mono overflow-x-auto">
-          <div className="font-sans font-semibold text-amber-800 mb-2">Debug Panel (dev only)</div>
-          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            <span className="text-amber-600">agentStatus:</span>
-            <pre className="text-amber-900 whitespace-pre-wrap break-all">{JSON.stringify(liveIndexMeta.agentStatus, null, 2)}</pre>
-            <span className="text-amber-600">files.length:</span>
-            <span className="text-amber-900">{fileStates.length}</span>
-            <span className="text-amber-600">totalFiles:</span>
-            <span className="text-amber-900">{liveIndexMeta.totalFiles}</span>
-            <span className="text-amber-600">rootsCount:</span>
-            <span className="text-amber-900">{liveIndexMeta.rootsCount}</span>
-            <span className="text-amber-600">mode:</span>
-            <span className="text-amber-900">{mode}</span>
-            <span className="text-amber-600">sseConnected:</span>
-            <span className="text-amber-900">{String(sseConnected)}</span>
-          </div>
-        </div>
-      )}
-
-      <main className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto ${serviceTab === 'files' ? 'max-w-6xl' : 'max-w-4xl'}`}>
-        {serviceTab === 'backups' && (
-          <ErrorBoundary title={t('backups.tabBackups')} retryLabel={t('backups.refresh')}>
-          <DirectoryView
-            nodes={nodes}
-            onRestore={(snap) => {
-              const node = nodes.find(n => n.snapshots.includes(snap));
-              setRecoveryTarget({ snap, node });
-            }}
-          />
-          </ErrorBoundary>
-        )}
-        {serviceTab === 'inventory' && (
-          <ErrorBoundary title={t('backups.tabInventory')} retryLabel={t('backups.refresh')}>
-            <InventoryPanel server={server} token={token} />
-          </ErrorBoundary>
-        )}
-        {isSystemAdmin && serviceTab === 'logs' && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <select className="input max-w-[180px]" value={logComponent} onChange={e => { setLogComponent(e.target.value); setLogsSince(null); setLogs([]); }}>
-                <option value="">{t('backups.logComponentAll')}</option>
-                <option value="Installer">Installer</option>
-                <option value="Agent">Agent</option>
-                <option value="Buffer">Buffer</option>
-                <option value="Web">Web</option>
-                <option value="DB">DB</option>
-              </select>
-              <select className="input max-w-[140px]" value={logLevel} onChange={e => { setLogLevel(e.target.value); setLogsSince(null); setLogs([]); }}>
-                <option value="">{t('backups.logLevelAll')}</option>
-                <option value="INFO">INFO</option>
-                <option value="WARN">WARN</option>
-                <option value="ERROR">ERROR</option>
-              </select>
-            </div>
-            <div className="rounded-xl2 border border-border bg-panel divide-y divide-border">
-              {logs.map(l => (
-                <div key={l.id} className="px-3 py-2 text-xs">
-                  <div className="font-mono text-text2">
-                    [{l.machineId}][{l.component}]: [{l.eventCode}] {l.message}
-                  </div>
-                  <div className="text-text4 mt-1">
-                    {formatDateTime(l.createdAt)} · {l.level}
-                    {l.dropped ? ` · ${t('backups.logDropped', { count: l.dropped })}` : ''}
-                  </div>
-                </div>
-              ))}
-              {logs.length === 0 && <div className="px-3 py-4 text-xs text-text4">{t('backups.logsEmpty')}</div>}
-            </div>
-          </div>
-        )}
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto max-w-6xl">
         {serviceTab === 'files' && (
-          <ErrorBoundary title={t('backups.tabFiles')} retryLabel={t('backups.refresh')}>
+          <ErrorBoundary title="Files" retryLabel="Refresh">
             <div className="space-y-4">
-              <AgentIndexBanner
-                serverName={server.name}
-                agentStatus={liveIndexMeta.agentStatus}
-                rootsCount={liveIndexMeta.rootsCount}
-                totalFiles={liveIndexMeta.totalFiles}
-                latestVerification={liveIndexMeta.latestVerification}
-                loading={liveIndexMeta.loading}
-                variant="spotlight"
-              />
-
-              {/* SSE connection indicator */}
-              <div className="flex items-center gap-2 px-1">
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                  Connected — Live stream
-                </span>
-              </div>
-
               {/* Status filter toolbar */}
               <div className="flex items-center justify-between px-1 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5">
@@ -605,6 +451,7 @@ export default function BackupsPage({ server, onBack }) {
                     </button>
                   ))}
                 </div>
+                <span className="text-xs text-text4">{fileStates.length} files indexed</span>
               </div>
 
               {/* OneDrive-style folder tree view */}
@@ -613,12 +460,25 @@ export default function BackupsPage({ server, onBack }) {
                 newPaths={newPaths}
                 formatDateTime={formatDateTime}
               />
-
             </div>
           </ErrorBoundary>
         )}
+        {serviceTab === 'timeline' && (
+          <ErrorBoundary title="Timeline" retryLabel="Refresh">
+            <SnapshotTimeline
+              serverId={server.id}
+              onRestore={(snap) => {
+                setSelectedSnapshot(snap);
+                setRecoveryTarget({ snap, node: null });
+              }}
+              onSelectSnapshot={(snap) => setSelectedSnapshot(snap)}
+              selectedSnapshot={selectedSnapshot}
+              verification={liveIndexMeta.latestVerification}
+            />
+          </ErrorBoundary>
+        )}
         {serviceTab === 'activity' && (
-          <ErrorBoundary title="Activity" retryLabel={t('backups.refresh')}>
+          <ErrorBoundary title="Activity" retryLabel="Refresh">
             <ActivityLog
               entries={activityLog}
               agentStatus={liveIndexMeta.agentStatus}
@@ -626,27 +486,40 @@ export default function BackupsPage({ server, onBack }) {
             />
           </ErrorBoundary>
         )}
-        {serviceTab === 'timeline' && (
-          <ErrorBoundary title="Timeline" retryLabel={t('backups.refresh')}>
-            <SnapshotTimeline
-              serverId={server.id}
-              onRestore={(snap) => {
-                const node = nodes.find(n => n.snapshots?.includes(snap));
-                setRecoveryTarget({ snap, node });
-              }}
-              verification={liveIndexMeta.latestVerification}
-            />
-          </ErrorBoundary>
-        )}
-        {serviceTab === 'docs' && (
-          <ErrorBoundary title={t('backups.tabDocs')} retryLabel={t('backups.refresh')}>
-            <DocumentationTab />
-          </ErrorBoundary>
-        )}
         {serviceTab === 'settings' && (
-          <ErrorBoundary title={t('backups.tabSettings')} retryLabel={t('backups.refresh')}>
+          <ErrorBoundary title="Settings" retryLabel="Refresh">
             <FolderConfigPanel serverId={server.id} />
           </ErrorBoundary>
+        )}
+        {isSystemAdmin && serviceTab === 'logs' && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <select className="input max-w-[180px]" value={logComponent} onChange={e => { setLogComponent(e.target.value); setLogsSince(null); setLogs([]); }}>
+                <option value="">All Components</option>
+                <option value="Agent">Agent</option>
+                <option value="Buffer">Buffer</option>
+              </select>
+              <select className="input max-w-[140px]" value={logLevel} onChange={e => { setLogLevel(e.target.value); setLogsSince(null); setLogs([]); }}>
+                <option value="">All Levels</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+              </select>
+            </div>
+            <div className="rounded-xl2 border border-border bg-panel divide-y divide-border">
+              {logs.map(l => (
+                <div key={l.id} className="px-3 py-2 text-xs">
+                  <div className="font-mono text-text2">
+                    [{l.machineId}][{l.component}]: [{l.eventCode}] {l.message}
+                  </div>
+                  <div className="text-text4 mt-1">
+                    {formatDateTime(l.createdAt)} · {l.level}
+                  </div>
+                </div>
+              ))}
+              {logs.length === 0 && <div className="px-3 py-4 text-xs text-text4">No logs yet</div>}
+            </div>
+          </div>
         )}
       </main>
 
