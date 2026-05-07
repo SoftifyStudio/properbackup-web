@@ -28,32 +28,32 @@ const CODE_EXTS = new Set(['java','kt','kts','js','jsx','ts','tsx','py','rs','go
 function FileIcon({ ext }) {
   const color = EXT_COLORS[ext] || 'text-text4';
   if (IMAGE_EXTS.has(ext)) return (
-    <svg className={`shrink-0 w-[18px] h-[18px] ${color}`} viewBox="0 0 16 16" fill="none">
+    <svg className={`shrink-0 w-5 h-5 ${color}`} viewBox="0 0 16 16" fill="none">
       <rect x="1.5" y="2" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.1"/>
       <circle cx="5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1"/>
       <path d="M1.5 11l3-3 2 2 3-3 5 4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
   if (ARCHIVE_EXTS.has(ext)) return (
-    <svg className={`shrink-0 w-[18px] h-[18px] ${color}`} viewBox="0 0 16 16" fill="none">
+    <svg className={`shrink-0 w-5 h-5 ${color}`} viewBox="0 0 16 16" fill="none">
       <path d="M3 2.5A1.5 1.5 0 014.5 1h4.379a1.5 1.5 0 011.06.44l2.122 2.12A1.5 1.5 0 0112.5 4.622V13.5A1.5 1.5 0 0111 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1"/>
       <path d="M7 4h2M7 6h2M7 8h2M7 10h2" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
     </svg>
   );
   if (MEDIA_EXTS.has(ext)) return (
-    <svg className={`shrink-0 w-[18px] h-[18px] ${color}`} viewBox="0 0 16 16" fill="none">
+    <svg className={`shrink-0 w-5 h-5 ${color}`} viewBox="0 0 16 16" fill="none">
       <rect x="1.5" y="2" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.1"/>
       <path d="M6.5 5.5l4 2.5-4 2.5V5.5z" fill="currentColor"/>
     </svg>
   );
   if (CODE_EXTS.has(ext)) return (
-    <svg className={`shrink-0 w-[18px] h-[18px] ${color}`} viewBox="0 0 16 16" fill="none">
+    <svg className={`shrink-0 w-5 h-5 ${color}`} viewBox="0 0 16 16" fill="none">
       <path d="M3 2.5A1.5 1.5 0 014.5 1h4.379a1.5 1.5 0 011.06.44l2.122 2.12A1.5 1.5 0 0112.5 4.622V13.5A1.5 1.5 0 0111 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1"/>
       <path d="M6.5 7L5 8.5 6.5 10M9.5 7L11 8.5 9.5 10" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
   return (
-    <svg className={`shrink-0 w-[18px] h-[18px] ${color}`} viewBox="0 0 16 16" fill="none">
+    <svg className={`shrink-0 w-5 h-5 ${color}`} viewBox="0 0 16 16" fill="none">
       <path d="M3 2.5A1.5 1.5 0 014.5 1h4.379a1.5 1.5 0 011.06.44l2.122 2.12A1.5 1.5 0 0112.5 4.622V13.5A1.5 1.5 0 0111 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1"/>
       <path d="M9 1v3.5h3.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
     </svg>
@@ -62,17 +62,17 @@ function FileIcon({ ext }) {
 
 function FolderIcon() {
   return (
-    <svg className="w-[18px] h-[18px] text-accent/80 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+    <svg className="w-5 h-5 text-[#dcb67a] shrink-0" viewBox="0 0 20 20" fill="currentColor">
       <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
     </svg>
   );
 }
 
 const STATUS_STYLES = {
-  current: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Synced' },
-  changed: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Modified' },
-  deleted: { bg: 'bg-red-50', text: 'text-red-700', label: 'Deleted' },
-  new:     { bg: 'bg-blue-50', text: 'text-blue-700', label: 'New' },
+  current: { text: 'text-emerald-600', label: 'Synced', dot: 'bg-emerald-500' },
+  changed: { text: 'text-amber-600', label: 'Modified', dot: 'bg-amber-500' },
+  deleted: { text: 'text-red-600', label: 'Deleted', dot: 'bg-red-500' },
+  new:     { text: 'text-blue-600', label: 'New', dot: 'bg-blue-500' },
 };
 
 function fmtRelativeTime(isoStr) {
@@ -112,7 +112,7 @@ function getLatestUpdate(node) {
 function SortArrow({ direction }) {
   if (!direction) return null;
   return (
-    <svg className="w-3 h-3 ml-0.5 inline-block" viewBox="0 0 12 12" fill="none">
+    <svg className="w-3 h-3 ml-1 inline-block text-[#323130]" viewBox="0 0 12 12" fill="none">
       {direction === 'asc' ? (
         <path d="M6 3v6M3.5 5.5L6 3l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       ) : (
@@ -158,37 +158,42 @@ function getNodeAtPath(root, pathSegments) {
   return node;
 }
 
-function Breadcrumb({ segments, onNavigate }) {
+function Breadcrumb({ segments, onNavigate, snapshotLabel }) {
   return (
-    <nav className="flex items-center gap-0.5 text-sm text-text3 overflow-x-auto px-4 py-2.5 bg-panel border-b border-border">
+    <div className="flex items-center gap-1 text-sm px-5 py-3 border-b border-[#edebe9] bg-white min-h-[44px]">
       <button
-        className="text-accent hover:text-accent/80 hover:underline font-medium shrink-0 px-1"
+        className="text-[#0078d4] hover:underline font-medium shrink-0"
         onClick={() => onNavigate([])}
       >
-        My Server
+        My files
       </button>
       {segments.map((seg, i) => (
         <React.Fragment key={i}>
-          <svg className="w-3.5 h-3.5 text-text4 shrink-0" viewBox="0 0 12 12" fill="none">
+          <svg className="w-3 h-3 text-[#a19f9d] shrink-0 mx-0.5" viewBox="0 0 12 12" fill="none">
             <path d="M4.5 2.5l3.5 3.5-3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <button
-            className={`shrink-0 px-1 ${i === segments.length - 1 ? 'text-text1 font-medium' : 'text-accent hover:text-accent/80 hover:underline'}`}
+            className={`shrink-0 ${i === segments.length - 1 ? 'text-[#323130] font-medium' : 'text-[#0078d4] hover:underline'}`}
             onClick={() => onNavigate(segments.slice(0, i + 1))}
           >
             {seg}
           </button>
         </React.Fragment>
       ))}
-    </nav>
+      {snapshotLabel && (
+        <span className="ml-auto text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+          {snapshotLabel}
+        </span>
+      )}
+    </div>
   );
 }
 
-export default function FolderTreeView({ files, newPaths, formatDateTime }) {
+export default function FolderTreeView({ files, newPaths, formatDateTime, snapshotLabel }) {
   const [currentPath, setCurrentPath] = useState([]);
   const [sortCol, setSortCol] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
-  const [selected, setSelected] = useState(null);
+  const [hoveredIdx, setHoveredIdx] = useState(null);
 
   const tree = useMemo(() => buildFolderTree(files), [files]);
 
@@ -247,38 +252,36 @@ export default function FolderTreeView({ files, newPaths, formatDateTime }) {
 
   const navigateToFolder = useCallback((name) => {
     setCurrentPath((prev) => [...prev, name]);
-    setSelected(null);
+    setHoveredIdx(null);
   }, []);
 
-  const ROW_HEIGHT = 44;
-  const listHeight = Math.min(entries.length * ROW_HEIGHT, 640);
+  const ROW_HEIGHT = 48;
+  const listHeight = Math.min(entries.length * ROW_HEIGHT, 680);
 
   const renderRow = useCallback(({ index, style }) => {
     const entry = entries[index];
     if (!entry) return null;
-    const isSelected = selected === index;
+    const isHovered = hoveredIdx === index;
 
     if (entry.type === 'folder') {
       return (
         <div
           style={style}
-          className={`flex items-center gap-3 px-4 cursor-pointer transition-colors border-b border-border/30 group ${
-            isSelected ? 'bg-accent/[0.06]' : 'hover:bg-[#f3f3f3]'
+          className={`flex items-center gap-3 px-5 cursor-pointer transition-colors border-b border-[#f3f2f1] ${
+            isHovered ? 'bg-[#f3f2f1]' : 'bg-white'
           }`}
           onClick={() => navigateToFolder(entry.name)}
-          onContextMenu={(e) => { e.preventDefault(); setSelected(index); }}
+          onMouseEnter={() => setHoveredIdx(index)}
+          onMouseLeave={() => setHoveredIdx(null)}
         >
           <FolderIcon />
-          <span className="flex-1 text-[13px] font-medium text-text1 truncate">{entry.name}</span>
-          <span className="text-xs text-text4 w-[7rem] text-right shrink-0">
+          <span className="flex-1 text-[14px] text-[#323130] truncate">{entry.name}</span>
+          <span className="text-[13px] text-[#605e5c] w-[9rem] text-right shrink-0 tabular-nums">
             {entry.latestUpdate > 0 ? fmtRelativeTime(new Date(entry.latestUpdate).toISOString()) : ''}
           </span>
-          <span className="text-xs text-text4 w-[5rem] text-right shrink-0 tabular-nums">
+          <span className="text-[13px] text-[#a19f9d] w-[6rem] text-right shrink-0">
             {entry.fileCount} {entry.fileCount === 1 ? 'item' : 'items'}
           </span>
-          <svg className="w-4 h-4 text-text4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" viewBox="0 0 16 16" fill="none">
-            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
         </div>
       );
     }
@@ -290,80 +293,82 @@ export default function FolderTreeView({ files, newPaths, formatDateTime }) {
     return (
       <div
         style={style}
-        className={`flex items-center gap-3 px-4 transition-colors border-b border-border/30 cursor-default group ${
-          isNew ? 'animate-fade-in-row' : isSelected ? 'bg-accent/[0.06]' : 'hover:bg-[#f3f3f3]'
+        className={`flex items-center gap-3 px-5 transition-colors cursor-default border-b border-[#f3f2f1] ${
+          isNew ? 'animate-fade-in-row bg-blue-50/40' : isHovered ? 'bg-[#f3f2f1]' : 'bg-white'
         }`}
-        onClick={() => setSelected(index)}
+        onMouseEnter={() => setHoveredIdx(index)}
+        onMouseLeave={() => setHoveredIdx(null)}
       >
         <FileIcon ext={entry.ext} />
-        <div className="flex-1 min-w-0">
-          <span className={`text-[13px] truncate block ${f.status === 'deleted' ? 'line-through text-text4' : 'text-text1'}`}>
-            {entry.name}
-          </span>
-        </div>
-        <span className="text-xs text-text4 w-[7rem] text-right shrink-0 tabular-nums">
+        <span className={`flex-1 text-[14px] truncate ${f.status === 'deleted' ? 'line-through text-[#a19f9d]' : 'text-[#323130]'}`}>
+          {entry.name}
+        </span>
+        <span className="text-[13px] text-[#605e5c] w-[9rem] text-right shrink-0 tabular-nums">
           {f.updatedAt ? fmtRelativeTime(f.updatedAt) : ''}
         </span>
-        <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full w-[5rem] justify-center shrink-0 ${st.bg} ${st.text}`}>
-          {st.label}
+        <span className="w-[6rem] shrink-0 flex items-center justify-end gap-1.5">
+          <span className={`w-[6px] h-[6px] rounded-full ${st.dot}`} />
+          <span className={`text-[12px] font-medium ${st.text}`}>{st.label}</span>
         </span>
       </div>
     );
-  }, [entries, newPaths, navigateToFolder, selected]);
+  }, [entries, newPaths, navigateToFolder, hoveredIdx]);
 
   return (
-    <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
-      {/* OneDrive-style breadcrumb path bar */}
-      <Breadcrumb segments={currentPath} onNavigate={(segs) => { setCurrentPath(segs); setSelected(null); }} />
+    <div className="bg-white border border-[#edebe9] rounded-lg overflow-hidden">
+      <Breadcrumb
+        segments={currentPath}
+        onNavigate={(segs) => { setCurrentPath(segs); setHoveredIdx(null); }}
+        snapshotLabel={snapshotLabel}
+      />
 
       {/* Column header (sortable) */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-[#fafafa] border-b border-border select-none">
-        <span className="shrink-0 w-[18px]" />
+      <div className="flex items-center gap-3 px-5 h-[36px] bg-[#faf9f8] border-b border-[#edebe9] select-none">
+        <span className="shrink-0 w-5" />
         <button
-          className="flex-1 flex items-center text-[11px] font-semibold uppercase tracking-wide text-text4 hover:text-text2 text-left"
+          className="flex-1 flex items-center text-[12px] font-semibold text-[#605e5c] hover:text-[#323130] text-left"
           onClick={() => toggleSort('name')}
         >
           Name
           {sortCol === 'name' && <SortArrow direction={sortDir} />}
         </button>
         <button
-          className="w-[7rem] flex items-center justify-end text-[11px] font-semibold uppercase tracking-wide text-text4 hover:text-text2 shrink-0"
+          className="w-[9rem] flex items-center justify-end text-[12px] font-semibold text-[#605e5c] hover:text-[#323130] shrink-0"
           onClick={() => toggleSort('modified')}
         >
           Modified
           {sortCol === 'modified' && <SortArrow direction={sortDir} />}
         </button>
         <button
-          className="w-[5rem] flex items-center justify-center text-[11px] font-semibold uppercase tracking-wide text-text4 hover:text-text2 shrink-0"
+          className="w-[6rem] flex items-center justify-end text-[12px] font-semibold text-[#605e5c] hover:text-[#323130] shrink-0"
           onClick={() => toggleSort('status')}
         >
           Status
           {sortCol === 'status' && <SortArrow direction={sortDir} />}
         </button>
-        <span className="shrink-0 w-4" />
       </div>
 
       {/* Back row */}
       {currentPath.length > 0 && (
         <div
-          className="flex items-center gap-3 px-4 h-[44px] hover:bg-[#f3f3f3] cursor-pointer transition-colors border-b border-border/30"
-          onClick={() => { setCurrentPath((p) => p.slice(0, -1)); setSelected(null); }}
+          className="flex items-center gap-3 px-5 h-[48px] hover:bg-[#f3f2f1] cursor-pointer transition-colors bg-white border-b border-[#f3f2f1]"
+          onClick={() => { setCurrentPath((p) => p.slice(0, -1)); setHoveredIdx(null); }}
         >
-          <svg className="w-[18px] h-[18px] text-accent" viewBox="0 0 16 16" fill="none">
+          <svg className="w-5 h-5 text-[#0078d4]" viewBox="0 0 16 16" fill="none">
             <path d="M10 4l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="text-[13px] text-accent font-medium">Back</span>
+          <span className="text-[14px] text-[#0078d4]">Back</span>
         </div>
       )}
 
       {/* Empty state */}
       {entries.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-text4">
-          <svg className="w-12 h-12 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <div className="flex flex-col items-center justify-center py-20 bg-white">
+          <svg className="w-16 h-16 mb-4 text-[#d2d0ce]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
             <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
           </svg>
-          <p className="text-sm font-medium text-text3">This folder is empty</p>
-          <p className="text-xs text-text4 mt-1">No files or folders here yet</p>
+          <p className="text-[15px] font-medium text-[#605e5c]">This folder is empty</p>
+          <p className="text-[13px] text-[#a19f9d] mt-1">No files or folders here yet</p>
         </div>
       )}
 

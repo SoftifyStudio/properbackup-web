@@ -431,6 +431,38 @@ export default function BackupsPage({ server, onBack }) {
         {serviceTab === 'files' && (
           <ErrorBoundary title="Files" retryLabel="Refresh">
             <div className="space-y-4">
+              {/* Time-travel bar when viewing a snapshot */}
+              {selectedSnapshot && (
+                <div className="flex items-center justify-between gap-4 px-5 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <svg className="w-5 h-5 text-amber-600 shrink-0" viewBox="0 0 20 20" fill="none">
+                      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-amber-800">Viewing snapshot</span>
+                      <span className="text-sm text-amber-700 ml-2">
+                        {selectedSnapshot.sealedAt ? formatDateTime(selectedSnapshot.sealedAt) : 'Unknown time'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      className="bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-5 rounded-lg text-sm shadow transition-all active:scale-[0.98]"
+                      onClick={() => setRecoveryTarget({ snap: selectedSnapshot, node: null })}
+                    >
+                      Restore to this moment
+                    </button>
+                    <button
+                      className="bg-white hover:bg-gray-50 text-[#323130] font-medium py-2 px-4 rounded-lg text-sm border border-[#edebe9] shadow-sm transition-all"
+                      onClick={() => setSelectedSnapshot(null)}
+                    >
+                      Back to Live
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Status filter toolbar */}
               <div className="flex items-center justify-between px-1 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5">
@@ -451,7 +483,9 @@ export default function BackupsPage({ server, onBack }) {
                     </button>
                   ))}
                 </div>
-                <span className="text-xs text-text4">{fileStates.length} files indexed</span>
+                <span className="text-xs text-text4">
+                  {selectedSnapshot ? 'Snapshot view' : `${fileStates.length} files indexed`}
+                </span>
               </div>
 
               {/* OneDrive-style folder tree view */}
@@ -459,6 +493,7 @@ export default function BackupsPage({ server, onBack }) {
                 files={filteredFiles}
                 newPaths={newPaths}
                 formatDateTime={formatDateTime}
+                snapshotLabel={selectedSnapshot ? formatDateTime(selectedSnapshot.sealedAt) : null}
               />
             </div>
           </ErrorBoundary>
@@ -471,7 +506,10 @@ export default function BackupsPage({ server, onBack }) {
                 setSelectedSnapshot(snap);
                 setRecoveryTarget({ snap, node: null });
               }}
-              onSelectSnapshot={(snap) => setSelectedSnapshot(snap)}
+              onSelectSnapshot={(snap) => {
+                setSelectedSnapshot(snap);
+                if (snap) setServiceTab('files');
+              }}
               selectedSnapshot={selectedSnapshot}
               verification={liveIndexMeta.latestVerification}
             />
