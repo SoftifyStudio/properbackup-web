@@ -174,25 +174,6 @@ function SnapshotCard({ snap, onRestore, onDownload, formatDateTime, isSelected,
   );
 }
 
-function generateFixtureSnapshots() {
-  const now = Date.now();
-  const hour = 3600000;
-  return [
-    { objectName: 'snapshots/full-system-2026-05-07T10-00.tar.enc', sealedAt: new Date(now - 5 * hour).toISOString(), sizeBytes: 2147483648, flag: 'A' },
-    { objectName: 'snapshots/full-system-2026-05-06T22-00.tar.enc', sealedAt: new Date(now - 17 * hour).toISOString(), sizeBytes: 2130706432, flag: 'A' },
-    { objectName: 'snapshots/full-system-2026-05-06T10-00.tar.enc', sealedAt: new Date(now - 29 * hour).toISOString(), sizeBytes: 2113929216, flag: 'A' },
-    { objectName: 'snapshots/full-system-2026-05-05T22-00.tar.enc', sealedAt: new Date(now - 41 * hour).toISOString(), sizeBytes: 2097152000, flag: 'A' },
-    { objectName: 'snapshots/full-system-2026-05-05T10-00.tar.enc', sealedAt: new Date(now - 53 * hour).toISOString(), sizeBytes: 2080374784, flag: 'A' },
-    { objectName: 'snapshots/full-system-2026-05-04T22-00.tar.enc', sealedAt: new Date(now - 65 * hour).toISOString(), sizeBytes: 2063597568, flag: 'D' },
-    { objectName: 'snapshots/full-system-2026-05-04T10-00.tar.enc', sealedAt: new Date(now - 77 * hour).toISOString(), sizeBytes: 2046820352, flag: 'D' },
-    { objectName: 'snapshots/full-system-2026-05-03T22-00.tar.enc', sealedAt: new Date(now - 89 * hour).toISOString(), sizeBytes: 2030043136, flag: 'A' },
-    { objectName: 'snapshots/incremental-2026-05-07T08-00.tar.enc', sealedAt: new Date(now - 7 * hour).toISOString(), sizeBytes: 52428800, flag: 'A' },
-    { objectName: 'snapshots/incremental-2026-05-06T20-00.tar.enc', sealedAt: new Date(now - 19 * hour).toISOString(), sizeBytes: 41943040, flag: 'A' },
-    { objectName: 'snapshots/incremental-2026-05-06T08-00.tar.enc', sealedAt: new Date(now - 31 * hour).toISOString(), sizeBytes: 36700160, flag: 'A' },
-    { objectName: 'snapshots/incremental-2026-05-05T20-00.tar.enc', sealedAt: new Date(now - 43 * hour).toISOString(), sizeBytes: 31457280, flag: 'D' },
-  ];
-}
-
 export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification }) {
   const { token } = useAuth();
 
