@@ -332,7 +332,7 @@ export default function BackupsPage({ server, onBack }) {
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('settings')}>
           {t('backups.tabSettings')}
         </button>
-        {mode === 'live' && (
+        {mode === 'live' && isSystemAdmin && (
           <button className="btn-ghost text-xs py-1.5" onClick={handleFlush}>
             {t('backups.flush')}
           </button>

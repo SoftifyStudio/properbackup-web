@@ -202,13 +202,10 @@ export default function AgentIndexBanner({
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M4 7V4h16v3" />
-              <path d="M9 20h6" />
-              <path d="M12 4v16" />
-              <rect x="3" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".15" stroke="currentColor" />
-              <rect x="14" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".15" stroke="currentColor" />
-              <rect x="3" y="14" width="7" height="4" rx="1" fill="currentColor" opacity=".08" stroke="currentColor" />
-              <rect x="14" y="14" width="7" height="4" rx="1" fill="currentColor" opacity=".08" stroke="currentColor" />
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+              <path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6" />
+              <path d="M3 8v0" opacity=".3" />
             </svg>
           </div>
 

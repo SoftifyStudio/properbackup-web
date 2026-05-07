@@ -1,4 +1,4 @@
-const PATTERN = /^(U\d+)-(\d{10})-([0-9A-Za-z]{8})-([AD])-([0-9a-f]{4})\.enc$/;
+const PATTERN = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|U\d+)-(\d{10})-([0-9A-Za-z]{8})-([AD])-([0-9a-f]{4})\.enc$/;
 
 export function parseFilename(filename) {
   const m = PATTERN.exec(filename);

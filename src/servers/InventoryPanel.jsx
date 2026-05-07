@@ -132,6 +132,7 @@ export default function InventoryPanel({ server, token }) {
         agentStatus={inv?.agentStatus}
         rootsCount={roots.length}
         totalFiles={totalFiles}
+        latestVerification={inv?.latestVerification ?? null}
         loading={loading}
         variant="spotlight"
       />

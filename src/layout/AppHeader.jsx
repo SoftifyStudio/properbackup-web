@@ -85,7 +85,7 @@ export default function AppHeader({ onBack, backLabel, children }) {
                 {t('header.serviceAdminBadge')}
               </span>
             )}
-            {token && !isSystemAdmin && (
+            {token && !isSystemAdmin && import.meta.env.DEV && (
               <button
                 type="button"
                 className="btn-secondary shrink-0 py-1.5 text-xs leading-tight"
