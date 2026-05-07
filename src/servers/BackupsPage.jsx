@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import AdminModeBar from '../layout/AdminModeBar.jsx';
@@ -11,8 +11,11 @@ import DocumentationTab from './DocumentationTab.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import FileListItem from './FileListItem.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
+import ActivityLog from './ActivityLog.jsx';
+import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
+import { List as VirtualList } from 'react-window';
 
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
 import fixtureIdxData from '../fixtures/mock-paths-idx.json';
@@ -96,6 +99,10 @@ export default function BackupsPage({ server, onBack }) {
     ];
   });
   const [fileSortMode, setFileSortMode]     = useState('recent');
+  const [statusFilter, setStatusFilter]     = useState('all');
+  const [activityLog, setActivityLog]       = useState([]);
+  const [newPaths, setNewPaths]             = useState(new Set());
+  const activityIdRef = useRef(0);
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
     rootsCount: 0,
@@ -187,7 +194,7 @@ export default function BackupsPage({ server, onBack }) {
     }
   }, [token, isSystemAdmin, server.id, logsSince, logLevel, logComponent]);
 
-  /** Co ~1 s: tylko agentStatus i liczniki (lekki GET inventory pageSize 1). */
+  /** Fallback polling for meta (only used when SSE is not connected). */
   const fetchLiveMeta = useCallback(async () => {
     if (!token) return;
     try {
@@ -206,9 +213,58 @@ export default function BackupsPage({ server, onBack }) {
         };
       });
     } catch {
-      /* zostaw poprzedni stan */
+      /* keep previous state */
     }
   }, [token, server.id]);
+
+  /** SSE event handlers — real-time updates from buffer */
+  const addActivityEntry = useCallback((entry) => {
+    setActivityLog((prev) => {
+      const next = [...prev, { ...entry, id: ++activityIdRef.current }];
+      return next.length > 500 ? next.slice(-400) : next;
+    });
+  }, []);
+
+  const sseHandlers = useMemo(() => ({
+    onAgentStatus: (data) => {
+      setLiveIndexMeta((m) => ({
+        ...m,
+        agentStatus: {
+          ...m.agentStatus,
+          phase: data.phase,
+          detail: data.detail,
+          totalFiles: data.totalFiles,
+          scannedFiles: data.scannedFiles,
+          currentFile: data.currentFile,
+          updatedAt: data.updatedAt,
+        },
+      }));
+      addActivityEntry({ type: 'agentStatus', ...data });
+    },
+    onFileState: (data) => {
+      setFileStates((prev) => {
+        const idx = prev.findIndex((f) => f.fullPath === data.fullPath);
+        const updated = { fullPath: data.fullPath, status: data.status, updatedAt: data.ts };
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [updated, ...prev];
+      });
+      setNewPaths((s) => { const n = new Set(s); n.add(data.fullPath); return n; });
+      setTimeout(() => setNewPaths((s) => { const n = new Set(s); n.delete(data.fullPath); return n; }), 1200);
+      addActivityEntry({ type: 'fileState', ...data });
+    },
+    onFileStateBatch: (data) => {
+      addActivityEntry({ type: 'fileStateBatch', ...data });
+    },
+    onLog: (data) => {
+      addActivityEntry({ type: 'log', ...data });
+    },
+  }), [addActivityEntry]);
+
+  const { connected: sseConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers);
 
   /** Lista plików z bufferu: GET /servers/{id}/inventory (JWT). */
   const fetchLiveFileStates = useCallback(async (withLoadingSpinner = false) => {
@@ -262,17 +318,34 @@ export default function BackupsPage({ server, onBack }) {
   }, [isAllowedTab, serviceTab, isSystemAdmin, setServiceTab]);
 
   const isIndexing = liveIndexMeta.agentStatus?.phase === 'indexing';
-  const filesPollMs = isIndexing ? 2000 : 4000;
 
+  /** Initial file load + fallback poll (only when SSE is disconnected). */
   useEffect(() => {
     fetchLiveFileStates(true);
-    const metaId = setInterval(fetchLiveMeta, 1000);
-    const filesId = setInterval(() => fetchLiveFileStates(false), filesPollMs);
+    fetchLiveMeta();
+  }, [fetchLiveFileStates, fetchLiveMeta]);
+
+  useEffect(() => {
+    if (sseConnected) return;
+    const metaId = setInterval(fetchLiveMeta, 2000);
+    const filesId = setInterval(() => fetchLiveFileStates(false), isIndexing ? 3000 : 8000);
     return () => {
       clearInterval(metaId);
       clearInterval(filesId);
     };
-  }, [fetchLiveFileStates, fetchLiveMeta, filesPollMs]);
+  }, [sseConnected, fetchLiveFileStates, fetchLiveMeta, isIndexing]);
+
+  /** Periodic full-list refresh even with SSE (batch updates don't carry all data). */
+  useEffect(() => {
+    if (!sseConnected) return;
+    const id = setInterval(() => fetchLiveFileStates(false), 15000);
+    return () => clearInterval(id);
+  }, [sseConnected, fetchLiveFileStates]);
+
+  const filteredFiles = useMemo(() => {
+    if (statusFilter === 'all') return fileStates;
+    return fileStates.filter((f) => f.status === statusFilter);
+  }, [fileStates, statusFilter]);
 
   const nodes = useMemo(() => buildTree(objectNames, pathsIdx), [objectNames, pathsIdx]);
   const snapshotCount = nodes.reduce((s, n) => s + n.snapshots.length, 0);
@@ -392,8 +465,8 @@ export default function BackupsPage({ server, onBack }) {
             <span className="text-amber-900">{liveIndexMeta.rootsCount}</span>
             <span className="text-amber-600">mode:</span>
             <span className="text-amber-900">{mode}</span>
-            <span className="text-amber-600">pollInterval:</span>
-            <span className="text-amber-900">{filesPollMs}ms</span>
+            <span className="text-amber-600">sseConnected:</span>
+            <span className="text-amber-900">{String(sseConnected)}</span>
           </div>
         </div>
       )}
@@ -462,13 +535,45 @@ export default function BackupsPage({ server, onBack }) {
               variant="spotlight"
             />
 
-            {/* Toolbar: file count + sort toggle */}
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs text-text3">
-                {fileStates.length > 0
-                  ? t('backups.filesCount', { count: fileStates.length })
-                  : ''}
-              </span>
+            {/* SSE connection indicator */}
+            <div className="flex items-center gap-2 px-1">
+              {sseConnected ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                  {t('backups.streamLive') === 'backups.streamLive' ? 'Live stream' : t('backups.streamLive')}
+                </span>
+              ) : sseReconnecting ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-warn font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
+                  {t('backups.streamReconnecting') === 'backups.streamReconnecting' ? 'Reconnecting...' : t('backups.streamReconnecting')}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-text4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-text4" />
+                  {t('backups.streamPolling') === 'backups.streamPolling' ? 'Polling' : t('backups.streamPolling')}
+                </span>
+              )}
+            </div>
+
+            {/* Toolbar: file count + status filter + sort toggle */}
+            <div className="flex items-center justify-between px-1 flex-wrap gap-2">
+              <div className="flex items-center gap-1.5">
+                {['all', 'current', 'changed', 'new', 'deleted'].map((s) => (
+                  <button
+                    key={s}
+                    className={`text-xs px-2.5 py-1 rounded-md transition-colors ${statusFilter === s ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'}`}
+                    onClick={() => setStatusFilter(s)}
+                  >
+                    {s === 'all' ? (t('backups.filterAll') === 'backups.filterAll' ? 'All' : t('backups.filterAll'))
+                     : s.charAt(0).toUpperCase() + s.slice(1)}
+                    {s !== 'all' && (
+                      <span className="ml-1 text-text4">
+                        ({fileStates.filter((f) => f.status === s).length})
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-text4">{t('backups.filesSortLabel')}</span>
                 <button
@@ -486,7 +591,7 @@ export default function BackupsPage({ server, onBack }) {
               </div>
             </div>
 
-            {/* OneDrive-style file list */}
+            {/* OneDrive-style file list with virtualization */}
             <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
               {/* Column header */}
               <div className="flex items-center gap-3 px-4 py-2 bg-surface/90 border-b border-border">
@@ -504,21 +609,49 @@ export default function BackupsPage({ server, onBack }) {
                   </span>
                 </div>
               </div>
-              {/* File rows */}
-              <div className="max-h-[70vh] overflow-y-auto">
-                {fileStates.map(r => (
-                  <FileListItem key={r.fullPath} file={r} formatDateTime={formatDateTime} />
-                ))}
-                {fileStates.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-16 text-text4">
-                    <svg className="w-10 h-10 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                    </svg>
-                    <p className="text-sm">{t('backups.filesEmpty')}</p>
-                  </div>
-                )}
-              </div>
+              {/* File rows — virtualized when > 200, otherwise plain */}
+              {filteredFiles.length > 200 ? (
+                <VirtualList
+                  height={Math.min(filteredFiles.length * 40, 560)}
+                  itemCount={filteredFiles.length}
+                  itemSize={40}
+                  width="100%"
+                  overscanCount={20}
+                >
+                  {({ index, style }) => {
+                    const r = filteredFiles[index];
+                    return (
+                      <div style={style} className={newPaths.has(r.fullPath) ? 'animate-fade-in-row' : ''}>
+                        <FileListItem file={r} formatDateTime={formatDateTime} />
+                      </div>
+                    );
+                  }}
+                </VirtualList>
+              ) : (
+                <div className="max-h-[70vh] overflow-y-auto">
+                  {filteredFiles.map(r => (
+                    <div key={r.fullPath} className={newPaths.has(r.fullPath) ? 'animate-fade-in-row' : ''}>
+                      <FileListItem file={r} formatDateTime={formatDateTime} />
+                    </div>
+                  ))}
+                  {filteredFiles.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-16 text-text4">
+                      <svg className="w-10 h-10 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                      </svg>
+                      <p className="text-sm">{t('backups.filesEmpty')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Real-time activity log */}
+            <ActivityLog
+              entries={activityLog}
+              agentStatus={liveIndexMeta.agentStatus}
+              connected={sseConnected}
+            />
           </div>
           </ErrorBoundary>
         )}

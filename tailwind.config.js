@@ -39,9 +39,20 @@ export default {
           '0%': { transform: 'translateX(-120%)' },
           '100%': { transform: 'translateX(350%)' },
         },
+        'slide-in': {
+          '0%': { opacity: '0', transform: 'translateY(-6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in-row': {
+          '0%': { opacity: '0', backgroundColor: 'rgba(15, 108, 189, 0.08)' },
+          '60%': { opacity: '1', backgroundColor: 'rgba(15, 108, 189, 0.06)' },
+          '100%': { opacity: '1', backgroundColor: 'transparent' },
+        },
       },
       animation: {
         'agent-index-bar': 'agent-index-bar 1.35s ease-in-out infinite',
+        'slide-in': 'slide-in 0.25s ease-out forwards',
+        'fade-in-row': 'fade-in-row 1.2s ease-out forwards',
       },
     },
   },
