@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { fetchArchiveSnapshots } from '../api/bufferClient.js';
+import { fetchArchiveSnapshots, downloadObject } from '../api/bufferClient.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import { List as VirtualList } from 'react-window';
 
@@ -44,9 +44,10 @@ function IntegrityBadge({ flag, sealedAt }) {
   );
 }
 
-function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, isActive: isHighlighted, onClick }) {
+function SnapshotCard({ snap, onRestore, onDownload, formatDateTime, isSelected, isActive: isHighlighted, onClick }) {
   const sealDate = snap.sealedAt ? new Date(snap.sealedAt) : null;
   const isActiveFlag = snap.flag === 'A';
+  const [downloading, setDownloading] = useState(false);
 
   return (
     <div
@@ -78,18 +79,46 @@ function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, isActive: i
           </div>
         </div>
 
-        {isActiveFlag && (
-          <button
-            className="btn-primary py-1.5 px-3 text-xs shrink-0 opacity-0 group-hover:opacity-100"
-            style={{ opacity: isSelected ? 1 : undefined }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestore(snap);
-            }}
-          >
-            Restore
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {isActiveFlag && (
+            <button
+              className="btn-ghost py-1.5 px-2.5 text-xs"
+              style={{ opacity: isSelected ? 1 : undefined }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDownloading(true);
+                onDownload(snap).finally(() => setDownloading(false));
+              }}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                  Downloading...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2v8m0 0l-3-3m3 3l3-3M3 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Download
+                </span>
+              )}
+            </button>
+          )}
+          {isActiveFlag && (
+            <button
+              className="btn-primary py-1.5 px-3 text-xs"
+              style={{ opacity: isSelected ? 1 : undefined }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore(snap);
+              }}
+            >
+              Restore
+            </button>
+          )}
+        </div>
       </div>
 
       {isSelected && (
@@ -110,8 +139,8 @@ function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, isActive: i
             <span className="text-text4">Flag:</span>
             <span className="text-text2 ml-1">{snap.flag === 'A' ? 'Active' : 'Deleted'}</span>
           </div>
-          {isActiveFlag && (
-            <div className="col-span-2 mt-1">
+          <div className="col-span-2 mt-1 flex items-center gap-2">
+            {isActiveFlag && (
               <button
                 className="bg-accent hover:bg-accent/90 text-white font-semibold py-2.5 px-6 rounded-xl text-sm shadow-md transition-all"
                 onClick={(e) => {
@@ -121,8 +150,24 @@ function SnapshotCard({ snap, onRestore, formatDateTime, isSelected, isActive: i
               >
                 Restore to this moment
               </button>
-            </div>
-          )}
+            )}
+            {isActiveFlag && (
+              <button
+                className="bg-[#323130] hover:bg-[#323130]/90 text-white font-semibold py-2.5 px-6 rounded-xl text-sm shadow-md transition-all flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDownloading(true);
+                  onDownload(snap).finally(() => setDownloading(false));
+                }}
+                disabled={downloading}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 2v8m0 0l-3-3m3 3l3-3M3 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {downloading ? 'Downloading...' : 'Download Archive'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -150,6 +195,15 @@ function generateFixtureSnapshots() {
 
 export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification }) {
   const { token } = useAuth();
+
+  const handleDownload = useCallback(async (snap) => {
+    if (!token || !snap.objectName) return;
+    try {
+      await downloadObject(snap.objectName, token);
+    } catch (e) {
+      console.error('Download failed:', e);
+    }
+  }, [token]);
   const { formatDateTime } = useI18n();
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -308,6 +362,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                     <SnapshotCard
                       snap={snap}
                       onRestore={onRestore}
+                      onDownload={handleDownload}
                       formatDateTime={formatDateTime}
                       isSelected={expandedIdx === index}
                       isActive={isActive}
@@ -329,6 +384,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                     key={snap.objectName}
                     snap={snap}
                     onRestore={onRestore}
+                    onDownload={handleDownload}
                     formatDateTime={formatDateTime}
                     isSelected={expandedIdx === i}
                     isActive={isActive}

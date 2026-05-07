@@ -14,7 +14,7 @@ import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
-import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush } from '../api/bufferClient.js';
+import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
@@ -100,44 +100,11 @@ export default function BackupsPage({ server, onBack }) {
   });
   const [fileSortMode, setFileSortMode]     = useState('recent');
   const [statusFilter, setStatusFilter]     = useState('all');
-  const [activityLog, setActivityLog]       = useState(() => {
-    const now = Date.now();
-    const ago = (s) => new Date(now - s * 1000).toISOString();
-    let id = 0;
-    return [
-      { id: ++id, type: 'agentStatus', phase: 'idle', detail: 'Agent connected', ts: ago(300) },
-      { id: ++id, type: 'agentStatus', phase: 'scanning', detail: 'Starting full scan', totalFiles: 21, scannedFiles: 0, ts: ago(280) },
-      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/world/level.dat', status: 'current', ts: ago(270) },
-      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/logs/latest.log', status: 'changed', ts: ago(260) },
-      { id: ++id, type: 'fileStateBatch', count: 5, files: [
-        { fullPath: '/home/daniel/mc-server/server.properties', status: 'current' },
-        { fullPath: '/home/daniel/mc-server/plugins/EssentialsX.jar', status: 'current' },
-        { fullPath: '/var/www/wordpress/wp-content/uploads/photo-2026.jpg', status: 'current' },
-        { fullPath: '/var/www/wordpress/wp-content/themes/flavor/style.css', status: 'current' },
-        { fullPath: '/etc/nginx/nginx.conf', status: 'current' },
-      ], ts: ago(250) },
-      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/world/region/r.0.0.mca', status: 'changed', ts: ago(240) },
-      { id: ++id, type: 'log', level: 'INFO', message: 'Encryption pipeline ready (AES-256-GCM)', ts: ago(230) },
-      { id: ++id, type: 'fileState', fullPath: '/var/www/wordpress/wp-config.php', status: 'current', ts: ago(220) },
-      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/world/playerdata/uuid.dat', status: 'deleted', ts: ago(200) },
-      { id: ++id, type: 'log', level: 'WARN', message: 'File deleted from filesystem: uuid.dat', ts: ago(195) },
-      { id: ++id, type: 'fileStateBatch', count: 8, files: [
-        { fullPath: '/home/daniel/projects/api/src/main/kotlin/App.kt', status: 'changed' },
-        { fullPath: '/home/daniel/projects/api/build.gradle.kts', status: 'current' },
-        { fullPath: '/home/daniel/projects/api/docker-compose.yml', status: 'current' },
-        { fullPath: '/home/daniel/backups/db-dump-2026-05-05.sql', status: 'current' },
-        { fullPath: '/home/daniel/Documents/Audit-Report-May.pdf', status: 'current' },
-        { fullPath: '/opt/properbackup/config.json', status: 'current' },
-        { fullPath: '/home/daniel/projects/webapp/package.json', status: 'changed' },
-        { fullPath: '/home/daniel/projects/webapp/src/App.tsx', status: 'current' },
-      ], ts: ago(180) },
-      { id: ++id, type: 'agentStatus', phase: 'uploading', detail: 'Uploading changed chunks', totalFiles: 21, scannedFiles: 21, ts: ago(160) },
-      { id: ++id, type: 'log', level: 'INFO', message: 'Chunk upload: 3 files, 12.4 MiB total', ts: ago(150) },
-      { id: ++id, type: 'agentStatus', phase: 'idle', detail: 'Scan complete, next scan in 60s', totalFiles: 21, scannedFiles: 21, ts: ago(120) },
-    ];
-  });
+  const [activityLog, setActivityLog]       = useState([]);
   const [newPaths, setNewPaths]             = useState(new Set());
-  const activityIdRef = useRef(14);
+  const activityIdRef = useRef(0);
+  const [snapshotFiles, setSnapshotFiles]   = useState(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
     rootsCount: 0,
@@ -297,8 +264,7 @@ export default function BackupsPage({ server, onBack }) {
     },
   }), [addActivityEntry]);
 
-  const { connected: sseRawConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers);
-  const sseConnected = true;
+  const { connected: sseConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers, token);
 
   /** Lista plików z bufferu: GET /servers/{id}/inventory (JWT). */
   const fetchLiveFileStates = useCallback(async (withLoadingSpinner = false) => {
@@ -376,10 +342,42 @@ export default function BackupsPage({ server, onBack }) {
     return () => clearInterval(id);
   }, [sseConnected, fetchLiveFileStates]);
 
+  /** Fetch historical file states when a snapshot is selected */
+  const fetchSnapshotFiles = useCallback(async (snap) => {
+    if (!token || !snap?.sealedAt) return;
+    setSnapshotLoading(true);
+    try {
+      const rows = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore && page <= 50) {
+        const inv = await fetchFileStatesAt(server.id, token, snap.sealedAt, page, 1000, fileSortMode);
+        rows.push(...(inv.files ?? []));
+        hasMore = !!inv.hasMore;
+        page += 1;
+      }
+      setSnapshotFiles(rows);
+    } catch {
+      setSnapshotFiles(null);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  }, [token, server.id, fileSortMode]);
+
+  useEffect(() => {
+    if (selectedSnapshot) {
+      fetchSnapshotFiles(selectedSnapshot);
+    } else {
+      setSnapshotFiles(null);
+    }
+  }, [selectedSnapshot, fetchSnapshotFiles]);
+
+  const displayFiles = selectedSnapshot && snapshotFiles ? snapshotFiles : fileStates;
+
   const filteredFiles = useMemo(() => {
-    if (statusFilter === 'all') return fileStates;
-    return fileStates.filter((f) => f.status === statusFilter);
-  }, [fileStates, statusFilter]);
+    if (statusFilter === 'all') return displayFiles;
+    return displayFiles.filter((f) => f.status === statusFilter);
+  }, [displayFiles, statusFilter]);
 
   const nodes = useMemo(() => buildTree(objectNames, pathsIdx), [objectNames, pathsIdx]);
   const snapshotCount = nodes.reduce((s, n) => s + n.snapshots.length, 0);
@@ -399,12 +397,48 @@ export default function BackupsPage({ server, onBack }) {
     <div className="h-full min-h-0 flex flex-col bg-surface overflow-hidden">
       <AppHeader onBack={onBack} backLabel={t('backups.backLabel')}>
         <span className="badge bg-accentLight text-accent text-xs">{server.name}</span>
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium ml-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-          Connected
+        <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ml-2 ${
+          sseConnected ? 'text-success' : sseReconnecting ? 'text-amber-500' : 'text-text4'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            sseConnected ? 'bg-success animate-pulse' : sseReconnecting ? 'bg-amber-500 animate-pulse' : 'bg-text4'
+          }`} />
+          {sseConnected ? 'Connected' : sseReconnecting ? 'Reconnecting...' : 'Disconnected'}
         </span>
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
+
+      {/* Backup Health Score */}
+      <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-3">
+        {(() => {
+          const v = liveIndexMeta.latestVerification;
+          const hasFiles = liveIndexMeta.totalFiles > 0 || fileStates.length > 0;
+          const isVerified = v?.status === 'passed';
+          const isFailed = v?.status === 'failed';
+          const verifiedAgo = v?.verifiedAt ? Math.round((Date.now() - new Date(v.verifiedAt).getTime()) / 3600000) : null;
+          const score = !hasFiles ? 0 : isFailed ? 40 : isVerified ? 100 : 80;
+          const color = score >= 90 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600';
+          const bgColor = score >= 90 ? 'bg-emerald-50 border-emerald-200' : score >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+          const dotColor = score >= 90 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500';
+          return (
+            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs ${bgColor}`}>
+              <span className={`w-2 h-2 rounded-full ${dotColor} ${score >= 90 ? 'animate-pulse' : ''}`} />
+              <span className={`font-semibold ${color}`}>{score}% Safe</span>
+              {verifiedAgo !== null && (
+                <span className="text-text4">
+                  · Verified {verifiedAgo < 1 ? 'just now' : `${verifiedAgo}h ago`}
+                </span>
+              )}
+              {!hasFiles && <span className="text-text4">· No files indexed yet</span>}
+              {hasFiles && !v && <span className="text-text4">· Awaiting first verification</span>}
+            </div>
+          );
+        })()}
+        <div className="flex-1" />
+        <span className="text-[11px] text-text4">
+          {liveIndexMeta.totalFiles > 0 ? `${liveIndexMeta.totalFiles.toLocaleString()} files protected` : ''}
+        </span>
+      </div>
 
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
@@ -477,14 +511,16 @@ export default function BackupsPage({ server, onBack }) {
                       {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
                       {s !== 'all' && (
                         <span className="ml-1 text-text4">
-                          ({fileStates.filter((f) => f.status === s).length})
+                          ({displayFiles.filter((f) => f.status === s).length})
                         </span>
                       )}
                     </button>
                   ))}
                 </div>
                 <span className="text-xs text-text4">
-                  {selectedSnapshot ? 'Snapshot view' : `${fileStates.length} files indexed`}
+                  {selectedSnapshot
+                    ? (snapshotLoading ? 'Loading snapshot...' : `${displayFiles.length} files at this moment`)
+                    : `${fileStates.length} files indexed`}
                 </span>
               </div>
 

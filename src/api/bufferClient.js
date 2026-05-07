@@ -91,6 +91,18 @@ export async function fetchSubscription(sessionToken) {
   return res.json();
 }
 
+/** File states at a given point in time (time-travel). */
+export async function fetchFileStatesAt(serverId, sessionToken, timestamp, page = 1, pageSize = 1000, sort = 'path') {
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/file-states-at`);
+  u.searchParams.set('ts', timestamp);
+  u.searchParams.set('page', String(page));
+  u.searchParams.set('pageSize', String(pageSize));
+  if (sort !== 'path') u.searchParams.set('sort', sort);
+  const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
+  if (!res.ok) throw new Error(`file-states-at failed: ${res.status}`);
+  return res.json();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);

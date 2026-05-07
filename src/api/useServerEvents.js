@@ -11,9 +11,10 @@ const BASE_URL = bufferBaseUrl();
 /**
  * @param {string} serverId
  * @param {object} handlers  – { onAgentStatus, onFileState, onFileStateBatch, onLog }
+ * @param {string} [token]   – JWT token for authenticated SSE
  * @returns {{ connected: boolean, reconnecting: boolean }}
  */
-export default function useServerEvents(serverId, handlers) {
+export default function useServerEvents(serverId, handlers, token) {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const handlersRef = useRef(handlers);
@@ -28,7 +29,8 @@ export default function useServerEvents(serverId, handlers) {
 
     function connect() {
       if (closed) return;
-      const url = `${BASE_URL}/servers/${encodeURIComponent(serverId)}/events`;
+      let url = `${BASE_URL}/servers/${encodeURIComponent(serverId)}/events`;
+      if (token) url += `?token=${encodeURIComponent(token)}`;
       es = new EventSource(url);
 
       es.addEventListener('connected', () => {
@@ -83,7 +85,7 @@ export default function useServerEvents(serverId, handlers) {
       setConnected(false);
       setReconnecting(false);
     };
-  }, [serverId]);
+  }, [serverId, token]);
 
   return { connected, reconnecting };
 }
