@@ -68,7 +68,33 @@ export default function BackupsPage({ server, onBack }) {
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState(null);
   const [logs, setLogs]                     = useState([]);
-  const [fileStates, setFileStates]         = useState([]);
+  const [fileStates, setFileStates]         = useState(() => {
+    const now = new Date();
+    const ago = (mins) => new Date(now.getTime() - mins * 60_000).toISOString();
+    return [
+      { fullPath: '/home/daniel/mc-server/world/level.dat', status: 'current', updatedAt: ago(2) },
+      { fullPath: '/home/daniel/mc-server/world/region/r.0.0.mca', status: 'changed', updatedAt: ago(5) },
+      { fullPath: '/home/daniel/mc-server/server.properties', status: 'current', updatedAt: ago(12) },
+      { fullPath: '/home/daniel/mc-server/plugins/EssentialsX.jar', status: 'current', updatedAt: ago(60) },
+      { fullPath: '/home/daniel/mc-server/logs/latest.log', status: 'changed', updatedAt: ago(1) },
+      { fullPath: '/var/www/wordpress/wp-config.php', status: 'current', updatedAt: ago(180) },
+      { fullPath: '/var/www/wordpress/wp-content/uploads/photo-2026.jpg', status: 'current', updatedAt: ago(300) },
+      { fullPath: '/var/www/wordpress/wp-content/themes/flavor/style.css', status: 'current', updatedAt: ago(420) },
+      { fullPath: '/etc/nginx/nginx.conf', status: 'current', updatedAt: ago(1440) },
+      { fullPath: '/home/daniel/projects/api/src/main/kotlin/App.kt', status: 'changed', updatedAt: ago(8) },
+      { fullPath: '/home/daniel/projects/api/build.gradle.kts', status: 'current', updatedAt: ago(90) },
+      { fullPath: '/home/daniel/projects/api/docker-compose.yml', status: 'current', updatedAt: ago(200) },
+      { fullPath: '/home/daniel/backups/db-dump-2026-05-05.sql', status: 'current', updatedAt: ago(720) },
+      { fullPath: '/home/daniel/Documents/Audit-Report-May.pdf', status: 'current', updatedAt: ago(1200) },
+      { fullPath: '/home/daniel/mc-server/world/playerdata/uuid.dat', status: 'deleted', updatedAt: ago(30) },
+      { fullPath: '/opt/properbackup/config.json', status: 'current', updatedAt: ago(2000) },
+      { fullPath: '/home/daniel/projects/webapp/package.json', status: 'changed', updatedAt: ago(15) },
+      { fullPath: '/home/daniel/projects/webapp/src/App.tsx', status: 'current', updatedAt: ago(45) },
+      { fullPath: '/home/daniel/mc-server/backups/world-2026-05-04.tar.gz', status: 'current', updatedAt: ago(1500) },
+      { fullPath: '/home/daniel/Music/podcast-ep42.mp3', status: 'current', updatedAt: ago(3000) },
+      { fullPath: '/home/daniel/Screenshots/screen-2026-05-01.png', status: 'current', updatedAt: ago(5000) },
+    ];
+  });
   const [fileSortMode, setFileSortMode]     = useState('recent');
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
