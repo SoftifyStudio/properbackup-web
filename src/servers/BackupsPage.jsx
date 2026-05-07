@@ -192,13 +192,19 @@ export default function BackupsPage({ server, onBack }) {
     if (!token) return;
     try {
       const inv = await fetchInventorySummary(server.id, token);
-      setLiveIndexMeta((m) => ({
-        ...m,
-        agentStatus: inv.agentStatus ?? null,
-        rootsCount: inv.rootsCount ?? 0,
-        totalFiles: inv.totalFiles ?? 0,
-        latestVerification: inv.latestVerification ?? null,
-      }));
+      setLiveIndexMeta((m) => {
+        const newVerif = inv.latestVerification ?? null;
+        const prevVerif = m.latestVerification;
+        const verifChanged = !prevVerif !== !newVerif
+          || (newVerif && prevVerif && (newVerif.status !== prevVerif.status || newVerif.verifiedAt !== prevVerif.verifiedAt));
+        return {
+          ...m,
+          agentStatus: inv.agentStatus ?? null,
+          rootsCount: inv.rootsCount ?? 0,
+          totalFiles: inv.totalFiles ?? 0,
+          latestVerification: verifChanged ? newVerif : prevVerif,
+        };
+      });
     } catch {
       /* zostaw poprzedni stan */
     }

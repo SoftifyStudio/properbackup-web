@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
 const STALE_MS = 15 * 60 * 1000;
@@ -26,6 +26,38 @@ function relativeUpdatedLabel(iso, t) {
   const day = Math.floor(hr / 24);
   return t('common.relativeDaysAgo', { count: day });
 }
+
+const VerificationBadge = React.memo(function VerificationBadge({ verification, t }) {
+  if (!verification) return null;
+  const timeLabel = relativeUpdatedLabel(verification.verifiedAt, t);
+  if (verification.status === 'passed') {
+    return (
+      <div className="flex items-center gap-1.5 mt-1">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+            <path fillRule="evenodd" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" clipRule="evenodd"/>
+          </svg>
+          Verified
+        </span>
+        <span className="text-[10px] text-text4">{timeLabel}</span>
+      </div>
+    );
+  }
+  if (verification.status === 'failed') {
+    return (
+      <div className="flex items-center gap-1.5 mt-1">
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+            <path fillRule="evenodd" d="M4.28 3.22a.75.75 0 00-1.06 1.06L6.94 8l-3.72 3.72a.75.75 0 101.06 1.06L8 9.06l3.72 3.72a.75.75 0 101.06-1.06L9.06 8l3.72-3.72a.75.75 0 00-1.06-1.06L8 6.94 4.28 3.22z" clipRule="evenodd"/>
+          </svg>
+          Verification Failed
+        </span>
+        <span className="text-[10px] text-text4">{timeLabel}</span>
+      </div>
+    );
+  }
+  return null;
+});
 
 function IndexingProgressBar({ phase, loading, totalFiles, scannedFiles }) {
   const hasDeterminate = phase === 'indexing'
@@ -165,13 +197,18 @@ export default function AgentIndexBanner({
               className={isSpotlight ? 'w-6 h-6 sm:w-7 sm:h-7 text-accent' : 'w-5 h-5 text-accent'}
               viewBox="0 0 24 24"
               fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <path
-                d="M12 4a7 7 0 00-6.93 6h2.02a5 5 0 015.91-4.9V4zM4 13h2a5 5 0 005 5v2a7 7 0 01-7-7zm16 0h2a7 7 0 01-7 7v-2a5 5 0 005-5zm0-5h2a7 7 0 00-7-7v2a5 5 0 015 5z"
-                fill="currentColor"
-                opacity=".92"
-              />
-              <path d="M12 9a3 3 0 100 6 3 3 0 000-6z" fill="currentColor" opacity=".35" />
+              <path d="M4 7V4h16v3" />
+              <path d="M9 20h6" />
+              <path d="M12 4v16" />
+              <rect x="3" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".15" stroke="currentColor" />
+              <rect x="14" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".15" stroke="currentColor" />
+              <rect x="3" y="14" width="7" height="4" rx="1" fill="currentColor" opacity=".08" stroke="currentColor" />
+              <rect x="14" y="14" width="7" height="4" rx="1" fill="currentColor" opacity=".08" stroke="currentColor" />
             </svg>
           </div>
 
@@ -207,28 +244,7 @@ export default function AgentIndexBanner({
                   <p className="text-xs text-text4 tabular-nums">
                     {t('backups.agentIndexStats', { roots: rootsCount, files: totalFiles })}
                   </p>
-                  {latestVerification && (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {latestVerification.status === 'passed' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-                            <path fillRule="evenodd" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" clipRule="evenodd"/>
-                          </svg>
-                          Verified
-                        </span>
-                      ) : latestVerification.status === 'failed' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.28 3.22a.75.75 0 00-1.06 1.06L6.94 8l-3.72 3.72a.75.75 0 101.06 1.06L8 9.06l3.72 3.72a.75.75 0 101.06-1.06L9.06 8l3.72-3.72a.75.75 0 00-1.06-1.06L8 6.94 4.28 3.22z" clipRule="evenodd"/>
-                          </svg>
-                          Verification Failed
-                        </span>
-                      ) : null}
-                      <span className="text-[10px] text-text4">
-                        {relativeUpdatedLabel(latestVerification.verifiedAt, t)}
-                      </span>
-                    </div>
-                  )}
+                  <VerificationBadge verification={latestVerification} t={t} />
                 </div>
               </div>
 
