@@ -48,7 +48,9 @@
     "colAccount": "Account",
     "colCreated": "Created",
     "colExpires": "Expires",
-    "copyKey": "Copy key"
+    "copyKey": "Copy key",
+    "device": "device",
+    "devices": "devices"
   },
   "tree": {
     "root": {

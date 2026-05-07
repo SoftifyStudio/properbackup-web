@@ -48,7 +48,9 @@
     "colAccount": "Konto",
     "colCreated": "Utworzono",
     "colExpires": "Wygasa",
-    "copyKey": "Kopiuj klucz"
+    "copyKey": "Kopiuj klucz",
+    "device": "urządzenie",
+    "devices": "urządzeń"
   },
   "tree": {
     "root": {

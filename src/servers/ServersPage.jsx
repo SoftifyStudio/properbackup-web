@@ -53,6 +53,7 @@ export default function ServersPage({ onSelectServer }) {
   const [tokensLoading, setTokensLoading] = useState(false);
   const [tokensError, setTokensError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [quota, setQuota] = useState(null);
 
   const setMainTab = useCallback((nextTab) => {
     setSearchParams((prev) => {
@@ -79,6 +80,16 @@ export default function ServersPage({ onSelectServer }) {
     }
   }, [token, t]);
 
+  const loadQuota = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE_URL}/account/subscription`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setQuota(await res.json());
+    } catch (_) { /* non-critical */ }
+  }, [token]);
+
   const loadTokens = useCallback(async () => {
     if (!token) return;
     setTokensLoading(true);
@@ -98,7 +109,8 @@ export default function ServersPage({ onSelectServer }) {
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadQuota();
+  }, [load, loadQuota]);
 
   useEffect(() => {
     if (mainTab === 'tokens') loadTokens();
@@ -166,6 +178,35 @@ export default function ServersPage({ onSelectServer }) {
                 <button className="btn-primary text-sm" onClick={() => setShowAdd(true)}>
                   {t('serversPage.addFirst')}
                 </button>
+              </div>
+            )}
+
+            {!loading && quota && quota.storageUsedBytes != null && servers.length > 0 && (
+              <div className="mb-6 rounded-xl bg-panel border border-border p-4">
+                <div className="flex items-center justify-between text-xs text-text3 mb-1.5">
+                  <span className="font-medium">
+                    {t('subscription.storageUsed')} — {servers.length} {servers.length === 1 ? t('serversPage.device') : t('serversPage.devices')}
+                  </span>
+                  <span className={quota.storageExceeded ? 'text-red-600 font-semibold' : ''}>
+                    {quota.storageUsedLabel} / {quota.storageLimitLabel}
+                    {' '}({(quota.storageUsedPercent || 0).toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      quota.storageExceeded ? 'bg-red-500' :
+                      (quota.storageUsedPercent || 0) > 80 ? 'bg-amber-500' :
+                      'bg-accent'
+                    }`}
+                    style={{ width: `${Math.min(100, quota.storageUsedPercent || 0)}%` }}
+                  />
+                </div>
+                {quota.storageExceeded && (
+                  <p className="text-xs text-red-600 mt-1.5 font-medium">
+                    {t('subscription.storageExceeded')}
+                  </p>
+                )}
               </div>
             )}
 
