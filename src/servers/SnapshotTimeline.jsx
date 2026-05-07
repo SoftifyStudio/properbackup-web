@@ -153,14 +153,12 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const { formatDateTime } = useI18n();
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [expandedIdx, setExpandedIdx] = useState(null);
   const [filterFlag, setFilterFlag] = useState('all');
 
   const load = useCallback(async () => {
     if (!token || !serverId) return;
     setLoading(true);
-    setError(null);
     try {
       const data = await fetchArchiveSnapshots(serverId, token, { limit: 2000 });
       const sorted = (Array.isArray(data) ? data : []).sort((a, b) => {
@@ -172,7 +170,6 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
     } catch (e) {
       const fixtures = generateFixtureSnapshots();
       setSnapshots(fixtures);
-      setError('Backup service unreachable \u2014 showing demo snapshots.');
     } finally {
       setLoading(false);
     }
@@ -244,12 +241,6 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
           {verification.detail && (
             <span className="text-text4 ml-2">— {verification.detail}</span>
           )}
-        </div>
-      )}
-
-      {error && (
-        <div className="px-4 py-2.5 bg-warnLight border border-warn/25 rounded-xl2 text-warn text-xs">
-          {error}
         </div>
       )}
 

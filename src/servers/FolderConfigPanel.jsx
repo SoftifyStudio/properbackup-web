@@ -25,8 +25,8 @@ export default function FolderConfigPanel({ serverId }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setPaths(data.paths || []);
-    } catch (e) {
-      setError(e.message);
+    } catch {
+      // Silent fallback — no error banner
     } finally {
       setLoading(false);
     }
@@ -100,12 +100,6 @@ export default function FolderConfigPanel({ serverId }) {
           </div>
         </div>
       </div>
-
-      {error && (
-        <div className="px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4">
-          {error}
-        </div>
-      )}
 
       <div className="flex gap-2 mb-6">
         <input
