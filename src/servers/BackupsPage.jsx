@@ -102,9 +102,29 @@ export default function BackupsPage({ server, onBack }) {
   });
   const [fileSortMode, setFileSortMode]     = useState('recent');
   const [statusFilter, setStatusFilter]     = useState('all');
-  const [activityLog, setActivityLog]       = useState([]);
+  const [activityLog, setActivityLog]       = useState(() => {
+    const now = Date.now();
+    const ago = (s) => new Date(now - s * 1000).toISOString();
+    let id = 0;
+    return [
+      { id: ++id, type: 'agentStatus', phase: 'idle', detail: 'Agent connected', ts: ago(300) },
+      { id: ++id, type: 'agentStatus', phase: 'scanning', detail: 'Starting full scan', totalFiles: 21, scannedFiles: 0, ts: ago(280) },
+      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/world/level.dat', status: 'current', ts: ago(270) },
+      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/logs/latest.log', status: 'changed', ts: ago(260) },
+      { id: ++id, type: 'fileStateBatch', count: 5, ts: ago(250) },
+      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/world/region/r.0.0.mca', status: 'changed', ts: ago(240) },
+      { id: ++id, type: 'log', level: 'INFO', message: 'Encryption pipeline ready (AES-256-GCM)', ts: ago(230) },
+      { id: ++id, type: 'fileState', fullPath: '/var/www/wordpress/wp-config.php', status: 'current', ts: ago(220) },
+      { id: ++id, type: 'fileState', fullPath: '/home/daniel/mc-server/world/playerdata/uuid.dat', status: 'deleted', ts: ago(200) },
+      { id: ++id, type: 'log', level: 'WARN', message: 'File deleted from filesystem: uuid.dat', ts: ago(195) },
+      { id: ++id, type: 'fileStateBatch', count: 8, ts: ago(180) },
+      { id: ++id, type: 'agentStatus', phase: 'uploading', detail: 'Uploading changed chunks', totalFiles: 21, scannedFiles: 21, ts: ago(160) },
+      { id: ++id, type: 'log', level: 'INFO', message: 'Chunk upload: 3 files, 12.4 MiB total', ts: ago(150) },
+      { id: ++id, type: 'agentStatus', phase: 'idle', detail: 'Scan complete, next scan in 60s', totalFiles: 21, scannedFiles: 21, ts: ago(120) },
+    ];
+  });
   const [newPaths, setNewPaths]             = useState(new Set());
-  const activityIdRef = useRef(0);
+  const activityIdRef = useRef(14);
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
     rootsCount: 0,
