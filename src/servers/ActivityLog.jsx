@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
 const LEVEL_STYLES = {
@@ -127,17 +127,7 @@ function EntryRow({ entry }) {
   }
 
   if (entry.type === 'fileStateBatch') {
-    return (
-      <div className="px-4 py-1.5 border-b border-border/20 animate-slide-in">
-        <div className="flex items-center gap-2">
-          <span className="text-text4 text-[11px] tabular-nums shrink-0 w-[60px]">{ts}</span>
-          <span className="text-xs">📦</span>
-          <span className="text-xs text-text3">
-            Batch update: <span className="font-semibold text-text1">{entry.count}</span> files
-          </span>
-        </div>
-      </div>
-    );
+    return <BatchRow entry={entry} ts={ts} />;
   }
 
   if (entry.type === 'log') {
@@ -159,6 +149,52 @@ function EntryRow({ entry }) {
   return null;
 }
 
+function BatchRow({ entry, ts }) {
+  const [expanded, setExpanded] = useState(false);
+  const files = entry.files || [];
+  const hasFiles = files.length > 0;
+
+  return (
+    <div className="border-b border-border/20 animate-slide-in">
+      <div
+        className={`px-4 py-1.5 flex items-center gap-2 ${hasFiles ? 'cursor-pointer hover:bg-surface/60' : ''}`}
+        onClick={() => hasFiles && setExpanded(!expanded)}
+      >
+        <span className="text-text4 text-[11px] tabular-nums shrink-0 w-[60px]">{ts}</span>
+        <span className="text-xs">📦</span>
+        <span className="text-xs text-text3">
+          Batch update: <span className="font-semibold text-text1">{entry.count || files.length}</span> files
+        </span>
+        {hasFiles && (
+          <svg
+            className={`w-3 h-3 text-text4 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+            viewBox="0 0 12 12" fill="none"
+          >
+            <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </div>
+      {expanded && hasFiles && (
+        <div className="pl-[88px] pr-4 pb-2 space-y-0.5">
+          {files.map((f, i) => {
+            const sm = STATUS_META[f.status] || { icon: '?', color: 'text-text3', label: f.status };
+            const fileName = f.fullPath?.split('/').pop() || '';
+            const dirPath = shortenPath(f.fullPath?.substring(0, f.fullPath.lastIndexOf('/')) || '');
+            return (
+              <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                <span className={`${sm.color} shrink-0`}>{sm.icon}</span>
+                <span className={`${sm.color} font-medium`}>{sm.label}:</span>
+                <span className="text-text1 font-medium">{fileName}</span>
+                {dirPath && <span className="text-text4 font-mono">{dirPath}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ActivityLog({ entries, agentStatus, connected }) {
   const { t } = useI18n();
   const bottomRef = useRef(null);
@@ -173,6 +209,8 @@ export default function ActivityLog({ entries, agentStatus, connected }) {
       }
     }
   }, [entries.length]);
+
+  const reversedEntries = useMemo(() => [...entries].reverse(), [entries]);
 
   const stats = useMemo(() => {
     let files = 0, statuses = 0, logs = 0, phases = 0;
@@ -209,7 +247,7 @@ export default function ActivityLog({ entries, agentStatus, connected }) {
       {/* Agent phase bar */}
       <AgentPhaseBar agentStatus={agentStatus} />
 
-      {/* Entries */}
+      {/* Entries — newest first */}
       <div ref={scrollRef} className="max-h-[400px] overflow-y-auto">
         {entries.length === 0 && (
           <div className="px-4 py-10 text-center text-text4 text-xs">
@@ -217,7 +255,7 @@ export default function ActivityLog({ entries, agentStatus, connected }) {
             {connected ? 'Waiting for agent activity...' : 'Connecting to stream...'}
           </div>
         )}
-        {entries.map((entry, i) => (
+        {reversedEntries.map((entry, i) => (
           <EntryRow key={entry.id || i} entry={entry} />
         ))}
         <div ref={bottomRef} />
