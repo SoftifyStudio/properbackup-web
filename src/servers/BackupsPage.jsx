@@ -12,6 +12,8 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import FileListItem from './FileListItem.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
 import ActivityLog from './ActivityLog.jsx';
+import SnapshotTimeline from './SnapshotTimeline.jsx';
+import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
@@ -115,7 +117,7 @@ export default function BackupsPage({ server, onBack }) {
   const [logComponent, setLogComponent]     = useState('');
   const [showDebug, setShowDebug]           = useState(false);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'docs', 'settings'].includes(urlTab || '');
+  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'explorer', 'timeline', 'docs', 'settings'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'backups';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -399,6 +401,12 @@ export default function BackupsPage({ server, onBack }) {
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('files')}>
           {t('backups.tabFiles')}
         </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'explorer' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('explorer')}>
+          Explorer
+        </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('timeline')}>
+          Timeline
+        </button>
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'docs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('docs')}>
           {t('backups.tabDocs')}
         </button>
@@ -653,6 +661,89 @@ export default function BackupsPage({ server, onBack }) {
               connected={sseConnected}
             />
           </div>
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'explorer' && (
+          <ErrorBoundary title="Explorer" retryLabel={t('backups.refresh')}>
+            <div className="space-y-4">
+              <AgentIndexBanner
+                serverName={server.name}
+                agentStatus={liveIndexMeta.agentStatus}
+                rootsCount={liveIndexMeta.rootsCount}
+                totalFiles={liveIndexMeta.totalFiles}
+                latestVerification={liveIndexMeta.latestVerification}
+                loading={liveIndexMeta.loading}
+                variant="spotlight"
+              />
+
+              {/* SSE connection indicator */}
+              <div className="flex items-center gap-2 px-1">
+                {sseConnected ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                    Polaczono — Live stream
+                  </span>
+                ) : sseReconnecting ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-warn font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
+                    Reconnecting...
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-text4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-text4" />
+                    Polling
+                  </span>
+                )}
+              </div>
+
+              {/* Status filter toolbar */}
+              <div className="flex items-center justify-between px-1 flex-wrap gap-2">
+                <div className="flex items-center gap-1.5">
+                  {['all', 'current', 'changed', 'new', 'deleted'].map((s) => (
+                    <button
+                      key={s}
+                      className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
+                        statusFilter === s ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'
+                      }`}
+                      onClick={() => setStatusFilter(s)}
+                    >
+                      {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s !== 'all' && (
+                        <span className="ml-1 text-text4">
+                          ({fileStates.filter((f) => f.status === s).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Folder tree view */}
+              <FolderTreeView
+                files={filteredFiles}
+                newPaths={newPaths}
+                formatDateTime={formatDateTime}
+              />
+
+              {/* Real-time activity log */}
+              <ActivityLog
+                entries={activityLog}
+                agentStatus={liveIndexMeta.agentStatus}
+                connected={sseConnected}
+              />
+            </div>
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'timeline' && (
+          <ErrorBoundary title="Timeline" retryLabel={t('backups.refresh')}>
+            <SnapshotTimeline
+              serverId={server.id}
+              onRestore={(snap) => {
+                const node = nodes.find(n => n.snapshots?.includes(snap));
+                setRecoveryTarget({ snap, node });
+              }}
+              verification={liveIndexMeta.latestVerification}
+            />
           </ErrorBoundary>
         )}
         {serviceTab === 'docs' && (
