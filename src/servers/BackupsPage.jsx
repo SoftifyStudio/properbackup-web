@@ -9,7 +9,6 @@ import InventoryPanel from './InventoryPanel.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
 import DocumentationTab from './DocumentationTab.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
-import FileListItem from './FileListItem.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
 import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
@@ -17,7 +16,6 @@ import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
-import { List as VirtualList } from 'react-window';
 
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
 import fixtureIdxData from '../fixtures/mock-paths-idx.json';
@@ -137,7 +135,7 @@ export default function BackupsPage({ server, onBack }) {
   const [logComponent, setLogComponent]     = useState('');
   const [showDebug, setShowDebug]           = useState(false);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'explorer', 'timeline', 'activity', 'docs', 'settings'].includes(urlTab || '');
+  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'timeline', 'activity', 'docs', 'settings'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'backups';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -422,9 +420,6 @@ export default function BackupsPage({ server, onBack }) {
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('files')}>
           {t('backups.tabFiles')}
         </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'explorer' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('explorer')}>
-          Explorer
-        </button>
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('timeline')}>
           Timeline
         </button>
@@ -556,121 +551,6 @@ export default function BackupsPage({ server, onBack }) {
         )}
         {serviceTab === 'files' && (
           <ErrorBoundary title={t('backups.tabFiles')} retryLabel={t('backups.refresh')}>
-          <div className="space-y-4">
-            <AgentIndexBanner
-              serverName={server.name}
-              agentStatus={liveIndexMeta.agentStatus}
-              rootsCount={liveIndexMeta.rootsCount}
-              totalFiles={liveIndexMeta.totalFiles}
-              latestVerification={liveIndexMeta.latestVerification}
-              loading={liveIndexMeta.loading}
-              variant="spotlight"
-            />
-
-            {/* SSE connection indicator */}
-            <div className="flex items-center gap-2 px-1">
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-success font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                Connected — Live stream
-              </span>
-            </div>
-
-            {/* Toolbar: file count + status filter + sort toggle */}
-            <div className="flex items-center justify-between px-1 flex-wrap gap-2">
-              <div className="flex items-center gap-1.5">
-                {['all', 'current', 'changed', 'new', 'deleted'].map((s) => (
-                  <button
-                    key={s}
-                    className={`text-xs px-2.5 py-1 rounded-md transition-colors ${statusFilter === s ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'}`}
-                    onClick={() => setStatusFilter(s)}
-                  >
-                    {s === 'all' ? (t('backups.filterAll') === 'backups.filterAll' ? 'All' : t('backups.filterAll'))
-                     : s.charAt(0).toUpperCase() + s.slice(1)}
-                    {s !== 'all' && (
-                      <span className="ml-1 text-text4">
-                        ({fileStates.filter((f) => f.status === s).length})
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-text4">{t('backups.filesSortLabel')}</span>
-                <button
-                  className={`text-xs px-2.5 py-1 rounded-md transition-colors ${fileSortMode === 'recent' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'}`}
-                  onClick={() => setFileSortMode('recent')}
-                >
-                  {t('backups.filesSortRecent')}
-                </button>
-                <button
-                  className={`text-xs px-2.5 py-1 rounded-md transition-colors ${fileSortMode === 'path' ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'}`}
-                  onClick={() => setFileSortMode('path')}
-                >
-                  {t('backups.filesSortPath')}
-                </button>
-              </div>
-            </div>
-
-            {/* OneDrive-style file list with virtualization */}
-            <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
-              {/* Column header */}
-              <div className="flex items-center gap-3 px-4 py-2 bg-surface/90 border-b border-border">
-                <span className="shrink-0 w-1.5" />
-                <span className="shrink-0 w-5" />
-                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-text4">
-                  {t('backups.filesColName')}
-                </span>
-                <div className="shrink-0 flex items-center gap-3">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-text4 w-[5.5rem] text-center">
-                    {t('backups.filesColStatus')}
-                  </span>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-text4 w-[9rem] text-right">
-                    {t('backups.filesColUpdated')}
-                  </span>
-                </div>
-              </div>
-              {/* File rows — virtualized when > 200, otherwise plain */}
-              {filteredFiles.length > 200 ? (
-                <VirtualList
-                  height={Math.min(filteredFiles.length * 40, 560)}
-                  itemCount={filteredFiles.length}
-                  itemSize={40}
-                  width="100%"
-                  overscanCount={20}
-                >
-                  {({ index, style }) => {
-                    const r = filteredFiles[index];
-                    return (
-                      <div style={style} className={newPaths.has(r.fullPath) ? 'animate-fade-in-row' : ''}>
-                        <FileListItem file={r} formatDateTime={formatDateTime} />
-                      </div>
-                    );
-                  }}
-                </VirtualList>
-              ) : (
-                <div className="max-h-[70vh] overflow-y-auto">
-                  {filteredFiles.map(r => (
-                    <div key={r.fullPath} className={newPaths.has(r.fullPath) ? 'animate-fade-in-row' : ''}>
-                      <FileListItem file={r} formatDateTime={formatDateTime} />
-                    </div>
-                  ))}
-                  {filteredFiles.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-16 text-text4">
-                      <svg className="w-10 h-10 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                      </svg>
-                      <p className="text-sm">{t('backups.filesEmpty')}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-          </div>
-          </ErrorBoundary>
-        )}
-        {serviceTab === 'explorer' && (
-          <ErrorBoundary title="Explorer" retryLabel={t('backups.refresh')}>
             <div className="space-y-4">
               <AgentIndexBanner
                 serverName={server.name}
@@ -712,7 +592,7 @@ export default function BackupsPage({ server, onBack }) {
                 </div>
               </div>
 
-              {/* Folder tree view */}
+              {/* OneDrive-style folder tree view */}
               <FolderTreeView
                 files={filteredFiles}
                 newPaths={newPaths}
