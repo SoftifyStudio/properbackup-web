@@ -100,6 +100,7 @@ export default function BackupsPage({ server, onBack }) {
     agentStatus: null,
     rootsCount: 0,
     totalFiles: 0,
+    latestVerification: null,
     loading: false,
   });
   const [logsSince, setLogsSince]           = useState(null);
@@ -196,6 +197,7 @@ export default function BackupsPage({ server, onBack }) {
         agentStatus: inv.agentStatus ?? null,
         rootsCount: inv.roots?.length ?? 0,
         totalFiles: inv.totalFiles ?? 0,
+        latestVerification: inv.latestVerification ?? null,
       }));
     } catch {
       /* zostaw poprzedni stan */
@@ -449,6 +451,7 @@ export default function BackupsPage({ server, onBack }) {
               agentStatus={liveIndexMeta.agentStatus}
               rootsCount={liveIndexMeta.rootsCount}
               totalFiles={liveIndexMeta.totalFiles}
+              latestVerification={liveIndexMeta.latestVerification}
               loading={liveIndexMeta.loading}
               variant="spotlight"
             />

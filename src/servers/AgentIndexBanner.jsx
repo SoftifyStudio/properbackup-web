@@ -82,6 +82,7 @@ export default function AgentIndexBanner({
   agentStatus,
   rootsCount,
   totalFiles,
+  latestVerification,
   loading,
   variant = 'panel',
 }) {
@@ -206,6 +207,28 @@ export default function AgentIndexBanner({
                   <p className="text-xs text-text4 tabular-nums">
                     {t('backups.agentIndexStats', { roots: rootsCount, files: totalFiles })}
                   </p>
+                  {latestVerification && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      {latestVerification.status === 'passed' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                            <path fillRule="evenodd" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" clipRule="evenodd"/>
+                          </svg>
+                          Verified
+                        </span>
+                      ) : latestVerification.status === 'failed' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.28 3.22a.75.75 0 00-1.06 1.06L6.94 8l-3.72 3.72a.75.75 0 101.06 1.06L8 9.06l3.72 3.72a.75.75 0 101.06-1.06L9.06 8l3.72-3.72a.75.75 0 00-1.06-1.06L8 6.94 4.28 3.22z" clipRule="evenodd"/>
+                          </svg>
+                          Verification Failed
+                        </span>
+                      ) : null}
+                      <span className="text-[10px] text-text4">
+                        {relativeUpdatedLabel(latestVerification.verifiedAt, t)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
