@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import AdminModeBar from '../layout/AdminModeBar.jsx';
@@ -8,9 +8,16 @@ import RecoveryWizard from '../recovery/RecoveryWizard.jsx';
 import InventoryPanel from './InventoryPanel.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
 import DocumentationTab from './DocumentationTab.jsx';
-import { fetchInventory, fetchInventoryMeta, forceFlush } from '../api/bufferClient.js';
+import ErrorBoundary from './ErrorBoundary.jsx';
+import FolderConfigPanel from './FolderConfigPanel.jsx';
+import ActivityLog from './ActivityLog.jsx';
+import SnapshotTimeline from './SnapshotTimeline.jsx';
+import FolderTreeView from './FolderTreeView.jsx';
+import useServerEvents from '../api/useServerEvents.js';
+import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
+// Fixture imports kept only for legacy StatusBar (tree view) — not used for file list
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
 import fixtureIdxData from '../fixtures/mock-paths-idx.json';
 
@@ -66,18 +73,29 @@ export default function BackupsPage({ server, onBack }) {
   const [error, setError]                   = useState(null);
   const [logs, setLogs]                     = useState([]);
   const [fileStates, setFileStates]         = useState([]);
+  const [fileSortMode, setFileSortMode]     = useState('recent');
+  const [statusFilter, setStatusFilter]     = useState('all');
+  const [activityLog, setActivityLog]       = useState([]);
+  const [newPaths, setNewPaths]             = useState(new Set());
+  const activityIdRef = useRef(0);
+  const [snapshotFiles, setSnapshotFiles]   = useState(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotError, setSnapshotError]     = useState(false);
   const [liveIndexMeta, setLiveIndexMeta]   = useState({
     agentStatus: null,
     rootsCount: 0,
     totalFiles: 0,
+    latestVerification: null,
     loading: false,
   });
   const [logsSince, setLogsSince]           = useState(null);
   const [logLevel, setLogLevel]             = useState('');
   const [logComponent, setLogComponent]     = useState('');
+  const [showDebug, setShowDebug]           = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['backups', 'inventory', 'logs', 'files', 'docs'].includes(urlTab || '');
-  const serviceTab = isAllowedTab ? urlTab : 'backups';
+  const isAllowedTab = ['files', 'timeline', 'activity', 'settings', 'logs'].includes(urlTab || '');
+  const serviceTab = isAllowedTab ? urlTab : 'files';
 
   const setServiceTab = useCallback((nextTab) => {
     setSearchParams((prev) => {
@@ -112,16 +130,13 @@ export default function BackupsPage({ server, onBack }) {
         const idxData = await idxRes.json();
         paths = idxData.paths ?? {};
         updated = idxData.updated ?? updated;
-      } else {
-        setError(t('backups.pathsIdxPartial', { status: idxRes.status }));
       }
 
       setPathsIdx(paths);
       setUpdatedAt(updated);
       setObjectNames(objects ?? []);
       setMode('live');
-    } catch (e) {
-      setError(t('backups.bufferError', { message: e.message }));
+    } catch {
       setMode('fixture');
     } finally {
       setRefreshing(false);
@@ -135,7 +150,7 @@ export default function BackupsPage({ server, onBack }) {
     if (!token || !isSystemAdmin) return;
     try {
       const authHeaders = { Authorization: `Bearer ${token}` };
-      const logsUrl = new URL(`${BASE_URL}/admin/logs`);
+      const logsUrl = new URL(`${BASE_URL}/admin/logs`, window.location.origin);
       logsUrl.searchParams.set('machineId', server.id);
       logsUrl.searchParams.set('limit', '300');
       if (logsSince) logsUrl.searchParams.set('since', logsSince);
@@ -155,21 +170,77 @@ export default function BackupsPage({ server, onBack }) {
     }
   }, [token, isSystemAdmin, server.id, logsSince, logLevel, logComponent]);
 
-  /** Co ~1 s: tylko agentStatus i liczniki (lekki GET inventory pageSize 1). */
+  /** Fallback polling for meta (only used when SSE is not connected). */
   const fetchLiveMeta = useCallback(async () => {
     if (!token) return;
     try {
-      const inv = await fetchInventoryMeta(server.id, token);
-      setLiveIndexMeta((m) => ({
-        ...m,
-        agentStatus: inv.agentStatus ?? null,
-        rootsCount: inv.roots?.length ?? 0,
-        totalFiles: inv.totalFiles ?? 0,
-      }));
+      const inv = await fetchInventorySummary(server.id, token);
+      setLiveIndexMeta((m) => {
+        const newVerif = inv.latestVerification ?? null;
+        const prevVerif = m.latestVerification;
+        const verifChanged = !prevVerif !== !newVerif
+          || (newVerif && prevVerif && (newVerif.status !== prevVerif.status || newVerif.verifiedAt !== prevVerif.verifiedAt));
+        return {
+          ...m,
+          agentStatus: inv.agentStatus ?? null,
+          rootsCount: inv.rootsCount ?? 0,
+          totalFiles: inv.totalFiles ?? 0,
+          latestVerification: verifChanged ? newVerif : prevVerif,
+        };
+      });
     } catch {
-      /* zostaw poprzedni stan */
+      /* keep previous state */
     }
   }, [token, server.id]);
+
+  /** SSE event handlers — real-time updates from buffer */
+  const addActivityEntry = useCallback((entry) => {
+    setActivityLog((prev) => {
+      const next = [...prev, { ...entry, id: ++activityIdRef.current }];
+      return next.length > 500 ? next.slice(-400) : next;
+    });
+  }, []);
+
+  const sseHandlers = useMemo(() => ({
+    onAgentStatus: (data) => {
+      setLiveIndexMeta((m) => ({
+        ...m,
+        agentStatus: {
+          ...m.agentStatus,
+          phase: data.phase,
+          detail: data.detail,
+          totalFiles: data.totalFiles,
+          scannedFiles: data.scannedFiles,
+          currentFile: data.currentFile,
+          updatedAt: data.updatedAt,
+        },
+      }));
+      addActivityEntry({ type: 'agentStatus', ...data });
+    },
+    onFileState: (data) => {
+      setFileStates((prev) => {
+        const idx = prev.findIndex((f) => f.fullPath === data.fullPath);
+        const updated = { fullPath: data.fullPath, status: data.status, updatedAt: data.ts };
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [updated, ...prev];
+      });
+      setNewPaths((s) => { const n = new Set(s); n.add(data.fullPath); return n; });
+      setTimeout(() => setNewPaths((s) => { const n = new Set(s); n.delete(data.fullPath); return n; }), 1200);
+      addActivityEntry({ type: 'fileState', ...data });
+    },
+    onFileStateBatch: (data) => {
+      addActivityEntry({ type: 'fileStateBatch', ...data });
+    },
+    onLog: (data) => {
+      addActivityEntry({ type: 'log', ...data });
+    },
+  }), [addActivityEntry]);
+
+  const { connected: sseConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers, token);
 
   /** Lista plików z bufferu: GET /servers/{id}/inventory (JWT). */
   const fetchLiveFileStates = useCallback(async (withLoadingSpinner = false) => {
@@ -184,13 +255,15 @@ export default function BackupsPage({ server, onBack }) {
       let firstInv = null;
       const maxPages = 50;
       while (hasMore && page <= maxPages) {
-        const inv = await fetchInventory(server.id, token, page, 1000);
+        const inv = await fetchInventory(server.id, token, page, 1000, fileSortMode);
         if (page === 1) firstInv = inv;
         rows.push(...(inv.files ?? []));
         hasMore = !!inv.hasMore;
         page += 1;
       }
-      rows.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+      if (fileSortMode === 'path') {
+        rows.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+      }
       setFileStates(rows);
       setLiveIndexMeta({
         agentStatus: firstInv?.agentStatus ?? null,
@@ -201,7 +274,7 @@ export default function BackupsPage({ server, onBack }) {
     } catch {
       setLiveIndexMeta((m) => ({ ...m, loading: false }));
     }
-  }, [token, server.id]);
+  }, [token, server.id, fileSortMode]);
 
   useEffect(() => {
     if (!isSystemAdmin) return;
@@ -220,17 +293,70 @@ export default function BackupsPage({ server, onBack }) {
     }
   }, [isAllowedTab, serviceTab, isSystemAdmin, setServiceTab]);
 
+  const isIndexing = liveIndexMeta.agentStatus?.phase === 'indexing';
+
+  /** Initial file load + fallback poll (only when SSE is disconnected). */
   useEffect(() => {
-    // Live index should refresh independently from active tab to avoid stale/empty state
-    // when navigation enters directly via URL query params.
     fetchLiveFileStates(true);
-    const metaId = setInterval(fetchLiveMeta, 1000);
-    const filesId = setInterval(() => fetchLiveFileStates(false), 4000);
+    fetchLiveMeta();
+  }, [fetchLiveFileStates, fetchLiveMeta]);
+
+  useEffect(() => {
+    if (sseConnected) return;
+    const metaId = setInterval(fetchLiveMeta, 2000);
+    const filesId = setInterval(() => fetchLiveFileStates(false), isIndexing ? 3000 : 8000);
     return () => {
       clearInterval(metaId);
       clearInterval(filesId);
     };
-  }, [fetchLiveFileStates, fetchLiveMeta]);
+  }, [sseConnected, fetchLiveFileStates, fetchLiveMeta, isIndexing]);
+
+  /** Periodic full-list refresh even with SSE (batch updates don't carry all data). */
+  useEffect(() => {
+    if (!sseConnected) return;
+    const id = setInterval(() => fetchLiveFileStates(false), 15000);
+    return () => clearInterval(id);
+  }, [sseConnected, fetchLiveFileStates]);
+
+  /** Fetch historical file states when a snapshot is selected */
+  const fetchSnapshotFiles = useCallback(async (snap) => {
+    if (!token || !snap?.sealedAt) return;
+    setSnapshotLoading(true);
+    setSnapshotError(false);
+    try {
+      const rows = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore && page <= 50) {
+        const inv = await fetchFileStatesAt(server.id, token, snap.sealedAt, page, 1000, fileSortMode);
+        rows.push(...(inv.files ?? []));
+        hasMore = !!inv.hasMore;
+        page += 1;
+      }
+      setSnapshotFiles(rows);
+    } catch {
+      setSnapshotFiles(null);
+      setSnapshotError(true);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  }, [token, server.id, fileSortMode]);
+
+  useEffect(() => {
+    if (selectedSnapshot) {
+      fetchSnapshotFiles(selectedSnapshot);
+    } else {
+      setSnapshotFiles(null);
+      setSnapshotError(false);
+    }
+  }, [selectedSnapshot, fetchSnapshotFiles]);
+
+  const displayFiles = selectedSnapshot && snapshotFiles ? snapshotFiles : fileStates;
+
+  const filteredFiles = useMemo(() => {
+    if (statusFilter === 'all') return displayFiles;
+    return displayFiles.filter((f) => f.status === statusFilter);
+  }, [displayFiles, statusFilter]);
 
   const nodes = useMemo(() => buildTree(objectNames, pathsIdx), [objectNames, pathsIdx]);
   const snapshotCount = nodes.reduce((s, n) => s + n.snapshots.length, 0);
@@ -250,83 +376,210 @@ export default function BackupsPage({ server, onBack }) {
     <div className="h-full min-h-0 flex flex-col bg-surface overflow-hidden">
       <AppHeader onBack={onBack} backLabel={t('backups.backLabel')}>
         <span className="badge bg-accentLight text-accent text-xs">{server.name}</span>
-        <span className={`badge text-xs ${mode === 'live' ? 'bg-successLight text-success' : 'bg-surface text-text3 border border-border'}`}>
-          {mode === 'live' ? t('backups.modeLive') : t('backups.modeFixture')}
+        <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ml-2 ${
+          sseConnected ? 'text-success' : sseReconnecting ? 'text-amber-500' : 'text-text4'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            sseConnected ? 'bg-success animate-pulse' : sseReconnecting ? 'bg-amber-500 animate-pulse' : 'bg-text4'
+          }`} />
+          {sseConnected ? 'Connected' : sseReconnecting ? 'Reconnecting...' : 'Disconnected'}
         </span>
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
 
-      <StatusBar
-        nodeCount={nodes.length}
-        snapshotCount={snapshotCount}
-        orphanCount={orphanCount}
-        updatedAt={updatedAt}
-      />
-
-      <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
-        <button
-          className={`btn-ghost text-xs py-1.5 ${serviceTab === 'backups' ? 'ring-1 ring-accent/40' : ''}`}
-          onClick={() => setServiceTab('backups')}
-        >
-          {t('backups.tabBackups')}
-        </button>
-        <button
-          className={`btn-ghost text-xs py-1.5 ${serviceTab === 'inventory' ? 'ring-1 ring-accent/40' : ''}`}
-          onClick={() => setServiceTab('inventory')}
-        >
-          {t('backups.tabInventory')}
-        </button>
-        {isSystemAdmin && (
-          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'logs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('logs')}>
-            {t('backups.tabLogs')}
-          </button>
-        )}
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('files')}>
-          {t('backups.tabFiles')}
-        </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'docs' ? 'ring-1 ring-accent/40' : ''}`} onClick={() => setServiceTab('docs')}>
-          {t('backups.tabDocs')}
-        </button>
-        {mode === 'live' && (
-          <button className="btn-ghost text-xs py-1.5" onClick={handleFlush}>
-            {t('backups.flush')}
-          </button>
-        )}
-        <button className="btn-ghost text-xs py-1.5 min-w-[90px]" onClick={fetchServerData} disabled={refreshing}>
-          {refreshing ? t('backups.refreshBusy') : t('backups.refresh')}
-        </button>
+      {/* Backup Health Score */}
+      <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-3">
+        {(() => {
+          const v = liveIndexMeta.latestVerification;
+          const hasFiles = liveIndexMeta.totalFiles > 0 || fileStates.length > 0;
+          const isVerified = v?.status === 'passed';
+          const isFailed = v?.status === 'failed';
+          const verifiedAgo = v?.verifiedAt ? Math.round((Date.now() - new Date(v.verifiedAt).getTime()) / 3600000) : null;
+          const score = !hasFiles ? 0 : isFailed ? 40 : isVerified ? 100 : 80;
+          const color = score >= 90 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600';
+          const bgColor = score >= 90 ? 'bg-emerald-50 border-emerald-200' : score >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+          const dotColor = score >= 90 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500';
+          return (
+            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs ${bgColor}`}>
+              <span className={`w-2 h-2 rounded-full ${dotColor} ${score >= 90 ? 'animate-pulse' : ''}`} />
+              <span className={`font-semibold ${color}`}>{score}% Safe</span>
+              {verifiedAgo !== null && (
+                <span className="text-text4">
+                  · Verified {verifiedAgo < 1 ? 'just now' : `${verifiedAgo}h ago`}
+                </span>
+              )}
+              {!hasFiles && <span className="text-text4">· No files indexed yet</span>}
+              {hasFiles && !v && <span className="text-text4">· Awaiting first verification</span>}
+            </div>
+          );
+        })()}
+        <div className="flex-1" />
+        <span className="text-[11px] text-text4">
+          {liveIndexMeta.totalFiles > 0 ? `${liveIndexMeta.totalFiles.toLocaleString()} files protected` : ''}
+        </span>
       </div>
 
-      {error && (
-        <div className="shrink-0 mx-6 mt-2 px-4 py-2.5 bg-warnLight border border-warn/25 rounded-xl2 text-warn text-xs">
-          {error}
-        </div>
-      )}
-
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 max-w-4xl w-full mx-auto">
-        {serviceTab === 'backups' && (
-          <DirectoryView
-            nodes={nodes}
-            onRestore={(snap) => {
-              const node = nodes.find(n => n.snapshots.includes(snap));
-              setRecoveryTarget({ snap, node });
-            }}
-          />
+      <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
+          Files
+        </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('timeline')}>
+          Timeline
+        </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
+          Activity
+        </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('settings')}>
+          Settings
+        </button>
+        {isSystemAdmin && (
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'logs' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('logs')}>
+            Logs
+          </button>
         )}
-        {serviceTab === 'inventory' && <InventoryPanel server={server} token={token} />}
+      </div>
+
+
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto max-w-6xl">
+        {serviceTab === 'files' && (
+          <ErrorBoundary title="Files" retryLabel="Refresh">
+            <div className="space-y-4">
+              {/* Time-travel bar when viewing a snapshot */}
+              {selectedSnapshot && (
+                <div className="flex items-center justify-between gap-4 px-5 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <svg className="w-5 h-5 text-amber-600 shrink-0" viewBox="0 0 20 20" fill="none">
+                      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-amber-800">Viewing snapshot</span>
+                      <span className="text-sm text-amber-700 ml-2">
+                        {selectedSnapshot.sealedAt ? formatDateTime(selectedSnapshot.sealedAt) : 'Unknown time'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      className="bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-5 rounded-lg text-sm shadow transition-all active:scale-[0.98]"
+                      onClick={() => setRecoveryTarget({ snap: selectedSnapshot, node: null })}
+                    >
+                      Restore to this moment
+                    </button>
+                    <button
+                      className="bg-white hover:bg-gray-50 text-[#323130] font-medium py-2 px-4 rounded-lg text-sm border border-[#edebe9] shadow-sm transition-all"
+                      onClick={() => setSelectedSnapshot(null)}
+                    >
+                      Back to Live
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Status filter toolbar */}
+              <div className="flex items-center justify-between px-1 flex-wrap gap-2">
+                <div className="flex items-center gap-1.5">
+                  {['all', 'current', 'changed', 'new', 'deleted'].map((s) => (
+                    <button
+                      key={s}
+                      className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
+                        statusFilter === s ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'
+                      }`}
+                      onClick={() => setStatusFilter(s)}
+                    >
+                      {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s !== 'all' && (
+                        <span className="ml-1 text-text4">
+                          ({displayFiles.filter((f) => f.status === s).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs text-text4">
+                  {selectedSnapshot
+                    ? (snapshotLoading ? 'Loading snapshot...' : `${displayFiles.length} files at this moment`)
+                    : `${fileStates.length} files indexed`}
+                </span>
+              </div>
+
+              {/* Snapshot fetch error */}
+              {selectedSnapshot && snapshotError && !snapshotLoading && (
+                <div className="flex items-center gap-3 px-5 py-3 bg-red-50 border border-red-200 rounded-lg">
+                  <svg className="w-5 h-5 text-red-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                  </svg>
+                  <div className="text-sm text-red-700">
+                    <span className="font-semibold">Cannot load snapshot data.</span>
+                    <span className="ml-1">Buffer service may be unavailable. Showing live files instead.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state when no files indexed */}
+              {!selectedSnapshot && fileStates.length === 0 && !liveIndexMeta.loading && (
+                <div className="flex flex-col items-center justify-center py-16 text-text4">
+                  <svg className="w-12 h-12 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <p className="text-sm font-medium text-text3">Waiting for agent to index files...</p>
+                  <p className="text-xs text-text4 mt-1">Files will appear here as the agent scans your system</p>
+                </div>
+              )}
+
+              {/* OneDrive-style folder tree view */}
+              {(fileStates.length > 0 || selectedSnapshot) && (
+                <FolderTreeView
+                  files={filteredFiles}
+                  newPaths={newPaths}
+                  formatDateTime={formatDateTime}
+                  snapshotLabel={selectedSnapshot ? formatDateTime(selectedSnapshot.sealedAt) : null}
+                />
+              )}
+            </div>
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'timeline' && (
+          <ErrorBoundary title="Timeline" retryLabel="Refresh">
+            <SnapshotTimeline
+              serverId={server.id}
+              onRestore={(snap) => {
+                setSelectedSnapshot(snap);
+                setRecoveryTarget({ snap, node: null });
+              }}
+              onSelectSnapshot={(snap) => {
+                setSelectedSnapshot(snap);
+                if (snap) setServiceTab('files');
+              }}
+              selectedSnapshot={selectedSnapshot}
+              verification={liveIndexMeta.latestVerification}
+            />
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'activity' && (
+          <ErrorBoundary title="Activity" retryLabel="Refresh">
+            <ActivityLog
+              entries={activityLog}
+              agentStatus={liveIndexMeta.agentStatus}
+              connected={sseConnected}
+            />
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'settings' && (
+          <ErrorBoundary title="Settings" retryLabel="Refresh">
+            <FolderConfigPanel serverId={server.id} />
+          </ErrorBoundary>
+        )}
         {isSystemAdmin && serviceTab === 'logs' && (
           <div className="space-y-3">
             <div className="flex gap-2">
               <select className="input max-w-[180px]" value={logComponent} onChange={e => { setLogComponent(e.target.value); setLogsSince(null); setLogs([]); }}>
-                <option value="">{t('backups.logComponentAll')}</option>
-                <option value="Installer">Installer</option>
+                <option value="">All Components</option>
                 <option value="Agent">Agent</option>
                 <option value="Buffer">Buffer</option>
-                <option value="Web">Web</option>
-                <option value="DB">DB</option>
               </select>
               <select className="input max-w-[140px]" value={logLevel} onChange={e => { setLogLevel(e.target.value); setLogsSince(null); setLogs([]); }}>
-                <option value="">{t('backups.logLevelAll')}</option>
+                <option value="">All Levels</option>
                 <option value="INFO">INFO</option>
                 <option value="WARN">WARN</option>
                 <option value="ERROR">ERROR</option>
@@ -340,64 +593,13 @@ export default function BackupsPage({ server, onBack }) {
                   </div>
                   <div className="text-text4 mt-1">
                     {formatDateTime(l.createdAt)} · {l.level}
-                    {l.dropped ? ` · ${t('backups.logDropped', { count: l.dropped })}` : ''}
                   </div>
                 </div>
               ))}
-              {logs.length === 0 && <div className="px-3 py-4 text-xs text-text4">{t('backups.logsEmpty')}</div>}
+              {logs.length === 0 && <div className="px-3 py-4 text-xs text-text4">No logs yet</div>}
             </div>
           </div>
         )}
-        {serviceTab === 'files' && (
-          <div className="space-y-4">
-            <AgentIndexBanner
-              serverName={server.name}
-              agentStatus={liveIndexMeta.agentStatus}
-              rootsCount={liveIndexMeta.rootsCount}
-              totalFiles={liveIndexMeta.totalFiles}
-              loading={liveIndexMeta.loading}
-              variant="spotlight"
-            />
-            <div className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
-              <table className="w-full text-[13px]">
-                <thead className="bg-surface/90 border-b border-border">
-                  <tr>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-text4">
-                      {t('backups.filesColPath')}
-                    </th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[7rem]">
-                      {t('backups.filesColStatus')}
-                    </th>
-                    <th className="text-left py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-text4 w-[10.5rem]">
-                      {t('backups.filesColUpdated')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {fileStates.map(r => (
-                    <tr key={r.fullPath} className="hover:bg-surface/50 transition-colors">
-                      <td className="py-1.5 px-3 font-mono text-[12px] text-text2 leading-snug align-middle">
-                        {r.fullPath}
-                      </td>
-                      <td className="py-1.5 px-3 text-text2 align-middle">{r.status}</td>
-                      <td className="py-1.5 px-3 text-text3 tabular-nums text-[12px] align-middle">
-                        {formatDateTime(r.updatedAt)}
-                      </td>
-                    </tr>
-                  ))}
-                  {fileStates.length === 0 && (
-                    <tr>
-                      <td className="py-4 px-3 text-text4 text-sm align-top" colSpan={3}>
-                        {t('backups.filesEmpty')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-        {serviceTab === 'docs' && <DocumentationTab />}
       </main>
 
       {recoveryTarget && (

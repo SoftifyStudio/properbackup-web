@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
+import SubscriptionPage from './subscription/SubscriptionPage.jsx';
+
 import {
   BrowserRouter,
   Navigate,
@@ -55,18 +57,30 @@ function AppRoutesInner() {
   );
 }
 
+function SubscriptionPageWrapper() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  if (!token) return <Navigate to="/login" replace />;
+  return <SubscriptionPage onBack={() => navigate('/servers')} />;
+}
+
 function AppRoutes() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to={token ? '/servers' : '/login'} replace />} />
-      <Route path="/login" element={<AppRoutesInner />} />
-      <Route path="/servers" element={<AppRoutesInner />} />
-      <Route path="/servers/:serverId" element={<AppRoutesInner />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Navigate to={token ? '/servers' : '/login'} replace />} />
+        <Route path="/login" element={<AppRoutesInner />} />
+        <Route path="/servers" element={<AppRoutesInner />} />
+        <Route path="/servers/:serverId" element={<AppRoutesInner />} />
+        <Route path="/account/subscription" element={<SubscriptionPageWrapper />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
+
 
 export default function App() {
   return (

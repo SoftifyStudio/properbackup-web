@@ -48,7 +48,9 @@
     "colAccount": "Account",
     "colCreated": "Created",
     "colExpires": "Expires",
-    "copyKey": "Copy key"
+    "copyKey": "Copy key",
+    "device": "device",
+    "devices": "devices"
   },
   "tree": {
     "root": {
@@ -86,10 +88,12 @@
     "tabFiles": "Files live",
     "tabInventory": "Index",
     "tabDocs": "Documentation",
+    "tabSettings": "Settings",
     "flush": "Flush",
     "flushError": "Could not flush: {{message}}",
     "refreshBusy": "Refreshing…",
     "refresh": "Refresh",
+    "auditReport": "Audit Report PDF",
     "bufferError": "Backup service unreachable — showing demo data. ({{message}})",
     "pathsIdxPartial": "Path index (paths.idx) returned HTTP {{status}}. Archive object listing still works — path IDs may show as unknown (orphans). Hit Refresh or check buffer logs.",
     "paths": "{{count}} paths",
@@ -100,10 +104,15 @@
     "logLevelAll": "All levels",
     "logsEmpty": "No log lines for current filters.",
     "logDropped": "dropped={{count}}",
+    "filesColName": "Name",
     "filesColPath": "Path",
     "filesColStatus": "Status",
     "filesColUpdated": "Updated",
+    "filesCount": "{{count}} files",
     "filesEmpty": "No rows in this table yet — overall status is above.",
+    "filesSortLabel": "Sort:",
+    "filesSortRecent": "Recently added",
+    "filesSortPath": "Path A–Z",
     "serverDisplayName": "Display name",
     "serverIdLabel": "Server identifier (for agent.server_id)",
     "serverIdFootnote": "In agent global.yml, agent.server_id must equal this identifier exactly (it is not the display name). Upload and log-ingest tokens must match the buffer.",
@@ -111,6 +120,7 @@
     "agentLastSignal": "Last message from agent",
     "agentNeverConnected": "no signal yet",
     "agentIndexStats": "{{roots}} backup roots · {{files}} files indexed",
+    "agentProgressCount": "{{scanned}} / {{total}} files ({{pct}}%)",
     "agentStaleWarning": "Last agent update: {{time}}. If this looks stale, check whether the agent process is running.",
     "agentDerivedLoading": "Loading…",
     "agentDerivedNoSignal": "Waiting for the agent — status and the progress bar will update here.",
@@ -363,5 +373,47 @@
     "okSkip": "Backup resumed",
     "okExclude": "Exclude list updated",
     "okFooter": "The agent will scan on the next cron run."
+  },
+  "folderConfig": {
+    "title": "Backup folders",
+    "description": "Choose which folders to back up. The agent will pick up changes on its next scan cycle.",
+    "placeholder": "/home/user/documents",
+    "add": "Add",
+    "remove": "Remove",
+    "loading": "Loading configuration…",
+    "empty": "No folders configured yet. Add a folder path above to start backing up."
+  },
+  "trial": {
+    "daysLeft": "Trial: {{count}} days remaining",
+    "expired": "Your trial has expired. Choose a plan to continue.",
+    "upgrade": "Choose plan",
+    "daysShort": "Trial: {{count}}d",
+    "expiredShort": "Expired"
+  },
+  "subscription": {
+    "back": "Panel",
+    "title": "Subscription",
+    "loading": "Loading subscription data…",
+    "currentPlan": "Current plan",
+    "trialPlan": "Trial (30 days)",
+    "daysRemaining": "Days remaining",
+    "storageLimit": "Storage limit",
+    "trialExpires": "Trial expires: {{date}}",
+    "availablePlans": "Available plans",
+    "year": "year",
+    "storageIncluded": "{{limit}} storage included",
+    "featureEncryption": "Zero-Knowledge encryption (AES-256-GCM)",
+    "featureRestore": "1-Click Restore from panel",
+    "featureSupport": "Facebook / Discord support (SLA 48h)",
+    "selectPlan": "Select this plan",
+    "redirecting": "Redirecting to checkout…",
+    "storageUsed": "Storage used",
+    "storageExceeded": "Storage limit exceeded. New backups are paused until you free up space or upgrade your plan.",
+    "status": {
+      "trial": "Trial",
+      "active": "Active",
+      "expired": "Expired",
+      "trial_expired": "Trial expired"
+    }
   }
 }

@@ -48,7 +48,9 @@
     "colAccount": "Konto",
     "colCreated": "Utworzono",
     "colExpires": "Wygasa",
-    "copyKey": "Kopiuj klucz"
+    "copyKey": "Kopiuj klucz",
+    "device": "urządzenie",
+    "devices": "urządzeń"
   },
   "tree": {
     "root": {
@@ -86,10 +88,12 @@
     "tabFiles": "Pliki na żywo",
     "tabInventory": "Indeks",
     "tabDocs": "Dokumentacja",
+    "tabSettings": "Ustawienia",
     "flush": "Odświeć bufor",
     "flushError": "Flush nie powiódł się: {{message}}",
     "refreshBusy": "Odświeżam…",
     "refresh": "Odśwież",
+    "auditReport": "Raport audytu PDF",
     "bufferError": "Bufor niedostępny — wyświetlam fixture’y. ({{message}})",
     "pathsIdxPartial": "Indeks ścieżek (paths.idx): błąd HTTP {{status}}. Lista obiektów z archiwum działa — brak mapowania ID→ścieżka; użyj Odśwież albo sprawdź buffer.",
     "paths": "{{count}} ścieżek",
@@ -100,10 +104,15 @@
     "logLevelAll": "Wszystkie poziomy",
     "logsEmpty": "Brak logów dla wybranych filtrów.",
     "logDropped": "porzucone={{count}}",
+    "filesColName": "Nazwa",
     "filesColPath": "Ścieżka",
     "filesColStatus": "Status",
     "filesColUpdated": "Zaktualizowano",
+    "filesCount": "{{count}} plików",
     "filesEmpty": "Brak wierszy w tabeli — stan indeksu jest nad tym komunikatem.",
+    "filesSortLabel": "Sortuj:",
+    "filesSortRecent": "Ostatnio dodane",
+    "filesSortPath": "Ścieżka A–Z",
     "serverDisplayName": "Nazwa w panelu",
     "serverIdLabel": "Identyfikator serwera (do agent.server_id)",
     "serverIdFootnote": "W global.yml agenta pole agent.server_id musi być dokładnie takie jak identyfikator poniżej (to nie jest nazwa wyświetlana). Tokeny uploadu i ingest logów muszą zgadzać się z bufferem.",
@@ -111,6 +120,7 @@
     "agentLastSignal": "Ostatnia wiadomość od agenta",
     "agentNeverConnected": "brak sygnału",
     "agentIndexStats": "{{roots}} źródeł backupu · {{files}} plików w indeksie",
+    "agentProgressCount": "{{scanned}} / {{total}} plików ({{pct}}%)",
     "agentStaleWarning": "Ostatnia wiadomość od agenta: {{time}}. Jeśli to nieaktualne, sprawdź czy proces agenta działa.",
     "agentDerivedLoading": "Ładowanie…",
     "agentDerivedNoSignal": "Oczekiwanie na agenta — tu pojawi się status i pasek postępu.",
@@ -363,5 +373,47 @@
     "okSkip": "Backup wznowiony",
     "okExclude": "Exclude zaktualizowany",
     "okFooter": "Agent wykona skan przy następnym uruchomieniu crona."
+  },
+  "folderConfig": {
+    "title": "Foldery do backupu",
+    "description": "Wybierz foldery do kopiowania. Agent zastosuje zmiany przy następnym skanie.",
+    "placeholder": "/home/user/documents",
+    "add": "Dodaj",
+    "remove": "Usuń",
+    "loading": "Ładowanie konfiguracji…",
+    "empty": "Brak skonfigurowanych folderów. Dodaj ścieżkę powyżej."
+  },
+  "trial": {
+    "daysLeft": "Wersja próbna: {{count}} dni do końca",
+    "expired": "Twoja wersja próbna wygasła. Wybierz plan, aby kontynuować.",
+    "upgrade": "Wybierz plan",
+    "daysShort": "Trial: {{count}}d",
+    "expiredShort": "Wygasł"
+  },
+  "subscription": {
+    "back": "Panel",
+    "title": "Subskrypcja",
+    "loading": "Ładuję dane subskrypcji…",
+    "currentPlan": "Aktualny plan",
+    "trialPlan": "Wersja próbna (30 dni)",
+    "daysRemaining": "Pozostało dni",
+    "storageLimit": "Limit przestrzeni",
+    "trialExpires": "Wersja próbna wygasa: {{date}}",
+    "availablePlans": "Dostępne plany",
+    "year": "rok",
+    "storageIncluded": "{{limit}} przestrzeni w cenie",
+    "featureEncryption": "Szyfrowanie Zero-Knowledge (AES-256-GCM)",
+    "featureRestore": "1-Click Restore z panelu",
+    "featureSupport": "Wsparcie Facebook / Discord (SLA 48h)",
+    "selectPlan": "Wybierz ten plan",
+    "redirecting": "Przekierowanie do płatności…",
+    "storageUsed": "Użyta przestrzeń",
+    "storageExceeded": "Limit przestrzeni został przekroczony. Nowe backupy są wstrzymane do czasu zwolnienia miejsca lub zmiany planu.",
+    "status": {
+      "trial": "Wersja próbna",
+      "active": "Aktywna",
+      "expired": "Wygasła",
+      "trial_expired": "Trial wygasł"
+    }
   }
 }

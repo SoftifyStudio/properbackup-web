@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import ServiceAdminModal from '../auth/ServiceAdminModal.jsx';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import LanguageMenu from './LanguageMenu.jsx';
+import TrialBadge from '../subscription/TrialBadge.jsx';
 
 function UserAvatar({ email }) {
   const initial = (email?.trim()?.[0] ?? '?').toUpperCase();
@@ -84,7 +85,7 @@ export default function AppHeader({ onBack, backLabel, children }) {
                 {t('header.serviceAdminBadge')}
               </span>
             )}
-            {token && !isSystemAdmin && (
+            {token && !isSystemAdmin && import.meta.env.DEV && (
               <button
                 type="button"
                 className="btn-secondary shrink-0 py-1.5 text-xs leading-tight"
@@ -108,6 +109,7 @@ export default function AppHeader({ onBack, backLabel, children }) {
               <span className="min-w-0 flex-1 text-xs font-medium leading-snug text-text2 break-all sm:break-words">
                 {email || t('header.userPlaceholder')}
               </span>
+              <TrialBadge />
             </div>
 
             <button

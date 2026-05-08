@@ -7,6 +7,7 @@ import {
 } from '../api/bufferClient.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
+import FileListItem from './FileListItem.jsx';
 
 function fmtBytes(n) {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(2)} GiB`;
@@ -131,6 +132,7 @@ export default function InventoryPanel({ server, token }) {
         agentStatus={inv?.agentStatus}
         rootsCount={roots.length}
         totalFiles={totalFiles}
+        latestVerification={inv?.latestVerification ?? null}
         loading={loading}
         variant="spotlight"
       />
@@ -163,55 +165,52 @@ export default function InventoryPanel({ server, token }) {
         </div>
       </section>
 
-      <section className="rounded-xl2 border border-border bg-panel overflow-hidden">
+      <section className="rounded-xl2 border border-border bg-panel overflow-hidden shadow-card">
         <div className="px-4 py-2 border-b border-border bg-surface flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-text3 font-medium">{t('backups.inventoryFiles')}</span>
           <span className="text-xs text-text4">
             {t('backups.inventoryFilesPage', { page, pages: totalPages, total: totalFiles })}
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-surface border-b border-border">
-              <tr>
-                <th className="text-left p-2">{t('backups.filesColPath')}</th>
-                <th className="text-left p-2">{t('backups.filesColStatus')}</th>
-                <th className="text-left p-2">{t('backups.filesColUpdated')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading && (
-                <tr>
-                  <td colSpan={3} className="p-3 text-text4">
-                    …
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                files.map((r) => (
-                  <tr
-                    key={r.fullPath}
-                    className={
-                      detailPath === r.fullPath ? 'bg-accent/5 cursor-pointer' : 'cursor-pointer hover:bg-surface/60'
-                    }
-                    onClick={() => setDetailPath(r.fullPath)}
-                  >
-                    <td className="p-2 font-mono max-w-md truncate" title={r.fullPath}>
-                      {r.fullPath}
-                    </td>
-                    <td className="p-2">{r.status}</td>
-                    <td className="p-2">{formatDateTime(r.updatedAt)}</td>
-                  </tr>
-                ))}
-              {!loading && files.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="p-3 text-text4">
-                    {t('backups.inventoryFilesEmpty')}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        {/* Column header */}
+        <div className="flex items-center gap-3 px-4 py-2 bg-surface/90 border-b border-border">
+          <span className="shrink-0 w-1.5" />
+          <span className="shrink-0 w-5" />
+          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-text4">
+            {t('backups.filesColName')}
+          </span>
+          <div className="shrink-0 flex items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text4 w-[5.5rem] text-center">
+              {t('backups.filesColStatus')}
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text4 w-[9rem] text-right">
+              {t('backups.filesColUpdated')}
+            </span>
+          </div>
+        </div>
+        {/* File rows */}
+        <div className="max-h-[60vh] overflow-y-auto">
+          {loading && (
+            <div className="flex items-center justify-center py-8 text-text4 text-xs">…</div>
+          )}
+          {!loading &&
+            files.map((r) => (
+              <div
+                key={r.fullPath}
+                className={`cursor-pointer ${detailPath === r.fullPath ? 'ring-1 ring-accent/30 ring-inset' : ''}`}
+                onClick={() => setDetailPath(r.fullPath)}
+              >
+                <FileListItem file={r} formatDateTime={formatDateTime} />
+              </div>
+            ))}
+          {!loading && files.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-text4">
+              <svg className="w-10 h-10 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+              </svg>
+              <p className="text-sm">{t('backups.inventoryFilesEmpty')}</p>
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-border bg-surface/40">
           <button
