@@ -103,6 +103,17 @@ export async function fetchFileStatesAt(serverId, sessionToken, timestamp, page 
   return res.json();
 }
 
+/** Agent CPU/RAM metrics for monitoring dashboard (JWT). */
+export async function fetchMetrics(serverId, sessionToken, from, to, limit = 1000) {
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/metrics`);
+  if (from) u.searchParams.set('from', from);
+  if (to) u.searchParams.set('to', to);
+  if (limit !== 1000) u.searchParams.set('limit', String(limit));
+  const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
+  if (!res.ok) throw new Error(`metrics failed: ${res.status}`);
+  return res.json();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
