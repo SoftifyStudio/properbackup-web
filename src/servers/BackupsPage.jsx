@@ -12,6 +12,7 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
 import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
+import MonitoringTab from './MonitoringTab.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject } from '../api/bufferClient.js';
@@ -94,7 +95,7 @@ export default function BackupsPage({ server, onBack }) {
   const [showDebug, setShowDebug]           = useState(false);
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['files', 'timeline', 'activity', 'settings', 'logs'].includes(urlTab || '');
+  const isAllowedTab = ['files', 'timeline', 'activity', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'files';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -429,6 +430,9 @@ export default function BackupsPage({ server, onBack }) {
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
           Activity
         </button>
+        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'monitoring' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('monitoring')}>
+          Monitoring
+        </button>
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('settings')}>
           Settings
         </button>
@@ -563,6 +567,11 @@ export default function BackupsPage({ server, onBack }) {
               agentStatus={liveIndexMeta.agentStatus}
               connected={sseConnected}
             />
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'monitoring' && (
+          <ErrorBoundary title="Monitoring" retryLabel="Refresh">
+            <MonitoringTab serverId={server.id} />
           </ErrorBoundary>
         )}
         {serviceTab === 'settings' && (
