@@ -58,6 +58,7 @@ export default function MonitoringTab({ serverId }) {
   const [rangeIdx, setRangeIdx] = useState(2);
   const [visibleCores, setVisibleCores] = useState(new Set());
   const [showAllCores, setShowAllCores] = useState(true);
+  const [coreFilter, setCoreFilter] = useState('');
 
   const range = RANGE_OPTIONS[rangeIdx];
 
@@ -78,6 +79,7 @@ export default function MonitoringTab({ serverId }) {
         const point = {
           time: new Date(m.recordedAt).getTime(),
           cpu: m.cpuPercent,
+          agentCpu: m.agentCpuPercent || 0,
           ramUsed: m.ramUsedMb,
           ramTotal: m.ramTotalMb,
           ramPercent: m.ramTotalMb > 0 ? (m.ramUsedMb / m.ramTotalMb) * 100 : 0,
@@ -127,6 +129,7 @@ export default function MonitoringTab({ serverId }) {
   };
 
   const latestCpu = data.length > 0 ? data[data.length - 1].cpu : null;
+  const latestAgentCpu = data.length > 0 ? data[data.length - 1].agentCpu : null;
   const latestRam = data.length > 0 ? data[data.length - 1].ramUsed : null;
   const latestRamTotal = data.length > 0 ? data[data.length - 1].ramTotal : null;
   const avgCpu = data.length > 0 ? data.reduce((s, d) => s + d.cpu, 0) / data.length : 0;
@@ -138,6 +141,21 @@ export default function MonitoringTab({ serverId }) {
     return Array.from({ length: coreCount }, (_, i) => ({ idx: i, value: last[`core${i}`] ?? null }));
   }, [data, coreCount]);
 
+  const filteredPerCore = useMemo(() => {
+    if (!coreFilter.trim()) return latestPerCore;
+    const terms = coreFilter.toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
+    return latestPerCore.filter(({ idx, value }) => {
+      const pct = value ?? 0;
+      return terms.some(term => {
+        if (term.startsWith('>')) { const th = parseFloat(term.slice(1)); return !isNaN(th) && pct > th; }
+        if (term.startsWith('<')) { const th = parseFloat(term.slice(1)); return !isNaN(th) && pct < th; }
+        const num = parseInt(term, 10);
+        if (!isNaN(num)) return idx === num;
+        return `core ${idx}`.includes(term) || `c${idx}`.includes(term);
+      });
+    });
+  }, [latestPerCore, coreFilter]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -145,7 +163,7 @@ export default function MonitoringTab({ serverId }) {
         <div>
           <h2 className="text-lg font-semibold text-text1">Server Monitoring</h2>
           <p className="text-xs text-text4 mt-0.5">
-            {coreCount > 0 ? `${coreCount} cores \u00b7 ` : ''}CPU, memory, and per-core usage
+            {coreCount > 0 ? `${coreCount} cores \u00b7 ` : ''}Agent CPU, server CPU, memory, and per-core usage
           </p>
         </div>
         <div className="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
@@ -166,12 +184,13 @@ export default function MonitoringTab({ serverId }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <SummaryCard label="CPU Now" value={latestCpu !== null ? `${latestCpu.toFixed(1)}%` : '--'} color="text-blue-600" />
-        <SummaryCard label="CPU Avg" value={avgCpu > 0 ? `${avgCpu.toFixed(1)}%` : '--'} color="text-blue-500" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <SummaryCard label="Server CPU" value={latestCpu !== null ? `${latestCpu.toFixed(1)}%` : '--'} sub="total" color="text-blue-600" />
+        <SummaryCard label="Agent CPU" value={latestAgentCpu !== null ? `${latestAgentCpu.toFixed(1)}%` : '--'} sub="our process" color="text-emerald-600" />
+        <SummaryCard label="Server Avg" value={avgCpu > 0 ? `${avgCpu.toFixed(1)}%` : '--'} color="text-blue-500" />
         <SummaryCard label="CPU Peak" value={maxCpu > 0 ? `${maxCpu.toFixed(1)}%` : '--'} color="text-orange-500" />
         <SummaryCard label="RAM Now" value={latestRam !== null ? `${latestRam.toFixed(0)} MB` : '--'} sub={latestRamTotal ? `/ ${latestRamTotal.toFixed(0)} MB` : ''} color="text-purple-600" />
-        <SummaryCard label="Cores" value={coreCount > 0 ? String(coreCount) : '--'} color="text-emerald-600" />
+        <SummaryCard label="Cores" value={coreCount > 0 ? String(coreCount) : '--'} color="text-cyan-600" />
       </div>
 
       {error && (
@@ -192,11 +211,44 @@ export default function MonitoringTab({ serverId }) {
         </div>
       )}
 
+      {/* Agent CPU vs Server CPU Chart */}
+      {data.length > 0 && (
+        <div className="bg-panel border border-border rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-text2 mb-3">Agent CPU vs Server CPU</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="serverCpuGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="agentCpuGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="time" tickFormatter={range.hours <= 24 ? formatTime : formatDate} stroke="#9ca3af" fontSize={11} />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={11} width={45} />
+                <Tooltip content={<CoreTooltip />} />
+                <Area type="monotone" dataKey="cpu" name="Server CPU %" stroke="#3b82f6" fill="url(#serverCpuGrad)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="agentCpu" name="Agent CPU %" stroke="#10b981" fill="url(#agentCpuGrad)" strokeWidth={2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-xs text-text3">
+            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 rounded" />Server CPU (all cores avg)</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-emerald-500 rounded" />Agent CPU (our process only)</span>
+          </div>
+        </div>
+      )}
+
       {/* Per-Core CPU Chart */}
-      {data.length > 0 && coreCount > 1 && (
+      {data.length > 0 && coreCount > 0 && (
         <div className="bg-panel border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-text2">Per-Core CPU Usage</h3>
+            <h3 className="text-sm font-semibold text-text2">Per-Core CPU Usage ({coreCount} cores)</h3>
             <button className="text-[11px] px-2 py-0.5 rounded border border-border text-text3 hover:bg-surface transition-colors" onClick={toggleAllCores}>
               {showAllCores ? 'Hide All' : 'Show All'}
             </button>
@@ -239,30 +291,6 @@ export default function MonitoringTab({ serverId }) {
         </div>
       )}
 
-      {/* Overall CPU Chart */}
-      {data.length > 0 && (
-        <div className="bg-panel border border-border rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-text2 mb-3">{coreCount > 1 ? 'Total Server CPU (all cores averaged)' : 'CPU Usage'}</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="time" tickFormatter={range.hours <= 24 ? formatTime : formatDate} stroke="#9ca3af" fontSize={11} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={11} width={45} />
-                <Tooltip content={<CoreTooltip />} />
-                <Area type="monotone" dataKey="cpu" name="Server CPU %" stroke="#3b82f6" fill="url(#cpuGradient)" strokeWidth={2} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
       {/* RAM Chart */}
       {data.length > 0 && (
         <div className="bg-panel border border-border rounded-xl p-4">
@@ -292,10 +320,19 @@ export default function MonitoringTab({ serverId }) {
         </div>
       )}
 
-      {/* Per-Core Table */}
-      {data.length > 0 && coreCount > 1 && (
+      {/* Per-Core Detail Table */}
+      {data.length > 0 && coreCount > 0 && (
         <div className="bg-panel border border-border rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-text2 mb-3">Core Details (current)</h3>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-text2">Core Details (current)</h3>
+            <input
+              type="text"
+              placeholder="Filter: core #, >50, <10"
+              value={coreFilter}
+              onChange={(e) => setCoreFilter(e.target.value)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border bg-surface text-text1 placeholder:text-text4 w-48 focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -306,7 +343,7 @@ export default function MonitoringTab({ serverId }) {
                 </tr>
               </thead>
               <tbody>
-                {latestPerCore.map(({ idx, value }) => {
+                {filteredPerCore.map(({ idx, value }) => {
                   const pct = value ?? 0;
                   const color = CORE_COLORS[idx % CORE_COLORS.length];
                   const barColor = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : color;
@@ -331,9 +368,17 @@ export default function MonitoringTab({ serverId }) {
                     </tr>
                   );
                 })}
+                {filteredPerCore.length === 0 && (
+                  <tr><td colSpan={3} className="py-4 text-center text-text4">No cores match filter</td></tr>
+                )}
               </tbody>
             </table>
           </div>
+          {coreFilter && (
+            <div className="mt-2 text-[11px] text-text4">
+              Showing {filteredPerCore.length} of {coreCount} cores
+            </div>
+          )}
         </div>
       )}
     </div>
