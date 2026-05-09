@@ -15,7 +15,7 @@ import SnapshotTimeline from './SnapshotTimeline.jsx';
 import MonitoringTab from './MonitoringTab.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
-import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject } from '../api/bufferClient.js';
+import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject, fetchActivity } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
 
 // Fixture imports kept only for legacy StatusBar (tree view) — not used for file list
@@ -77,6 +77,7 @@ export default function BackupsPage({ server, onBack }) {
   const [fileSortMode, setFileSortMode]     = useState('recent');
   const [statusFilter, setStatusFilter]     = useState('all');
   const [activityLog, setActivityLog]       = useState([]);
+  const [activityLoaded, setActivityLoaded] = useState(false);
   const [newPaths, setNewPaths]             = useState(new Set());
   const activityIdRef = useRef(0);
   const [snapshotFiles, setSnapshotFiles]   = useState(null);
@@ -295,6 +296,63 @@ export default function BackupsPage({ server, onBack }) {
   }, [isAllowedTab, serviceTab, isSystemAdmin, setServiceTab]);
 
   const isIndexing = liveIndexMeta.agentStatus?.phase === 'indexing';
+
+  /** Load activity history from DB on mount (survives page refresh). */
+  useEffect(() => {
+    if (!token || activityLoaded) return;
+    (async () => {
+      try {
+        const data = await fetchActivity(server.id, token);
+        const entries = [];
+        // Convert recent logs to activity entries
+        if (data.recentLogs) {
+          for (const log of data.recentLogs) {
+            entries.push({
+              type: 'log',
+              component: log.component,
+              eventCode: log.eventCode,
+              level: log.level,
+              message: log.message,
+              meta: log.meta,
+              ts: log.createdAt,
+              id: ++activityIdRef.current,
+            });
+          }
+        }
+        // Convert recent file events to activity entries
+        if (data.recentFileEvents) {
+          for (const ev of data.recentFileEvents) {
+            entries.push({
+              type: 'fileState',
+              fullPath: ev.fullPath,
+              status: ev.status,
+              previousStatus: ev.previousStatus,
+              ts: ev.occurredAt,
+              id: ++activityIdRef.current,
+            });
+          }
+        }
+        // Sort all entries by timestamp (oldest first)
+        entries.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+        if (entries.length > 0) {
+          setActivityLog(entries);
+        }
+        // Set agent status from history
+        if (data.agentStatus) {
+          setLiveIndexMeta((m) => ({
+            ...m,
+            agentStatus: data.agentStatus,
+          }));
+          // Add agent status as first activity entry
+          addActivityEntry({ type: 'agentStatus', ...data.agentStatus });
+        }
+      } catch {
+        /* ignore — SSE will populate on connect */
+      } finally {
+        setActivityLoaded(true);
+      }
+    })();
+  }, [token, server.id, activityLoaded, addActivityEntry]);
 
   /** Initial file load + fallback poll (only when SSE is disconnected). */
   useEffect(() => {

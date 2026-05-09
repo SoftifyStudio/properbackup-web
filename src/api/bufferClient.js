@@ -114,6 +114,15 @@ export async function fetchMetrics(serverId, sessionToken, from, to, limit = 100
   return res.json();
 }
 
+/** Recent activity history (logs + file events + agent status) for Activity Log. */
+export async function fetchActivity(serverId, sessionToken, limit = 100) {
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/activity`);
+  u.searchParams.set('limit', String(limit));
+  const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
+  if (!res.ok) throw new Error(`activity failed: ${res.status}`);
+  return res.json();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
