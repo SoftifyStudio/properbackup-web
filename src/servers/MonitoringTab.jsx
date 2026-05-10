@@ -133,7 +133,11 @@ export default function MonitoringTab({ serverId }) {
   const latestRam = data.length > 0 ? data[data.length - 1].ramUsed : null;
   const latestRamTotal = data.length > 0 ? data[data.length - 1].ramTotal : null;
   const avgCpu = data.length > 0 ? data.reduce((s, d) => s + d.cpu, 0) / data.length : 0;
+  const avgAgentCpu = data.length > 0 ? data.reduce((s, d) => s + d.agentCpu, 0) / data.length : 0;
   const maxCpu = data.length > 0 ? Math.max(...data.map((d) => d.cpu)) : 0;
+  const maxAgentCpu = data.length > 0 ? Math.max(...data.map((d) => d.agentCpu)) : 0;
+
+  const tickFmt = range.hours <= 24 ? formatTime : formatDate;
 
   const latestPerCore = useMemo(() => {
     if (data.length === 0 || coreCount === 0) return [];
@@ -163,7 +167,7 @@ export default function MonitoringTab({ serverId }) {
         <div>
           <h2 className="text-lg font-semibold text-text1">Server Monitoring</h2>
           <p className="text-xs text-text4 mt-0.5">
-            {coreCount > 0 ? `${coreCount} cores \u00b7 ` : ''}Agent CPU, server CPU, memory, and per-core usage
+            {coreCount > 0 ? `${coreCount} cores \u00b7 ` : ''}Real-time agent and server resource usage
           </p>
         </div>
         <div className="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
@@ -183,15 +187,6 @@ export default function MonitoringTab({ serverId }) {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <SummaryCard label="Server CPU" value={latestCpu !== null ? `${latestCpu.toFixed(1)}%` : '--'} sub="total" color="text-blue-600" />
-        <SummaryCard label="Agent CPU" value={latestAgentCpu !== null ? `${latestAgentCpu.toFixed(1)}%` : '--'} sub="our process" color="text-emerald-600" />
-        <SummaryCard label="Server Avg" value={avgCpu > 0 ? `${avgCpu.toFixed(1)}%` : '--'} color="text-blue-500" />
-        <SummaryCard label="CPU Peak" value={maxCpu > 0 ? `${maxCpu.toFixed(1)}%` : '--'} color="text-orange-500" />
-        <SummaryCard label="RAM Now" value={latestRam !== null ? `${latestRam.toFixed(0)} MB` : '--'} sub={latestRamTotal ? `/ ${latestRamTotal.toFixed(0)} MB` : ''} color="text-purple-600" />
-        <SummaryCard label="Cores" value={coreCount > 0 ? String(coreCount) : '--'} color="text-cyan-600" />
-      </div>
 
       {error && (
         <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
@@ -211,111 +206,196 @@ export default function MonitoringTab({ serverId }) {
         </div>
       )}
 
-      {/* Agent CPU vs Server CPU Chart */}
+      {/* === SIDE-BY-SIDE: Agent vs Server === */}
+      {data.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* -- AGENT (left, green) -- */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <h3 className="text-sm font-bold text-emerald-700 uppercase tracking-wider">ProperBackup Agent</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <SummaryCard label="CPU Now" value={latestAgentCpu !== null ? `${latestAgentCpu.toFixed(1)}%` : '--'} color="text-emerald-600" accent="emerald" />
+              <SummaryCard label="Average" value={avgAgentCpu > 0 ? `${avgAgentCpu.toFixed(1)}%` : '--'} color="text-emerald-500" accent="emerald" />
+              <SummaryCard label="Peak" value={maxAgentCpu > 0 ? `${maxAgentCpu.toFixed(1)}%` : '--'} color="text-emerald-500" accent="emerald" />
+            </div>
+            <div className="bg-panel border border-emerald-200 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-emerald-700">Agent CPU Usage</span>
+                <span className="text-[10px] text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">our process only</span>
+              </div>
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                    <defs>
+                      <linearGradient id="agentCpuGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="time" tickFormatter={tickFmt} stroke="#9ca3af" fontSize={10} />
+                    <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={10} width={40} />
+                    <Tooltip content={<CoreTooltip />} />
+                    <Area type="monotone" dataKey="agentCpu" name="Agent CPU %" stroke="#10b981" fill="url(#agentCpuGrad)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* -- SERVER (right, blue) -- */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
+              <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider">Server (Total)</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <SummaryCard label="CPU Now" value={latestCpu !== null ? `${latestCpu.toFixed(1)}%` : '--'} color="text-blue-600" accent="blue" />
+              <SummaryCard label="Average" value={avgCpu > 0 ? `${avgCpu.toFixed(1)}%` : '--'} color="text-blue-500" accent="blue" />
+              <SummaryCard label="Peak" value={maxCpu > 0 ? `${maxCpu.toFixed(1)}%` : '--'} color="text-blue-500" accent="blue" />
+            </div>
+            <div className="bg-panel border border-blue-200 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-blue-700">Server CPU Usage</span>
+                <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">all processes</span>
+              </div>
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                    <defs>
+                      <linearGradient id="serverCpuGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="time" tickFormatter={tickFmt} stroke="#9ca3af" fontSize={10} />
+                    <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={10} width={40} />
+                    <Tooltip content={<CoreTooltip />} />
+                    <Area type="monotone" dataKey="cpu" name="Server CPU %" stroke="#3b82f6" fill="url(#serverCpuGrad)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === COMBINED OVERLAY CHART === */}
       {data.length > 0 && (
         <div className="bg-panel border border-border rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-text2 mb-3">Agent CPU vs Server CPU</h3>
-          <div className="h-[340px]">
+          <div className="flex items-center gap-4 mb-3">
+            <h3 className="text-sm font-semibold text-text2">Direct Comparison</h3>
+            <div className="flex items-center gap-3 text-[11px] text-text3">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-emerald-500 rounded" />Agent</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 rounded" />Server</span>
+            </div>
+          </div>
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <defs>
-                  <linearGradient id="serverCpuGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                  <linearGradient id="overlaySrvGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="agentCpuGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                  <linearGradient id="overlayAgtGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="time" tickFormatter={range.hours <= 24 ? formatTime : formatDate} stroke="#9ca3af" fontSize={11} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={11} width={45} />
+                <XAxis dataKey="time" tickFormatter={tickFmt} stroke="#9ca3af" fontSize={11} />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={11} width={40} />
                 <Tooltip content={<CoreTooltip />} />
-                <Area type="monotone" dataKey="cpu" name="Server CPU %" stroke="#3b82f6" fill="url(#serverCpuGrad)" strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="agentCpu" name="Agent CPU %" stroke="#10b981" fill="url(#agentCpuGrad)" strokeWidth={2} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-text3">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 rounded" />Server CPU (all cores avg)</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-emerald-500 rounded" />Agent CPU (our process only)</span>
-          </div>
-        </div>
-      )}
-
-      {/* Per-Core CPU Chart */}
-      {data.length > 0 && coreCount > 0 && (
-        <div className="bg-panel border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-text2">Per-Core CPU Usage ({coreCount} cores)</h3>
-            <button className="text-[11px] px-2 py-0.5 rounded border border-border text-text3 hover:bg-surface transition-colors" onClick={toggleAllCores}>
-              {showAllCores ? 'Hide All' : 'Show All'}
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {Array.from({ length: coreCount }, (_, i) => {
-              const active = visibleCores.has(i);
-              const color = CORE_COLORS[i % CORE_COLORS.length];
-              const val = latestPerCore[i]?.value;
-              return (
-                <button key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-border text-text4 bg-surface hover:bg-panel'}`} style={active ? { backgroundColor: color } : {}} onClick={() => toggleCore(i)} title={val != null ? `Core ${i}: ${val.toFixed(1)}%` : `Core ${i}`}>
-                  <span className="font-medium">C{i}</span>
-                  {val != null && <span className="opacity-80">{val.toFixed(0)}%</span>}
-                </button>
-              );
-            })}
-          </div>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  {Array.from({ length: coreCount }, (_, i) => (
-                    <linearGradient key={i} id={`coreGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CORE_COLORS[i % CORE_COLORS.length]} stopOpacity={0.15} />
-                      <stop offset="95%" stopColor={CORE_COLORS[i % CORE_COLORS.length]} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="time" tickFormatter={range.hours <= 24 ? formatTime : formatDate} stroke="#9ca3af" fontSize={11} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={11} width={45} />
-                <Tooltip content={<CoreTooltip />} />
-                {Array.from({ length: coreCount }, (_, i) => {
-                  if (!visibleCores.has(i)) return null;
-                  return (<Area key={i} type="monotone" dataKey={`core${i}`} name={`Core ${i}`} stroke={CORE_COLORS[i % CORE_COLORS.length]} fill={`url(#coreGrad${i})`} strokeWidth={1.5} dot={false} connectNulls />);
-                })}
+                <Area type="monotone" dataKey="cpu" name="Server CPU %" stroke="#3b82f6" fill="url(#overlaySrvGrad)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="agentCpu" name="Agent CPU %" stroke="#10b981" fill="url(#overlayAgtGrad)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
 
-      {/* RAM Chart */}
+      {/* === SERVER DETAILS: Per-Core + RAM side by side === */}
       {data.length > 0 && (
-        <div className="bg-panel border border-border rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-text2 mb-3">Memory Usage</h3>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="ramGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="ramTotalGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#d1d5db" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#d1d5db" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="time" tickFormatter={range.hours <= 24 ? formatTime : formatDate} stroke="#9ca3af" fontSize={11} />
-                <YAxis tickFormatter={(v) => `${v} MB`} stroke="#9ca3af" fontSize={11} width={55} />
-                <Tooltip content={<CoreTooltip />} />
-                <Area type="monotone" dataKey="ramTotal" name="Total RAM" stroke="#d1d5db" fill="url(#ramTotalGradient)" strokeWidth={1} strokeDasharray="4 2" dot={false} />
-                <Area type="monotone" dataKey="ramUsed" name="Used RAM" stroke="#8b5cf6" fill="url(#ramGradient)" strokeWidth={2} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {coreCount > 0 && (
+            <div className="bg-panel border border-border rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h3 className="text-sm font-semibold text-text2">Per-Core CPU ({coreCount} cores)</h3>
+                <button className="text-[11px] px-2 py-0.5 rounded border border-border text-text3 hover:bg-surface transition-colors" onClick={toggleAllCores}>
+                  {showAllCores ? 'Hide All' : 'Show All'}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {Array.from({ length: coreCount }, (_, i) => {
+                  const active = visibleCores.has(i);
+                  const color = CORE_COLORS[i % CORE_COLORS.length];
+                  const val = latestPerCore[i]?.value;
+                  return (
+                    <button key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border transition-all ${active ? 'border-transparent text-white shadow-sm' : 'border-border text-text4 bg-surface hover:bg-panel'}`} style={active ? { backgroundColor: color } : {}} onClick={() => toggleCore(i)} title={val != null ? `Core ${i}: ${val.toFixed(1)}%` : `Core ${i}`}>
+                      <span className="font-medium">C{i}</span>
+                      {val != null && <span className="opacity-80">{val.toFixed(0)}%</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                    <defs>
+                      {Array.from({ length: coreCount }, (_, i) => (
+                        <linearGradient key={i} id={`coreGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={CORE_COLORS[i % CORE_COLORS.length]} stopOpacity={0.15} />
+                          <stop offset="95%" stopColor={CORE_COLORS[i % CORE_COLORS.length]} stopOpacity={0} />
+                        </linearGradient>
+                      ))}
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="time" tickFormatter={tickFmt} stroke="#9ca3af" fontSize={10} />
+                    <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#9ca3af" fontSize={10} width={40} />
+                    <Tooltip content={<CoreTooltip />} />
+                    {Array.from({ length: coreCount }, (_, i) => {
+                      if (!visibleCores.has(i)) return null;
+                      return (<Area key={i} type="monotone" dataKey={`core${i}`} name={`Core ${i}`} stroke={CORE_COLORS[i % CORE_COLORS.length]} fill={`url(#coreGrad${i})`} strokeWidth={1.5} dot={false} connectNulls />);
+                    })}
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+          <div className="bg-panel border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-text2">Memory Usage</h3>
+              <span className="text-[11px] text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full">
+                {latestRam !== null ? `${latestRam.toFixed(0)} / ${(latestRamTotal || 0).toFixed(0)} MB` : '--'}
+              </span>
+            </div>
+            <div className="h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                  <defs>
+                    <linearGradient id="ramGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="ramTotalGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#d1d5db" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#d1d5db" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="time" tickFormatter={tickFmt} stroke="#9ca3af" fontSize={10} />
+                  <YAxis tickFormatter={(v) => `${v} MB`} stroke="#9ca3af" fontSize={10} width={50} />
+                  <Tooltip content={<CoreTooltip />} />
+                  <Area type="monotone" dataKey="ramTotal" name="Total RAM" stroke="#d1d5db" fill="url(#ramTotalGradient)" strokeWidth={1} strokeDasharray="4 2" dot={false} />
+                  <Area type="monotone" dataKey="ramUsed" name="Used RAM" stroke="#8b5cf6" fill="url(#ramGradient)" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
@@ -385,11 +465,12 @@ export default function MonitoringTab({ serverId }) {
   );
 }
 
-function SummaryCard({ label, value, sub, color }) {
+function SummaryCard({ label, value, sub, color, accent }) {
+  const borderClass = accent === 'emerald' ? 'border-emerald-200' : accent === 'blue' ? 'border-blue-200' : 'border-border';
   return (
-    <div className="bg-panel border border-border rounded-xl px-4 py-3">
-      <div className="text-[11px] text-text4 font-medium uppercase tracking-wide">{label}</div>
-      <div className={`text-xl font-bold mt-1 ${color || 'text-text1'}`}>
+    <div className={`bg-panel border ${borderClass} rounded-xl px-3 py-2.5`}>
+      <div className="text-[10px] text-text4 font-medium uppercase tracking-wide">{label}</div>
+      <div className={`text-lg font-bold mt-0.5 ${color || 'text-text1'}`}>
         {value}
         {sub && <span className="text-xs font-normal text-text4 ml-1">{sub}</span>}
       </div>
