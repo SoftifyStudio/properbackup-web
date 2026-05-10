@@ -157,7 +157,7 @@ export default function MonitoringTab({ serverId }) {
   }, [latestPerCore, coreFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-[calc(100vh-180px)]">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -215,7 +215,7 @@ export default function MonitoringTab({ serverId }) {
       {data.length > 0 && (
         <div className="bg-panel border border-border rounded-xl p-4">
           <h3 className="text-sm font-semibold text-text2 mb-3">Agent CPU vs Server CPU</h3>
-          <div className="h-56">
+          <div className="h-[340px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <defs>
@@ -266,7 +266,7 @@ export default function MonitoringTab({ serverId }) {
               );
             })}
           </div>
-          <div className="h-64">
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <defs>
@@ -295,7 +295,7 @@ export default function MonitoringTab({ serverId }) {
       {data.length > 0 && (
         <div className="bg-panel border border-border rounded-xl p-4">
           <h3 className="text-sm font-semibold text-text2 mb-3">Memory Usage</h3>
-          <div className="h-56">
+          <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <defs>

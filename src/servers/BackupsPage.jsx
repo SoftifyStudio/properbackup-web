@@ -502,7 +502,7 @@ export default function BackupsPage({ server, onBack }) {
       </div>
 
 
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto max-w-6xl">
+      <main className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto ${serviceTab === 'monitoring' ? 'max-w-full' : 'max-w-6xl'}`}>
         {serviceTab === 'files' && (
           <ErrorBoundary title="Files" retryLabel="Refresh">
             <div className="space-y-4">
