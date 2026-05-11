@@ -66,6 +66,13 @@ export default function useServerEvents(serverId, handlers, token) {
         } catch { /* ignore */ }
       });
 
+      es.addEventListener('snapshotCreated', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handlersRef.current.onSnapshotCreated?.(data);
+        } catch { /* ignore */ }
+      });
+
       es.onerror = () => {
         setConnected(false);
         setReconnecting(true);

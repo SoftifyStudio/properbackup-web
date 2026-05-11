@@ -240,6 +240,9 @@ export default function BackupsPage({ server, onBack }) {
     onLog: (data) => {
       addActivityEntry({ type: 'log', ...data });
     },
+    onSnapshotCreated: (data) => {
+      addActivityEntry({ type: 'snapshotCreated', ...data });
+    },
   }), [addActivityEntry]);
 
   const { connected: sseConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers, token);
@@ -615,6 +618,8 @@ export default function BackupsPage({ server, onBack }) {
               }}
               selectedSnapshot={selectedSnapshot}
               verification={liveIndexMeta.latestVerification}
+              agentStatus={liveIndexMeta.agentStatus}
+              sseConnected={sseConnected}
             />
           </ErrorBoundary>
         )}
