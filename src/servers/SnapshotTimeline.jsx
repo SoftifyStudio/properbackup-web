@@ -61,170 +61,6 @@ function SyncingIcon() {
   );
 }
 
-/* ── Active Progress Card ── */
-const PROGRESS_MIN_DISPLAY_MS = 1500;
-const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recentFiles, sseConnected }) {
-  const startRef = useRef(null);
-  const hideTimerRef = useRef(null);
-  const [eta, setEta] = useState('');
-  const [speed, setSpeed] = useState(0);
-  const [showLog, setShowLog] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const shownAtRef = useRef(0);
-
-  const phase = agentStatus?.phase;
-  const totalFiles = agentStatus?.totalFiles || 0;
-  const scannedFiles = agentStatus?.scannedFiles || 0;
-  const currentFile = agentStatus?.currentFile || '';
-  const isActive = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
-  const wantVisible = isActive && totalFiles > 0;
-
-  const lastValidRef = useRef({ totalFiles: 0, scannedFiles: 0 });
-  if (wantVisible) {
-    lastValidRef.current = { totalFiles, scannedFiles };
-  }
-  const displayTotal = wantVisible ? totalFiles : lastValidRef.current.totalFiles;
-  const displayScanned = wantVisible ? scannedFiles : lastValidRef.current.scannedFiles;
-
-  useEffect(() => {
-    if (wantVisible) {
-      clearTimeout(hideTimerRef.current);
-      if (!visible) {
-        setVisible(true);
-        shownAtRef.current = Date.now();
-      }
-    } else if (visible) {
-      const elapsed = Date.now() - shownAtRef.current;
-      const delay = Math.max(0, PROGRESS_MIN_DISPLAY_MS - elapsed);
-      hideTimerRef.current = setTimeout(() => setVisible(false), delay);
-    }
-    return () => clearTimeout(hideTimerRef.current);
-  }, [wantVisible, visible]);
-
-  useEffect(() => {
-    if (!isActive || totalFiles <= 0) { startRef.current = null; return; }
-    if (!startRef.current) startRef.current = { time: Date.now(), files: scannedFiles };
-    const elapsed = (Date.now() - startRef.current.time) / 1000;
-    const done = scannedFiles - startRef.current.files;
-    if (done > 3 && elapsed > 1) {
-      const rate = done / elapsed;
-      const remaining = (totalFiles - scannedFiles) / rate;
-      setEta(fmtEta(remaining));
-      setSpeed(rate * 1024);
-    }
-  }, [isActive, scannedFiles, totalFiles]);
-
-  /* Active scan — full progress card (debounced: stays visible ≥1.5s) */
-  if (visible && displayTotal > 0) {
-    const pct = Math.min(100, Math.round((displayScanned / displayTotal) * 100));
-    const SEGMENTS = 40;
-    const filled = Math.round((pct / 100) * SEGMENTS);
-
-    return (
-      <div className="rounded-xl border-2 border-dashed border-accent/40 bg-white p-5 relative overflow-hidden"
-        style={{ boxShadow: '0 0 24px rgba(15, 108, 189, 0.08)' }}>
-        <div className="absolute -top-16 -left-16 w-48 h-48 bg-accent/6 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent/10 px-2.5 py-1 rounded">Active</span>
-              <span className="text-sm font-bold text-text1">Snapshot in Progress</span>
-            </div>
-            <SyncingIcon />
-          </div>
-
-          <div className="flex items-center gap-[2px] mb-3">
-            {Array.from({ length: SEGMENTS }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-5 rounded-sm flex-1 transition-all duration-300 ${
-                  i < filled ? 'bg-accent tl-segment-pulse' : 'bg-gray-200'
-                }`}
-                style={{ animationDelay: i < filled ? `${(i % 6) * 100}ms` : undefined }}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center gap-8 text-xs">
-            <div>
-              <span className="text-text4">Files Processed: </span>
-              <span className="font-bold text-text1 tl-mono">{displayScanned.toLocaleString()} / {displayTotal.toLocaleString()}</span>
-            </div>
-            {speed > 0 && (
-              <div>
-                <span className="text-text4">Speed: </span>
-                <span className="font-bold text-text1 tl-mono">{fmtSpeed(speed)}</span>
-              </div>
-            )}
-            {eta && (
-              <div>
-                <span className="text-text4">Remaining: </span>
-                <span className="font-bold text-accent tl-mono">{eta}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3 pt-3 border-t border-border/40">
-            <button
-              className="flex items-center gap-1.5 text-[10px] text-text4 hover:text-accent transition-colors"
-              onClick={() => setShowLog(!showLog)}
-            >
-              <svg className={`w-3 h-3 transition-transform ${showLog ? 'rotate-90' : ''}`} viewBox="0 0 12 12" fill="none">
-                <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Live Terminal
-            </button>
-            {showLog && (
-              <div className="mt-2 bg-gray-900 rounded-lg p-3 text-[11px] leading-relaxed overflow-hidden tl-mono">
-                <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
-                  <span className="text-green-500">&#x276F;</span> <span className="text-gray-400">backup agent output</span>
-                </div>
-                {(recentFiles || []).slice(-3).map((f, i) => (
-                  <div key={i} className="truncate text-gray-300">
-                    <span className="text-gray-600 mr-2">.</span>{f}
-                  </div>
-                ))}
-                {currentFile && (
-                  <div className="truncate text-green-400 mt-0.5">
-                    <span className="text-green-600 mr-2">&#x25B8;</span>{currentFile}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* Agent connected but idle — compact monitoring card */
-  if (sseConnected) {
-    return (
-      <div className="rounded-xl border border-border bg-white px-5 py-3 flex items-center justify-between"
-        style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <svg className="w-5 h-5 text-emerald-500" viewBox="0 0 20 20" fill="none">
-              <path d="M3.5 10A6.5 6.5 0 0110 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M6 10a4 4 0 014-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-            </svg>
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 tl-live-pulse" />
-          </div>
-          <span className="text-xs font-medium text-text2">Agent connected</span>
-          <span className="text-[10px] text-text4">— monitoring for file changes</span>
-        </div>
-        {phase && (
-          <span className="text-[10px] text-text4 tl-mono">{phase}</span>
-        )}
-      </div>
-    );
-  }
-
-  return null;
-});
-
 /* ── Day Card ── */
 const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst, filterCount, selectedSnapshot, onSelect, onSetIdx, snapToIdx }) {
   const shrinkPx = depth * 24;
@@ -371,7 +207,7 @@ function TimelineRuler({ dayEntries, onJump, currentDayKey }) {
 }
 
 /* ── Main Component ── */
-export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, agentStatus, sseConnected, latestSnapshot }) {
+export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, sseConnected, latestSnapshot }) {
   const { token } = useAuth();
   const { formatDateTime } = useI18n();
   const [snapshots, setSnapshots] = useState([]);
@@ -379,7 +215,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const [filterFlag, setFilterFlag] = useState('all');
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [downloading, setDownloading] = useState(null);
-  const [recentFiles, setRecentFiles] = useState([]);
+
 
   const handleDownload = useCallback(async (snap) => {
     if (!token || !snap.objectName) return;
@@ -418,10 +254,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    const cf = agentStatus?.currentFile;
-    if (cf) setRecentFiles(prev => [...prev, cf].slice(-10));
-  }, [agentStatus?.currentFile]);
+
 
   /* SSE: real-time snapshot creation (received from BackupsPage via prop) */
   useEffect(() => {
@@ -561,8 +394,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
         </div>
       )}
 
-      {/* Active progress card / agent status */}
-      <ActiveProgressCard agentStatus={agentStatus} recentFiles={recentFiles} sseConnected={sseConnected} />
+      {/* Agent status card is now rendered persistently in BackupsPage */}
 
       {/* Main area: stacked day cards + ruler */}
       <div className="flex gap-0">

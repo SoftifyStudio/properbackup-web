@@ -12,6 +12,7 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import FolderConfigPanel from './FolderConfigPanel.jsx';
 import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
+import AgentStatusCard, { AgentStatusStyles } from './AgentStatusCard.jsx';
 import MonitoringTab from './MonitoringTab.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
@@ -96,6 +97,7 @@ export default function BackupsPage({ server, onBack }) {
   const [showDebug, setShowDebug]           = useState(false);
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const [latestSnapshot, setLatestSnapshot] = useState(null);
+  const [recentFiles, setRecentFiles] = useState([]);
   const urlTab = searchParams.get('tab');
   const isAllowedTab = ['files', 'timeline', 'activity', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'files';
@@ -218,6 +220,9 @@ export default function BackupsPage({ server, onBack }) {
           updatedAt: data.updatedAt,
         },
       }));
+      if (data.currentFile) {
+        setRecentFiles(prev => [...prev, data.currentFile].slice(-10));
+      }
       addActivityEntry({ type: 'agentStatus', ...data });
     },
     onFileState: (data) => {
@@ -438,6 +443,7 @@ export default function BackupsPage({ server, onBack }) {
 
   return (
     <div className="h-full min-h-0 flex flex-col bg-surface overflow-hidden">
+      <AgentStatusStyles />
       <AppHeader onBack={onBack} backLabel={t('backups.backLabel')}>
         <span className="badge bg-accentLight text-accent text-xs">{server.name}</span>
         <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ml-2 ${
@@ -483,16 +489,31 @@ export default function BackupsPage({ server, onBack }) {
         </span>
       </div>
 
+      {/* Agent status card — persistent above tabs for Files/Timeline/Activity */}
+      {['files', 'timeline', 'activity'].includes(serviceTab) && (
+        <div className="shrink-0 px-6 pt-4 pb-0 w-full mx-auto max-w-6xl">
+          <AgentStatusCard
+            agentStatus={liveIndexMeta.agentStatus}
+            recentFiles={recentFiles}
+            sseConnected={sseConnected}
+          />
+        </div>
+      )}
+
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
-          Files
-        </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('timeline')}>
-          Timeline
-        </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
-          Activity
-        </button>
+        {/* Protected group: Files / Timeline / Activity share the agent status card */}
+        <div className={`flex items-center gap-1 rounded-lg px-1 py-0.5 ${['files', 'timeline', 'activity'].includes(serviceTab) ? 'bg-accent/5' : ''}`}>
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
+            Files
+          </button>
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'timeline' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('timeline')}>
+            Timeline
+          </button>
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
+            Activity
+          </button>
+        </div>
+        <div className="w-px h-5 bg-border mx-1" />
         <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'monitoring' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('monitoring')}>
           Monitoring
         </button>
@@ -620,7 +641,6 @@ export default function BackupsPage({ server, onBack }) {
               }}
               selectedSnapshot={selectedSnapshot}
               verification={liveIndexMeta.latestVerification}
-              agentStatus={liveIndexMeta.agentStatus}
               sseConnected={sseConnected}
               latestSnapshot={latestSnapshot}
             />
