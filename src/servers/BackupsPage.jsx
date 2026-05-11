@@ -518,16 +518,7 @@ export default function BackupsPage({ server, onBack }) {
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
 
-      {/* Agent status card — always visible, fixed-height section */}
-      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
-        <AgentStatusCard
-          agentStatus={liveIndexMeta.agentStatus}
-          recentFiles={recentFiles}
-          sseConnected={sseConnected}
-        />
-      </div>
-
-      {/* Unified bar: health score + tabs + more menu */}
+      {/* Unified bar: health score + tabs + verification + more menu */}
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-3">
         {(() => {
           const v = liveIndexMeta.latestVerification;
@@ -573,6 +564,15 @@ export default function BackupsPage({ server, onBack }) {
           );
         })()}
         <MoreMenu serviceTab={serviceTab} setServiceTab={setServiceTab} isSystemAdmin={isSystemAdmin} />
+      </div>
+
+      {/* Agent status card — below tabs bar */}
+      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
+        <AgentStatusCard
+          agentStatus={liveIndexMeta.agentStatus}
+          recentFiles={recentFiles}
+          sseConnected={sseConnected}
+        />
       </div>
 
 
