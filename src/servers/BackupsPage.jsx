@@ -518,35 +518,8 @@ export default function BackupsPage({ server, onBack }) {
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
 
-      {/* Agent status card — always visible, fixed-height section */}
-      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
-        <AgentStatusCard
-          agentStatus={liveIndexMeta.agentStatus}
-          recentFiles={recentFiles}
-          sseConnected={sseConnected}
-        />
-      </div>
-
-      {/* Unified bar: health score + tabs + more menu */}
+      {/* Unified bar: tabs + verification + health score + more menu */}
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-3">
-        {(() => {
-          const v = liveIndexMeta.latestVerification;
-          const hasFiles = liveIndexMeta.totalFiles > 0 || fileStates.length > 0;
-          const isVerified = v?.status === 'passed';
-          const isFailed = v?.status === 'failed';
-          const verifiedAgo = v?.verifiedAt ? Math.round((Date.now() - new Date(v.verifiedAt).getTime()) / 3600000) : null;
-          const score = !hasFiles ? 0 : isFailed ? 40 : isVerified ? 100 : 80;
-          const color = score >= 90 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600';
-          const bgColor = score >= 90 ? 'bg-emerald-50 border-emerald-200' : score >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
-          const dotColor = score >= 90 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500';
-          return (
-            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs ${bgColor}`}>
-              <span className={`w-2 h-2 rounded-full ${dotColor} ${score >= 90 ? 'animate-pulse' : ''}`} />
-              <span className={`font-semibold ${color}`}>{score}% Safe</span>
-            </div>
-          );
-        })()}
-        <div className="w-px h-5 bg-border" />
         <div className="flex items-center gap-1 rounded-lg px-1 py-0.5 bg-accent/5">
           <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
             Files
@@ -572,7 +545,32 @@ export default function BackupsPage({ server, onBack }) {
             </span>
           );
         })()}
+        {(() => {
+          const v = liveIndexMeta.latestVerification;
+          const hasFiles = liveIndexMeta.totalFiles > 0 || fileStates.length > 0;
+          const isVerified = v?.status === 'passed';
+          const isFailed = v?.status === 'failed';
+          const score = !hasFiles ? 0 : isFailed ? 40 : isVerified ? 100 : 80;
+          const color = score >= 90 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600';
+          const bgColor = score >= 90 ? 'bg-emerald-50 border-emerald-200' : score >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+          const dotColor = score >= 90 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500';
+          return (
+            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs ${bgColor}`}>
+              <span className={`w-2 h-2 rounded-full ${dotColor} ${score >= 90 ? 'animate-pulse' : ''}`} />
+              <span className={`font-semibold ${color}`}>{score}% Safe</span>
+            </div>
+          );
+        })()}
         <MoreMenu serviceTab={serviceTab} setServiceTab={setServiceTab} isSystemAdmin={isSystemAdmin} />
+      </div>
+
+      {/* Agent status card — below tabs bar */}
+      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
+        <AgentStatusCard
+          agentStatus={liveIndexMeta.agentStatus}
+          recentFiles={recentFiles}
+          sseConnected={sseConnected}
+        />
       </div>
 
 
