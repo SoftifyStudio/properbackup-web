@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { fetchArchiveSnapshots, downloadObject } from '../api/bufferClient.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
-import useServerEvents from '../api/useServerEvents.js';
 
 function fmtBytes(n) {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(2)} GiB`;
@@ -63,7 +62,7 @@ function SyncingIcon() {
 }
 
 /* ── Active Progress Card ── */
-function ActiveProgressCard({ agentStatus, recentFiles }) {
+const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recentFiles }) {
   const startRef = useRef(null);
   const [eta, setEta] = useState('');
   const [speed, setSpeed] = useState(0);
@@ -170,10 +169,10 @@ function ActiveProgressCard({ agentStatus, recentFiles }) {
       </div>
     </div>
   );
-}
+});
 
 /* ── Day Card ── */
-function DayCard({ dayKey, dayLabel, snaps, depth, isFirst, filterCount, selectedSnapshot, onSelect, onSetIdx, snapToIdx }) {
+const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst, filterCount, selectedSnapshot, onSelect, onSetIdx, snapToIdx }) {
   const shrinkPx = depth * 24;
   const opacity = Math.max(0.55, 1 - depth * 0.12);
   const shadowBlur = Math.max(2, 14 - depth * 4);
@@ -262,7 +261,7 @@ function DayCard({ dayKey, dayLabel, snaps, depth, isFirst, filterCount, selecte
       </div>
     </div>
   );
-}
+});
 
 /* ── Timeline Ruler ── */
 function TimelineRuler({ dayEntries, onJump, currentDayKey }) {
@@ -318,7 +317,7 @@ function TimelineRuler({ dayEntries, onJump, currentDayKey }) {
 }
 
 /* ── Main Component ── */
-export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, agentStatus, sseConnected }) {
+export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, agentStatus, sseConnected, latestSnapshot }) {
   const { token } = useAuth();
   const { formatDateTime } = useI18n();
   const [snapshots, setSnapshots] = useState([]);
@@ -370,33 +369,27 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
     if (cf) setRecentFiles(prev => [...prev, cf].slice(-10));
   }, [agentStatus?.currentFile]);
 
-  /* SSE: real-time snapshot creation */
-  const sseHandlers = useMemo(() => ({
-    onSnapshotCreated: (data) => {
-      const newSnap = {
-        objectName: data.objectName, pathId: data.pathId, flag: data.flag,
-        sizeBytes: data.sizeBytes, sealedAt: data.sealedAt, serverId: data.serverId,
-        _isNew: true,
-      };
-      setSnapshots((prev) => {
-        if (prev.some((s) => s.objectName === newSnap.objectName)) return prev;
-        const next = [...prev, newSnap];
-        next.sort((a, b) => {
-          const ta = a.sealedAt ? new Date(a.sealedAt).getTime() : 0;
-          const tb = b.sealedAt ? new Date(b.sealedAt).getTime() : 0;
-          return ta - tb;
-        });
-        return next;
-      });
-      setCurrentIdx(-2);
-    },
-  }), []);
-
-  useServerEvents(serverId, sseHandlers, token);
-
+  /* SSE: real-time snapshot creation (received from BackupsPage via prop) */
   useEffect(() => {
-    if (currentIdx === -2 && snapshots.length > 0) setCurrentIdx(snapshots.length - 1);
-  }, [currentIdx, snapshots.length]);
+    if (!latestSnapshot) return;
+    const data = latestSnapshot;
+    const newSnap = {
+      objectName: data.objectName, pathId: data.pathId, flag: data.flag,
+      sizeBytes: data.sizeBytes, sealedAt: data.sealedAt, serverId: data.serverId,
+      _isNew: true,
+    };
+    setSnapshots((prev) => {
+      if (prev.some((s) => s.objectName === newSnap.objectName)) return prev;
+      const next = [...prev, newSnap];
+      next.sort((a, b) => {
+        const ta = a.sealedAt ? new Date(a.sealedAt).getTime() : 0;
+        const tb = b.sealedAt ? new Date(b.sealedAt).getTime() : 0;
+        return ta - tb;
+      });
+      return next;
+    });
+    setCurrentIdx((prev) => prev); // stay at current, user can navigate
+  }, [latestSnapshot]);
 
   useEffect(() => {
     if (!snapshots.some((s) => s._isNew)) return;
@@ -637,9 +630,9 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
 
         @keyframes tl-segment-pulse-kf {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.55; }
+          50% { opacity: 0.82; }
         }
-        .tl-segment-pulse { animation: tl-segment-pulse-kf 1.5s ease-in-out infinite; }
+        .tl-segment-pulse { animation: tl-segment-pulse-kf 3s ease-in-out infinite; }
 
         @keyframes tl-spin-kf { from { transform: rotate(0); } to { transform: rotate(360deg); } }
         .tl-spin { animation: tl-spin-kf 2s linear infinite; }
@@ -652,7 +645,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
 
         @keyframes tl-live-kf {
           0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(0.75); }
+          50% { opacity: 0.6; transform: scale(0.85); }
         }
         .tl-live-pulse { animation: tl-live-kf 2s ease-in-out infinite; }
 

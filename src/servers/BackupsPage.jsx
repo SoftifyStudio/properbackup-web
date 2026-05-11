@@ -95,6 +95,7 @@ export default function BackupsPage({ server, onBack }) {
   const [logComponent, setLogComponent]     = useState('');
   const [showDebug, setShowDebug]           = useState(false);
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
+  const [latestSnapshot, setLatestSnapshot] = useState(null);
   const urlTab = searchParams.get('tab');
   const isAllowedTab = ['files', 'timeline', 'activity', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'files';
@@ -239,6 +240,10 @@ export default function BackupsPage({ server, onBack }) {
     },
     onLog: (data) => {
       addActivityEntry({ type: 'log', ...data });
+    },
+    onSnapshotCreated: (data) => {
+      setLatestSnapshot(data);
+      addActivityEntry({ type: 'snapshotCreated', objectName: data.objectName, sizeBytes: data.sizeBytes });
     },
   }), [addActivityEntry]);
 
@@ -617,6 +622,7 @@ export default function BackupsPage({ server, onBack }) {
               verification={liveIndexMeta.latestVerification}
               agentStatus={liveIndexMeta.agentStatus}
               sseConnected={sseConnected}
+              latestSnapshot={latestSnapshot}
             />
           </ErrorBoundary>
         )}
