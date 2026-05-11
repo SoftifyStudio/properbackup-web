@@ -62,6 +62,67 @@ function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
   );
 }
 
+/* ── More Menu (Monitoring / Settings / Logs) ── */
+function MoreMenu({ serviceTab, setServiceTab, isSystemAdmin }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const isSecondary = ['monitoring', 'settings', 'logs'].includes(serviceTab);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const items = [
+    { key: 'monitoring', label: 'Monitoring', icon: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 8l2-2.5 2 1.5L10 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    ) },
+    { key: 'settings', label: 'Settings', icon: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1.1 1.1M10.1 10.1l1.1 1.1M11.2 2.8l-1.1 1.1M3.9 10.1l-1.1 1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+    ) },
+  ];
+
+  if (isSystemAdmin) {
+    items.push({ key: 'logs', label: 'Logs', icon: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none"><rect x="2" y="1.5" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M4.5 4.5h5M4.5 7h5M4.5 9.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/></svg>
+    ) });
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        className={`btn-ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5 ${isSecondary ? 'ring-1 ring-accent/40 font-semibold' : ''}`}
+        onClick={() => setOpen(!open)}
+      >
+        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="3" r="1.2" fill="currentColor"/>
+          <circle cx="8" cy="8" r="1.2" fill="currentColor"/>
+          <circle cx="8" cy="13" r="1.2" fill="currentColor"/>
+        </svg>
+        {isSecondary && <span className="capitalize">{serviceTab}</span>}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+          {items.map(({ key, label, icon }) => (
+            <button
+              key={key}
+              className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-surface transition-colors ${
+                serviceTab === key ? 'text-accent font-semibold bg-accent/5' : 'text-text2'
+              }`}
+              onClick={() => { setServiceTab(key); setOpen(false); }}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BackupsPage({ server, onBack }) {
   const { token, isSystemAdmin } = useAuth();
   const { t, formatDateTime } = useI18n();
@@ -489,20 +550,17 @@ export default function BackupsPage({ server, onBack }) {
         </span>
       </div>
 
-      {/* Agent status card — persistent above tabs for Files/Timeline/Activity */}
-      {['files', 'timeline', 'activity'].includes(serviceTab) && (
-        <div className="shrink-0 px-6 pt-4 pb-0 w-full mx-auto max-w-6xl">
-          <AgentStatusCard
-            agentStatus={liveIndexMeta.agentStatus}
-            recentFiles={recentFiles}
-            sseConnected={sseConnected}
-          />
-        </div>
-      )}
+      {/* Agent status card — always visible, fixed-height section */}
+      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
+        <AgentStatusCard
+          agentStatus={liveIndexMeta.agentStatus}
+          recentFiles={recentFiles}
+          sseConnected={sseConnected}
+        />
+      </div>
 
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
-        {/* Protected group: Files / Timeline / Activity share the agent status card */}
-        <div className={`flex items-center gap-1 rounded-lg px-1 py-0.5 ${['files', 'timeline', 'activity'].includes(serviceTab) ? 'bg-accent/5' : ''}`}>
+        <div className="flex items-center gap-1 rounded-lg px-1 py-0.5 bg-accent/5">
           <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
             Files
           </button>
@@ -513,18 +571,8 @@ export default function BackupsPage({ server, onBack }) {
             Activity
           </button>
         </div>
-        <div className="w-px h-5 bg-border mx-1" />
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'monitoring' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('monitoring')}>
-          Monitoring
-        </button>
-        <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'settings' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('settings')}>
-          Settings
-        </button>
-        {isSystemAdmin && (
-          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'logs' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('logs')}>
-            Logs
-          </button>
-        )}
+        <div className="flex-1" />
+        <MoreMenu serviceTab={serviceTab} setServiceTab={setServiceTab} isSystemAdmin={isSystemAdmin} />
       </div>
 
 
