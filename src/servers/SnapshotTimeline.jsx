@@ -331,8 +331,18 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const handleDownload = useCallback(async (snap) => {
     if (!token || !snap.objectName) return;
     setDownloading(snap.objectName);
-    try { await downloadObject(snap.objectName, token); }
-    catch (e) { console.error('Download failed:', e); }
+    try {
+      const buf = await downloadObject(snap.objectName, token);
+      const blob = new Blob([buf], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = snap.objectName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) { console.error('Download failed:', e); }
     finally { setDownloading(null); }
   }, [token]);
 
