@@ -62,17 +62,44 @@ function SyncingIcon() {
 }
 
 /* ── Active Progress Card ── */
+const PROGRESS_MIN_DISPLAY_MS = 1500;
 const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recentFiles, sseConnected }) {
   const startRef = useRef(null);
+  const hideTimerRef = useRef(null);
   const [eta, setEta] = useState('');
   const [speed, setSpeed] = useState(0);
   const [showLog, setShowLog] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const shownAtRef = useRef(0);
 
   const phase = agentStatus?.phase;
   const totalFiles = agentStatus?.totalFiles || 0;
   const scannedFiles = agentStatus?.scannedFiles || 0;
   const currentFile = agentStatus?.currentFile || '';
   const isActive = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
+  const wantVisible = isActive && totalFiles > 0;
+
+  const lastValidRef = useRef({ totalFiles: 0, scannedFiles: 0 });
+  if (wantVisible) {
+    lastValidRef.current = { totalFiles, scannedFiles };
+  }
+  const displayTotal = wantVisible ? totalFiles : lastValidRef.current.totalFiles;
+  const displayScanned = wantVisible ? scannedFiles : lastValidRef.current.scannedFiles;
+
+  useEffect(() => {
+    if (wantVisible) {
+      clearTimeout(hideTimerRef.current);
+      if (!visible) {
+        setVisible(true);
+        shownAtRef.current = Date.now();
+      }
+    } else if (visible) {
+      const elapsed = Date.now() - shownAtRef.current;
+      const delay = Math.max(0, PROGRESS_MIN_DISPLAY_MS - elapsed);
+      hideTimerRef.current = setTimeout(() => setVisible(false), delay);
+    }
+    return () => clearTimeout(hideTimerRef.current);
+  }, [wantVisible, visible]);
 
   useEffect(() => {
     if (!isActive || totalFiles <= 0) { startRef.current = null; return; }
@@ -87,9 +114,9 @@ const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recen
     }
   }, [isActive, scannedFiles, totalFiles]);
 
-  /* Active scan — full progress card */
-  if (isActive && totalFiles > 0) {
-    const pct = Math.min(100, Math.round((scannedFiles / totalFiles) * 100));
+  /* Active scan — full progress card (debounced: stays visible ≥1.5s) */
+  if (visible && displayTotal > 0) {
+    const pct = Math.min(100, Math.round((displayScanned / displayTotal) * 100));
     const SEGMENTS = 40;
     const filled = Math.round((pct / 100) * SEGMENTS);
 
@@ -122,7 +149,7 @@ const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recen
           <div className="flex items-center gap-8 text-xs">
             <div>
               <span className="text-text4">Files Processed: </span>
-              <span className="font-bold text-text1 tl-mono">{scannedFiles.toLocaleString()} / {totalFiles.toLocaleString()}</span>
+              <span className="font-bold text-text1 tl-mono">{displayScanned.toLocaleString()} / {displayTotal.toLocaleString()}</span>
             </div>
             {speed > 0 && (
               <div>
