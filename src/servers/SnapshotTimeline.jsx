@@ -62,7 +62,7 @@ function SyncingIcon() {
 }
 
 /* ── Active Progress Card ── */
-const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recentFiles }) {
+const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recentFiles, sseConnected }) {
   const startRef = useRef(null);
   const [eta, setEta] = useState('');
   const [speed, setSpeed] = useState(0);
@@ -87,88 +87,115 @@ const ActiveProgressCard = memo(function ActiveProgressCard({ agentStatus, recen
     }
   }, [isActive, scannedFiles, totalFiles]);
 
-  if (!isActive || totalFiles <= 0) return null;
+  /* Active scan — full progress card */
+  if (isActive && totalFiles > 0) {
+    const pct = Math.min(100, Math.round((scannedFiles / totalFiles) * 100));
+    const SEGMENTS = 40;
+    const filled = Math.round((pct / 100) * SEGMENTS);
 
-  const pct = Math.min(100, Math.round((scannedFiles / totalFiles) * 100));
-  const SEGMENTS = 40;
-  const filled = Math.round((pct / 100) * SEGMENTS);
+    return (
+      <div className="rounded-xl border-2 border-dashed border-accent/40 bg-white p-5 relative overflow-hidden"
+        style={{ boxShadow: '0 0 24px rgba(15, 108, 189, 0.08)' }}>
+        <div className="absolute -top-16 -left-16 w-48 h-48 bg-accent/6 rounded-full blur-3xl pointer-events-none" />
 
-  return (
-    <div className="rounded-xl border-2 border-dashed border-accent/40 bg-white p-5 relative overflow-hidden"
-      style={{ boxShadow: '0 0 24px rgba(15, 108, 189, 0.08)' }}>
-      <div className="absolute -top-16 -left-16 w-48 h-48 bg-accent/6 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent/10 px-2.5 py-1 rounded">Active</span>
-            <span className="text-sm font-bold text-text1">Snapshot in Progress</span>
-          </div>
-          <SyncingIcon />
-        </div>
-
-        <div className="flex items-center gap-[2px] mb-3">
-          {Array.from({ length: SEGMENTS }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-5 rounded-sm flex-1 transition-all duration-300 ${
-                i < filled ? 'bg-accent tl-segment-pulse' : 'bg-gray-200'
-              }`}
-              style={{ animationDelay: i < filled ? `${(i % 6) * 100}ms` : undefined }}
-            />
-          ))}
-        </div>
-
-        <div className="flex items-center gap-8 text-xs">
-          <div>
-            <span className="text-text4">Files Processed: </span>
-            <span className="font-bold text-text1 tl-mono">{scannedFiles.toLocaleString()} / {totalFiles.toLocaleString()}</span>
-          </div>
-          {speed > 0 && (
-            <div>
-              <span className="text-text4">Speed: </span>
-              <span className="font-bold text-text1 tl-mono">{fmtSpeed(speed)}</span>
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent/10 px-2.5 py-1 rounded">Active</span>
+              <span className="text-sm font-bold text-text1">Snapshot in Progress</span>
             </div>
-          )}
-          {eta && (
-            <div>
-              <span className="text-text4">Remaining: </span>
-              <span className="font-bold text-accent tl-mono">{eta}</span>
-            </div>
-          )}
-        </div>
+            <SyncingIcon />
+          </div>
 
-        <div className="mt-3 pt-3 border-t border-border/40">
-          <button
-            className="flex items-center gap-1.5 text-[10px] text-text4 hover:text-accent transition-colors"
-            onClick={() => setShowLog(!showLog)}
-          >
-            <svg className={`w-3 h-3 transition-transform ${showLog ? 'rotate-90' : ''}`} viewBox="0 0 12 12" fill="none">
-              <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Live Terminal
-          </button>
-          {showLog && (
-            <div className="mt-2 bg-gray-900 rounded-lg p-3 text-[11px] leading-relaxed overflow-hidden tl-mono">
-              <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
-                <span className="text-green-500">&#x276F;</span> <span className="text-gray-400">backup agent output</span>
+          <div className="flex items-center gap-[2px] mb-3">
+            {Array.from({ length: SEGMENTS }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-5 rounded-sm flex-1 transition-all duration-300 ${
+                  i < filled ? 'bg-accent tl-segment-pulse' : 'bg-gray-200'
+                }`}
+                style={{ animationDelay: i < filled ? `${(i % 6) * 100}ms` : undefined }}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-8 text-xs">
+            <div>
+              <span className="text-text4">Files Processed: </span>
+              <span className="font-bold text-text1 tl-mono">{scannedFiles.toLocaleString()} / {totalFiles.toLocaleString()}</span>
+            </div>
+            {speed > 0 && (
+              <div>
+                <span className="text-text4">Speed: </span>
+                <span className="font-bold text-text1 tl-mono">{fmtSpeed(speed)}</span>
               </div>
-              {(recentFiles || []).slice(-3).map((f, i) => (
-                <div key={i} className="truncate text-gray-300">
-                  <span className="text-gray-600 mr-2">.</span>{f}
+            )}
+            {eta && (
+              <div>
+                <span className="text-text4">Remaining: </span>
+                <span className="font-bold text-accent tl-mono">{eta}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-border/40">
+            <button
+              className="flex items-center gap-1.5 text-[10px] text-text4 hover:text-accent transition-colors"
+              onClick={() => setShowLog(!showLog)}
+            >
+              <svg className={`w-3 h-3 transition-transform ${showLog ? 'rotate-90' : ''}`} viewBox="0 0 12 12" fill="none">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Live Terminal
+            </button>
+            {showLog && (
+              <div className="mt-2 bg-gray-900 rounded-lg p-3 text-[11px] leading-relaxed overflow-hidden tl-mono">
+                <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
+                  <span className="text-green-500">&#x276F;</span> <span className="text-gray-400">backup agent output</span>
                 </div>
-              ))}
-              {currentFile && (
-                <div className="truncate text-green-400 mt-0.5">
-                  <span className="text-green-600 mr-2">&#x25B8;</span>{currentFile}
-                </div>
-              )}
-            </div>
-          )}
+                {(recentFiles || []).slice(-3).map((f, i) => (
+                  <div key={i} className="truncate text-gray-300">
+                    <span className="text-gray-600 mr-2">.</span>{f}
+                  </div>
+                ))}
+                {currentFile && (
+                  <div className="truncate text-green-400 mt-0.5">
+                    <span className="text-green-600 mr-2">&#x25B8;</span>{currentFile}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  /* Agent connected but idle — compact monitoring card */
+  if (sseConnected) {
+    return (
+      <div className="rounded-xl border border-border bg-white px-5 py-3 flex items-center justify-between"
+        style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <svg className="w-5 h-5 text-emerald-500" viewBox="0 0 20 20" fill="none">
+              <path d="M3.5 10A6.5 6.5 0 0110 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M6 10a4 4 0 014-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+            </svg>
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 tl-live-pulse" />
+          </div>
+          <span className="text-xs font-medium text-text2">Agent connected</span>
+          <span className="text-[10px] text-text4">— monitoring for file changes</span>
+        </div>
+        {phase && (
+          <span className="text-[10px] text-text4 tl-mono">{phase}</span>
+        )}
+      </div>
+    );
+  }
+
+  return null;
 });
 
 /* ── Day Card ── */
@@ -464,9 +491,9 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
           )}
           <span className="text-text3">Total: <span className="font-bold text-text1 tl-mono">{fmtBytes(totalSize)}</span></span>
           {sseConnected && (
-            <span className="flex items-center gap-1.5 text-emerald-600">
+            <span className="inline-flex items-center gap-1.5 text-emerald-600 bg-emerald-50 border border-emerald-200/60 rounded-full px-2.5 py-0.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 tl-live-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Live</span>
+              <span className="text-[10px] font-bold tracking-wider">Live</span>
             </span>
           )}
         </div>
@@ -507,8 +534,8 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
         </div>
       )}
 
-      {/* Active progress card */}
-      <ActiveProgressCard agentStatus={agentStatus} recentFiles={recentFiles} />
+      {/* Active progress card / agent status */}
+      <ActiveProgressCard agentStatus={agentStatus} recentFiles={recentFiles} sseConnected={sseConnected} />
 
       {/* Main area: stacked day cards + ruler */}
       <div className="flex gap-0">
@@ -550,6 +577,42 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                   snapToIdx={snapToIdx}
                 />
               ))}
+              {/* Ghost depth cards — show stacking effect even with few days */}
+              {dayEntries.length < 3 && Array.from({ length: 3 - dayEntries.length }).map((_, gi) => {
+                const ghostDepth = dayEntries.length + gi;
+                const shrink = ghostDepth * 24;
+                const op = Math.max(0.25, 0.45 - gi * 0.12);
+                return (
+                  <div
+                    key={`ghost-${gi}`}
+                    className="transition-all duration-300"
+                    style={{
+                      marginLeft: shrink,
+                      marginRight: shrink,
+                      marginTop: -6,
+                      opacity: op,
+                      position: 'relative',
+                      zIndex: 10 - ghostDepth,
+                    }}
+                  >
+                    <div
+                      className="bg-white rounded-xl border border-border/60 overflow-hidden"
+                      style={{ boxShadow: `0 1px 4px rgba(0,0,0,0.03)` }}
+                    >
+                      <div className="px-5 py-3 border-b border-border/40 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-gray-300" viewBox="0 0 20 20" fill="none">
+                          <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-sm font-bold text-gray-300">Timeline</span>
+                      </div>
+                      <div className="px-5 py-3">
+                        <div className="h-3 w-24 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
