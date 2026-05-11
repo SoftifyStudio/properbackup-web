@@ -615,6 +615,8 @@ export default function BackupsPage({ server, onBack }) {
               }}
               selectedSnapshot={selectedSnapshot}
               verification={liveIndexMeta.latestVerification}
+              agentStatus={liveIndexMeta.agentStatus}
+              sseConnected={sseConnected}
             />
           </ErrorBoundary>
         )}
