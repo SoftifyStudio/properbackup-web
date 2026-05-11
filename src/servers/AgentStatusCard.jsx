@@ -31,6 +31,8 @@ const SEGMENTS = 40;
  * The bar fills during active scans and stays full/empty in other states.
  * Never changes height, never disappears.
  */
+const STATUS_HOLD_MS = 2000;
+
 const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles, sseConnected }) {
   const startRef = useRef(null);
   const [eta, setEta] = useState('');
@@ -41,10 +43,40 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
   const totalFiles = agentStatus?.totalFiles || 0;
   const scannedFiles = agentStatus?.scannedFiles || 0;
   const currentFile = agentStatus?.currentFile || '';
-  const isActive = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
+  const rawIsActive = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
+
+  /* Debounce: hold "active" state for at least STATUS_HOLD_MS after it goes away */
+  const [displayActive, setDisplayActive] = useState(rawIsActive);
+  const activeTimerRef = useRef(null);
+  const activeSinceRef = useRef(0);
 
   useEffect(() => {
-    if (!isActive || totalFiles <= 0) { startRef.current = null; setEta(''); setSpeed(0); return; }
+    if (rawIsActive) {
+      clearTimeout(activeTimerRef.current);
+      if (!displayActive) {
+        setDisplayActive(true);
+        activeSinceRef.current = Date.now();
+      }
+    } else if (displayActive) {
+      const elapsed = Date.now() - activeSinceRef.current;
+      const delay = Math.max(0, STATUS_HOLD_MS - elapsed);
+      activeTimerRef.current = setTimeout(() => setDisplayActive(false), delay);
+    }
+    return () => clearTimeout(activeTimerRef.current);
+  }, [rawIsActive, displayActive]);
+
+  const isActive = displayActive;
+
+  /* Keep last valid counts for debounced display */
+  const lastValidRef = useRef({ totalFiles: 0, scannedFiles: 0 });
+  if (rawIsActive && totalFiles > 0) {
+    lastValidRef.current = { totalFiles, scannedFiles };
+  }
+  const displayTotal = rawIsActive ? totalFiles : lastValidRef.current.totalFiles;
+  const displayScanned = rawIsActive ? scannedFiles : lastValidRef.current.scannedFiles;
+
+  useEffect(() => {
+    if (!rawIsActive || totalFiles <= 0) { startRef.current = null; setEta(''); setSpeed(0); return; }
     if (!startRef.current) startRef.current = { time: Date.now(), files: scannedFiles };
     const elapsed = (Date.now() - startRef.current.time) / 1000;
     const done = scannedFiles - startRef.current.files;
@@ -54,13 +86,13 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
       setEta(fmtEta(remaining));
       setSpeed(rate * 1024);
     }
-  }, [isActive, scannedFiles, totalFiles]);
+  }, [rawIsActive, scannedFiles, totalFiles]);
 
   /* Compute progress bar fill */
   let filled = 0;
   let pct = 0;
-  if (isActive && totalFiles > 0) {
-    pct = Math.min(100, Math.round((scannedFiles / totalFiles) * 100));
+  if (isActive && displayTotal > 0) {
+    pct = Math.min(100, Math.round((displayScanned / displayTotal) * 100));
     filled = Math.round((pct / 100) * SEGMENTS);
   } else if (isActive) {
     filled = 0;
@@ -110,9 +142,9 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
       : 'border border-border';
 
   return (
-    <div className={`rounded-xl bg-white p-5 relative overflow-hidden ${borderClass}`}
+    <div className={`rounded-xl bg-white p-5 relative overflow-hidden transition-all duration-700 ease-in-out ${borderClass}`}
       style={{ boxShadow: isActive ? '0 0 24px rgba(15, 108, 189, 0.08)' : '0 2px 8px rgba(0,0,0,0.03)' }}>
-      {isActive && <div className="absolute -top-16 -left-16 w-48 h-48 bg-accent/6 rounded-full blur-3xl pointer-events-none" />}
+      <div className={`absolute -top-16 -left-16 w-48 h-48 bg-accent/6 rounded-full blur-3xl pointer-events-none transition-opacity duration-700 ${isActive ? 'opacity-100' : 'opacity-0'}`} />
 
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
@@ -136,11 +168,11 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
         </div>
 
         <div className="flex items-center gap-8 text-xs" style={{ minHeight: 20 }}>
-          {isActive && totalFiles > 0 ? (
+          {isActive && displayTotal > 0 ? (
             <>
               <div>
                 <span className="text-text4">Files Processed: </span>
-                <span className="font-bold text-text1 asc-mono">{scannedFiles.toLocaleString()} / {totalFiles.toLocaleString()}</span>
+                <span className="font-bold text-text1 asc-mono">{displayScanned.toLocaleString()} / {displayTotal.toLocaleString()}</span>
               </div>
               {speed > 0 && (
                 <div>
