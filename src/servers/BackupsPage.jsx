@@ -518,7 +518,16 @@ export default function BackupsPage({ server, onBack }) {
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
 
-      {/* Backup Health Score */}
+      {/* Agent status card — always visible, fixed-height section */}
+      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
+        <AgentStatusCard
+          agentStatus={liveIndexMeta.agentStatus}
+          recentFiles={recentFiles}
+          sseConnected={sseConnected}
+        />
+      </div>
+
+      {/* Unified bar: health score + tabs + more menu */}
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-3">
         {(() => {
           const v = liveIndexMeta.latestVerification;
@@ -534,32 +543,10 @@ export default function BackupsPage({ server, onBack }) {
             <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs ${bgColor}`}>
               <span className={`w-2 h-2 rounded-full ${dotColor} ${score >= 90 ? 'animate-pulse' : ''}`} />
               <span className={`font-semibold ${color}`}>{score}% Safe</span>
-              {verifiedAgo !== null && (
-                <span className="text-text4">
-                  · Verified {verifiedAgo < 1 ? 'just now' : `${verifiedAgo}h ago`}
-                </span>
-              )}
-              {!hasFiles && <span className="text-text4">· No files indexed yet</span>}
-              {hasFiles && !v && <span className="text-text4">· Awaiting first verification</span>}
             </div>
           );
         })()}
-        <div className="flex-1" />
-        <span className="text-[11px] text-text4">
-          {liveIndexMeta.totalFiles > 0 ? `${liveIndexMeta.totalFiles.toLocaleString()} files protected` : ''}
-        </span>
-      </div>
-
-      {/* Agent status card — always visible, fixed-height section */}
-      <div className="shrink-0 px-6 pt-4 pb-3 w-full mx-auto max-w-6xl">
-        <AgentStatusCard
-          agentStatus={liveIndexMeta.agentStatus}
-          recentFiles={recentFiles}
-          sseConnected={sseConnected}
-        />
-      </div>
-
-      <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-2">
+        <div className="w-px h-5 bg-border" />
         <div className="flex items-center gap-1 rounded-lg px-1 py-0.5 bg-accent/5">
           <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'files' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('files')}>
             Files
@@ -572,6 +559,19 @@ export default function BackupsPage({ server, onBack }) {
           </button>
         </div>
         <div className="flex-1" />
+        {(() => {
+          const v = liveIndexMeta.latestVerification;
+          const hasFiles = liveIndexMeta.totalFiles > 0 || fileStates.length > 0;
+          const verifiedAgo = v?.verifiedAt ? Math.round((Date.now() - new Date(v.verifiedAt).getTime()) / 3600000) : null;
+          return (
+            <span className="text-[11px] text-text4">
+              {verifiedAgo !== null && `Verified ${verifiedAgo < 1 ? 'just now' : `${verifiedAgo}h ago`}`}
+              {!hasFiles && 'No files indexed yet'}
+              {hasFiles && !v && 'Awaiting first verification'}
+              {liveIndexMeta.totalFiles > 0 && ` · ${liveIndexMeta.totalFiles.toLocaleString()} files protected`}
+            </span>
+          );
+        })()}
         <MoreMenu serviceTab={serviceTab} setServiceTab={setServiceTab} isSystemAdmin={isSystemAdmin} />
       </div>
 
