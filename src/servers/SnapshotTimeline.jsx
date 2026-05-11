@@ -37,124 +37,123 @@ function formatTimeShort(dateStr) {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function ScanProgressBar({ agentStatus }) {
-  if (!agentStatus) return null;
-  const { phase, totalFiles, scannedFiles, currentFile } = agentStatus;
-  const isScanning = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
-  if (!isScanning || !totalFiles || totalFiles <= 0) return null;
+function fmtEta(seconds) {
+  if (!seconds || seconds <= 0) return '';
+  if (seconds < 60) return `~${Math.ceil(seconds)}s remaining`;
+  if (seconds < 3600) return `~${Math.ceil(seconds / 60)}m remaining`;
+  return `~${(seconds / 3600).toFixed(1)}h remaining`;
+}
 
-  const pct = Math.min(100, Math.round(((scannedFiles || 0) / totalFiles) * 100));
-  const shortFile = currentFile
-    ? (currentFile.length > 50 ? '...' + currentFile.slice(-47) : currentFile)
-    : '';
+/* ── Backup Progress Bar (Time Machine style with ETA) ── */
+function BackupProgressBar({ agentStatus }) {
+  const startRef = useRef(null);
+  const [eta, setEta] = useState('');
+
+  const phase = agentStatus?.phase;
+  const totalFiles = agentStatus?.totalFiles || 0;
+  const scannedFiles = agentStatus?.scannedFiles || 0;
+  const currentFile = agentStatus?.currentFile || '';
+  const isActive = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
+
+  useEffect(() => {
+    if (!isActive || totalFiles <= 0) { startRef.current = null; return; }
+    if (!startRef.current) startRef.current = { time: Date.now(), files: scannedFiles };
+    const elapsed = (Date.now() - startRef.current.time) / 1000;
+    const done = scannedFiles - startRef.current.files;
+    if (done > 5 && elapsed > 2) {
+      const rate = done / elapsed;
+      const remaining = (totalFiles - scannedFiles) / rate;
+      setEta(fmtEta(remaining));
+    }
+  }, [isActive, scannedFiles, totalFiles]);
+
+  if (!isActive || totalFiles <= 0) return null;
+
+  const pct = Math.min(100, Math.round((scannedFiles / totalFiles) * 100));
+  const shortFile = currentFile.length > 55 ? '...' + currentFile.slice(-52) : currentFile;
+  const phaseLabel = phase === 'uploading' ? 'Uploading changes' : phase === 'indexing' ? 'Indexing files' : 'Scanning files';
 
   return (
-    <div className="rounded-xl border border-indigo-300/40 bg-gradient-to-r from-indigo-950/90 via-slate-900/90 to-indigo-950/90 backdrop-blur-sm p-4 shadow-lg">
+    <div className="card p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse shadow-md shadow-indigo-400/50" />
-          <span className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">
-            Creating Snapshot
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <span className="text-xs font-semibold text-text1">{phaseLabel}</span>
         </div>
-        <span className="text-xs font-bold text-white tabular-nums">{pct}%</span>
+        <div className="flex items-center gap-3">
+          {eta && <span className="text-[10px] text-text4">{eta}</span>}
+          <span className="text-xs font-bold text-accent tabular-nums">{pct}%</span>
+        </div>
       </div>
-      <div className="h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
+      <div className="h-2 bg-surface rounded-full overflow-hidden mb-2">
         <div
-          className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-400 rounded-full transition-all duration-700 ease-out shadow-md shadow-indigo-500/30"
+          className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
       <div className="flex items-center justify-between text-[10px]">
-        <span className="text-indigo-300/80 truncate max-w-[60%]">{shortFile}</span>
-        <span className="text-indigo-300/60 tabular-nums">{(scannedFiles || 0).toLocaleString()} / {totalFiles.toLocaleString()} files</span>
+        <span className="text-text4 truncate max-w-[60%]">{shortFile}</span>
+        <span className="text-text4 tabular-nums">{scannedFiles.toLocaleString()} / {totalFiles.toLocaleString()} files</span>
       </div>
     </div>
   );
 }
 
-function SnapshotCard({ snap, isSelected, isCurrent, depth, onClick }) {
+/* ── Single snapshot row in the timeline list ── */
+function SnapshotRow({ snap, isSelected, isCurrent, onClick, formatDateTime }) {
   const timeStr = formatTimeShort(snap.sealedAt);
   const sealDate = snap.sealedAt ? new Date(snap.sealedAt) : null;
   const dateStr = sealDate
-    ? sealDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    : 'Unknown date';
+    ? sealDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    : '';
   const isAdd = snap.flag === 'A';
   const isNew = snap._isNew;
 
-  const scale = Math.max(0.7, 1 - depth * 0.04);
-  const translateY = depth * 6;
-  const opacity = Math.max(0.25, 1 - depth * 0.08);
-
   return (
     <div
-      className={`relative cursor-pointer transition-all duration-500 ease-out ${isNew ? 'animate-slide-in' : ''}`}
-      style={{
-        transform: isCurrent ? 'scale(1) translateY(0)' : `scale(${scale}) translateY(${translateY}px)`,
-        opacity: isCurrent ? 1 : opacity,
-        zIndex: 100 - depth,
-      }}
+      className={`group flex items-center gap-4 px-4 py-3 cursor-pointer transition-all duration-200 border-l-3 ${
+        isSelected
+          ? 'bg-accentLight border-l-accent'
+          : isCurrent
+            ? 'bg-surface/60 border-l-accent/40 hover:bg-accentLight/50'
+            : 'border-l-transparent hover:bg-surface/80'
+      } ${isNew ? 'tl-slide-in' : ''}`}
       onClick={onClick}
     >
-      <div className={`rounded-xl border-2 p-4 transition-all duration-300 ${
-        isSelected
-          ? 'border-indigo-400 bg-gradient-to-br from-indigo-950/95 to-slate-900/95 shadow-xl shadow-indigo-500/20 ring-2 ring-indigo-400/30'
-          : isCurrent
-            ? 'border-indigo-500/40 bg-gradient-to-br from-slate-900/95 to-indigo-950/95 shadow-lg shadow-indigo-500/10 hover:border-indigo-400/60'
-            : 'border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-800/80 shadow-md hover:border-slate-600/70'
-      }`}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className={`w-3 h-3 rounded-full ${isSelected ? 'bg-indigo-400 shadow-md shadow-indigo-400/50' : isCurrent ? 'bg-indigo-500' : 'bg-slate-500'}`} />
-            <span className={`text-sm font-bold ${isSelected ? 'text-white' : isCurrent ? 'text-indigo-200' : 'text-slate-300'}`}>
-              {timeStr}
-            </span>
-          </div>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+      {/* Timeline dot */}
+      <div className="relative flex flex-col items-center shrink-0" style={{ width: 20 }}>
+        <div className={`w-3 h-3 rounded-full border-2 transition-all ${
+          isSelected
+            ? 'border-accent bg-accent scale-110'
+            : isCurrent
+              ? 'border-accent bg-white'
+              : isAdd
+                ? 'border-emerald-400 bg-emerald-50 group-hover:border-accent'
+                : 'border-gray-300 bg-gray-100 group-hover:border-accent'
+        }`} />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className={`text-sm font-semibold tabular-nums ${isSelected ? 'text-accent' : 'text-text1'}`}>
+            {timeStr}
+          </span>
+          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
             isAdd
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-              : 'bg-red-500/20 text-red-300 border border-red-500/30'
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-red-100 text-red-600'
           }`}>
             {isAdd ? 'backup' : 'deleted'}
           </span>
+          {dateStr && (
+            <span className="text-xs text-text4 hidden sm:inline">{dateStr}</span>
+          )}
         </div>
-        <div className="flex items-center justify-between">
-          <span className={`text-xs ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
-            {dateStr}
-          </span>
-          <span className={`text-xs font-medium tabular-nums ${isSelected ? 'text-indigo-300' : 'text-slate-500'}`}>
-            {fmtBytes(snap.sizeBytes || 0)}
-          </span>
-        </div>
+        <span className={`text-xs font-medium tabular-nums ${isSelected ? 'text-accent' : 'text-text3'}`}>
+          {fmtBytes(snap.sizeBytes || 0)}
+        </span>
       </div>
-    </div>
-  );
-}
-
-function TimelineRuler({ dayGroups, selectedIdx, onJump }) {
-  const entries = [...dayGroups.entries()];
-  if (entries.length === 0) return null;
-
-  return (
-    <div className="flex flex-col items-end gap-1 py-2 select-none">
-      {entries.map(([dayKey, daySnaps], i) => {
-        const startIdx = entries.slice(0, i).reduce((s, [, arr]) => s + arr.length, 0);
-        const isActive = selectedIdx >= startIdx && selectedIdx < startIdx + daySnaps.length;
-        return (
-          <button
-            key={dayKey}
-            className={`text-[11px] px-2.5 py-1 rounded-md transition-all text-right whitespace-nowrap ${
-              isActive
-                ? 'bg-indigo-500/30 text-indigo-200 font-bold border border-indigo-400/30'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
-            }`}
-            onClick={() => onJump(startIdx + daySnaps.length - 1)}
-          >
-            {formatDayLabel(dayKey)}
-            <span className="ml-1.5 text-[9px] opacity-60">({daySnaps.length})</span>
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -167,7 +166,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const [filterFlag, setFilterFlag] = useState('all');
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [downloading, setDownloading] = useState(null);
-  const cardStackRef = useRef(null);
+  const listRef = useRef(null);
 
   const handleDownload = useCallback(async (snap) => {
     if (!token || !snap.objectName) return;
@@ -203,6 +202,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
 
   useEffect(() => { load(); }, [load]);
 
+  /* SSE: real-time snapshot creation */
   const sseHandlers = useMemo(() => ({
     onSnapshotCreated: (data) => {
       const newSnap = {
@@ -231,12 +231,19 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
 
   useServerEvents(serverId, sseHandlers, token);
 
+  /* Auto-jump to latest when new snapshot arrives */
   useEffect(() => {
     if (currentIdx === -2 && snapshots.length > 0) {
       setCurrentIdx(snapshots.length - 1);
+      if (listRef.current) {
+        requestAnimationFrame(() => {
+          listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      }
     }
   }, [currentIdx, snapshots.length]);
 
+  /* Clear _isNew animation flag */
   useEffect(() => {
     const hasNew = snapshots.some((s) => s._isNew);
     if (!hasNew) return;
@@ -258,50 +265,63 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const totalSize = snapshots.reduce((sum, s) => sum + (s.sizeBytes || 0), 0);
 
   const safeIdx = Math.max(0, Math.min(currentIdx, filtered.length - 1));
-  const currentSnap = filtered[safeIdx] || null;
+  const currentSnap = filtered.length > 0 ? filtered[safeIdx] : null;
 
-  const navigate = (dir) => {
+  const navigate = useCallback((dir) => {
     setCurrentIdx((prev) => {
       const next = prev + dir;
       return Math.max(0, Math.min(filtered.length - 1, next));
     });
-  };
+  }, [filtered.length]);
 
   const isSnapSelected = (snap) => selectedSnapshot?.objectName === snap.objectName;
 
+  /* Keyboard navigation */
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { navigate(1); e.preventDefault(); }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { navigate(-1); e.preventDefault(); }
+      if (e.key === 'ArrowUp') { navigate(-1); e.preventDefault(); }
+      if (e.key === 'ArrowDown') { navigate(1); e.preventDefault(); }
+      if (e.key === 'ArrowLeft') { navigate(-1); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { navigate(1); e.preventDefault(); }
       if (e.key === 'Enter' && currentSnap) {
         if (onSelectSnapshot) onSelectSnapshot(isSnapSelected(currentSnap) ? null : currentSnap);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentSnap, filtered.length]);
+  }, [navigate, currentSnap, onSelectSnapshot, selectedSnapshot]);
 
-  const VISIBLE_STACK = 6;
-  const stackCards = useMemo(() => {
-    if (filtered.length === 0) return [];
-    const cards = [];
-    for (let i = 0; i < VISIBLE_STACK && (safeIdx - i) >= 0; i++) {
-      cards.push({ snap: filtered[safeIdx - i], depth: i });
-    }
-    return cards;
-  }, [filtered, safeIdx]);
+  /* Build reversed list (newest first, grouped by day) */
+  const dayEntries = useMemo(() => {
+    const entries = [...dayGroups.entries()];
+    entries.reverse();
+    return entries.map(([dayKey, daySnaps]) => ({
+      dayKey,
+      label: formatDayLabel(dayKey),
+      snaps: [...daySnaps].reverse(),
+    }));
+  }, [dayGroups]);
+
+  /* Map: find flatIndex in filtered array for a given snapshot */
+  const snapToFilteredIdx = useMemo(() => {
+    const m = new Map();
+    filtered.forEach((s, i) => m.set(s.objectName, i));
+    return m;
+  }, [filtered]);
 
   return (
     <div className="space-y-4">
-      <ScanProgressBar agentStatus={agentStatus} />
+      {/* Backup progress bar with ETA */}
+      <BackupProgressBar agentStatus={agentStatus} />
 
+      {/* Header bar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4 text-xs">
           <span className="text-text3">
             <span className="font-semibold text-text1">{snapshots.length}</span> snapshots
           </span>
           <span className="text-text3">
-            <span className="font-semibold text-success">{activeCount}</span> backups
+            <span className="font-semibold text-emerald-600">{activeCount}</span> backups
           </span>
           {deletedCount > 0 && (
             <span className="text-text3">
@@ -312,14 +332,14 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
             Total: <span className="font-semibold text-text1">{fmtBytes(totalSize)}</span>
           </span>
           {sseConnected && (
-            <span className="flex items-center gap-1.5 text-emerald-500">
+            <span className="flex items-center gap-1.5 text-emerald-600">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-medium">Live</span>
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 bg-surface rounded-lg p-0.5">
             {[
               { key: 'all', label: 'All' },
               { key: 'A', label: 'Backups' },
@@ -327,8 +347,10 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
             ].map(({ key, label }) => (
               <button
                 key={key}
-                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                  filterFlag === key ? 'bg-accent/15 text-accent font-semibold' : 'text-text3 hover:text-text2 hover:bg-surface/80'
+                className={`text-xs px-3 py-1.5 rounded-md transition-all font-medium ${
+                  filterFlag === key
+                    ? 'bg-panel text-accent shadow-sm'
+                    : 'text-text3 hover:text-text2'
                 }`}
                 onClick={() => setFilterFlag(key)}
               >
@@ -336,12 +358,13 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
               </button>
             ))}
           </div>
-          <button className="btn-ghost text-xs py-1 px-2" onClick={load} disabled={loading}>
+          <button className="btn-ghost text-xs py-1.5 px-3" onClick={load} disabled={loading}>
             {loading ? '...' : 'Refresh'}
           </button>
         </div>
       </div>
 
+      {/* Verification */}
       {verification && (
         <div className={`px-4 py-2.5 rounded-xl border text-xs ${
           verification.status === 'passed'
@@ -358,162 +381,119 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-700/50 overflow-hidden shadow-2xl">
-        <div className="relative bg-gradient-to-b from-slate-950 via-indigo-950/80 to-slate-950 min-h-[480px]">
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {[...Array(30)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-0.5 h-0.5 bg-white rounded-full"
-                style={{
-                  left: `${(i * 37 + 13) % 100}%`,
-                  top: `${(i * 23 + 7) % 100}%`,
-                  opacity: 0.1 + (i % 5) * 0.08,
-                  animation: `twinkle ${2 + (i % 3)}s ease-in-out ${(i % 4) * 0.5}s infinite alternate`,
-                }}
-              />
-            ))}
+      {/* Timeline list */}
+      <div className="card overflow-hidden">
+        {/* Timeline header */}
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-sidebar">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-accent" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-sm font-semibold text-text1">Timeline</span>
           </div>
-
-          <div className="relative z-10 px-6 py-4 border-b border-slate-700/40 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M6 10H4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
-                <path d="M16 10h-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
-              </svg>
-              <h2 className="text-sm font-bold text-white tracking-wide">Time Machine</h2>
-              <span className="text-[10px] text-slate-500 uppercase tracking-widest">Backup History</span>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] text-slate-400">
-              <span className="hidden sm:inline">Use arrow keys to navigate</span>
-              {filtered.length > 0 && (
-                <span className="text-indigo-300 font-medium tabular-nums">
-                  {safeIdx + 1} / {filtered.length}
-                </span>
-              )}
-            </div>
+          <div className="flex items-center gap-3 text-[11px] text-text4">
+            <span className="hidden sm:inline">Arrow keys to navigate</span>
+            {filtered.length > 0 && (
+              <span className="text-accent font-semibold tabular-nums">
+                {safeIdx + 1} / {filtered.length}
+              </span>
+            )}
           </div>
+        </div>
 
-          {loading && (
-            <div className="flex items-center justify-center py-24 text-slate-400 text-xs gap-2">
-              <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-300">Entering Time Machine...</span>
-            </div>
-          )}
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-16 text-text4 text-xs gap-2">
+            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            Loading timeline...
+          </div>
+        )}
 
-          {!loading && filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24">
-              <svg className="w-16 h-16 mb-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" />
-              </svg>
-              <p className="text-sm font-medium text-slate-400">No snapshots yet</p>
-              <p className="text-xs text-slate-600 mt-1.5">Snapshots will appear here in real-time as the agent scans your files</p>
-            </div>
-          )}
+        {/* Empty state */}
+        {!loading && filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <svg className="w-12 h-12 mb-3 text-border" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            <p className="text-sm font-medium text-text3">No snapshots yet</p>
+            <p className="text-xs text-text4 mt-1">Snapshots will appear here in real-time as the agent creates backups</p>
+          </div>
+        )}
 
-          {!loading && filtered.length > 0 && (
-            <div className="relative z-10 flex gap-6 px-6 py-8">
-              <div className="flex-1 flex flex-col items-center justify-center" ref={cardStackRef}>
-                <div className="flex items-center gap-6 w-full max-w-md">
-                  <button
-                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${
-                      safeIdx > 0
-                        ? 'bg-slate-800/80 hover:bg-indigo-600/40 text-slate-300 hover:text-white border border-slate-600/50 hover:border-indigo-500/50'
-                        : 'bg-slate-900/40 text-slate-700 cursor-default border border-slate-800/30'
-                    }`}
-                    onClick={() => navigate(-1)}
-                    disabled={safeIdx <= 0}
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 16 16" fill="none">
-                      <path d="M10 3l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+        {/* Snapshot list grouped by day (newest first) */}
+        {!loading && filtered.length > 0 && (
+          <div ref={listRef} className="max-h-[520px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+            {/* Range slider */}
+            {filtered.length > 1 && (
+              <div className="px-5 pt-4 pb-2 border-b border-border bg-surface/50">
+                <input
+                  type="range"
+                  min={0}
+                  max={filtered.length - 1}
+                  value={safeIdx}
+                  onChange={(e) => setCurrentIdx(Number(e.target.value))}
+                  className="w-full h-1 bg-border rounded-full appearance-none cursor-pointer
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5
+                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent
+                    [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white
+                    [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-transform"
+                />
+                <div className="flex justify-between text-[9px] text-text4 mt-1 tabular-nums">
+                  <span>{formatTimeShort(filtered[0]?.sealedAt)}</span>
+                  <span>oldest &rarr; newest</span>
+                  <span>{formatTimeShort(filtered[filtered.length - 1]?.sealedAt)}</span>
+                </div>
+              </div>
+            )}
 
-                  <div className="flex-1 space-y-2">
-                    {stackCards.map(({ snap, depth }) => (
-                      <SnapshotCard
-                        key={snap.objectName || depth}
-                        snap={snap}
-                        isSelected={isSnapSelected(snap)}
-                        isCurrent={depth === 0}
-                        depth={depth}
-                        onClick={() => {
-                          if (depth === 0) {
-                            const willSelect = !isSnapSelected(snap);
-                            if (onSelectSnapshot) onSelectSnapshot(willSelect ? snap : null);
-                          } else {
-                            setCurrentIdx(safeIdx - depth);
-                          }
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${
-                      safeIdx < filtered.length - 1
-                        ? 'bg-slate-800/80 hover:bg-indigo-600/40 text-slate-300 hover:text-white border border-slate-600/50 hover:border-indigo-500/50'
-                        : 'bg-slate-900/40 text-slate-700 cursor-default border border-slate-800/30'
-                    }`}
-                    onClick={() => navigate(1)}
-                    disabled={safeIdx >= filtered.length - 1}
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 16 16" fill="none">
-                      <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+            {dayEntries.map(({ dayKey, label, snaps }) => (
+              <div key={dayKey}>
+                {/* Day header */}
+                <div className="sticky top-0 z-10 px-4 py-2 bg-surface/95 backdrop-blur-sm border-b border-border/50 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-text2">{label}</span>
+                  <span className="text-[10px] text-text4">{snaps.length} {snaps.length === 1 ? 'snapshot' : 'snapshots'}</span>
                 </div>
 
-                {filtered.length > 1 && (
-                  <div className="w-full max-w-md mt-6 px-12">
-                    <input
-                      type="range"
-                      min={0}
-                      max={filtered.length - 1}
-                      value={safeIdx}
-                      onChange={(e) => setCurrentIdx(Number(e.target.value))}
-                      className="w-full h-1 bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-500
-                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                        [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-400
-                        [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-indigo-500/40
-                        [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-indigo-300
-                        [&::-webkit-slider-thumb]:hover:bg-indigo-300 [&::-webkit-slider-thumb]:transition-all"
-                    />
-                    <div className="flex justify-between text-[9px] text-slate-600 mt-1">
-                      <span>{formatTimeShort(filtered[0]?.sealedAt)}</span>
-                      <span>{'oldest \u2192 newest'}</span>
-                      <span>{formatTimeShort(filtered[filtered.length - 1]?.sealedAt)}</span>
-                    </div>
-                  </div>
-                )}
+                {/* Vertical timeline line + rows */}
+                <div className="relative">
+                  <div className="absolute left-[29px] top-0 bottom-0 w-px bg-border" />
+                  {snaps.map((snap) => {
+                    const fIdx = snapToFilteredIdx.get(snap.objectName) ?? 0;
+                    return (
+                      <SnapshotRow
+                        key={snap.objectName}
+                        snap={snap}
+                        isSelected={isSnapSelected(snap)}
+                        isCurrent={fIdx === safeIdx}
+                        onClick={() => {
+                          setCurrentIdx(fIdx);
+                          const willSelect = !isSnapSelected(snap);
+                          if (onSelectSnapshot) onSelectSnapshot(willSelect ? snap : null);
+                        }}
+                        formatDateTime={formatDateTime}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-
-              <div className="hidden lg:block w-36 shrink-0 border-l border-slate-700/40 pl-4">
-                <span className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mb-3 block">Timeline</span>
-                <TimelineRuler
-                  dayGroups={dayGroups}
-                  selectedIdx={safeIdx}
-                  onJump={(idx) => setCurrentIdx(idx)}
-                />
-              </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Selected snapshot detail */}
       {selectedSnapshot && (
-        <div className="rounded-xl border-2 border-indigo-400/40 bg-gradient-to-br from-indigo-50/80 to-slate-50/80 p-5 shadow-sm">
+        <div className="card border-2 border-accent/30 p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/30" />
+                <div className="w-3 h-3 rounded-full bg-accent" />
                 <h3 className="text-sm font-semibold text-text1">
                   {selectedSnapshot.sealedAt ? formatDateTime(selectedSnapshot.sealedAt) : 'Unknown time'}
                 </h3>
-                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                   selectedSnapshot.flag === 'A' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
                 }`}>
                   {selectedSnapshot.flag === 'A' ? 'Active' : 'Deleted'}
@@ -537,7 +517,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
               {selectedSnapshot.flag === 'A' && (
                 <>
                   <button
-                    className="flex items-center gap-1.5 bg-[#323130] hover:bg-[#323130]/90 text-white font-medium py-2 px-4 rounded-lg text-xs shadow transition-all"
+                    className="btn-ghost text-xs py-2 px-4 flex items-center gap-1.5"
                     onClick={() => handleDownload(selectedSnapshot)}
                     disabled={downloading === selectedSnapshot.objectName}
                   >
@@ -547,7 +527,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                     {downloading === selectedSnapshot.objectName ? 'Downloading...' : 'Download'}
                   </button>
                   <button
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-5 rounded-lg text-xs shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+                    className="btn-primary text-xs py-2 px-5"
                     onClick={() => onRestore(selectedSnapshot)}
                   >
                     Restore
@@ -560,15 +540,11 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
       )}
 
       <style>{`
-        @keyframes twinkle {
-          0% { opacity: 0.1; }
-          100% { opacity: 0.4; }
+        @keyframes tl-slide-in-kf {
+          0% { opacity: 0; transform: translateX(-12px); }
+          100% { opacity: 1; transform: translateX(0); }
         }
-        @keyframes slide-in {
-          0% { opacity: 0; transform: scale(0.8) translateY(-20px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .animate-slide-in { animation: slide-in 0.6s ease-out; }
+        .tl-slide-in { animation: tl-slide-in-kf 0.5s ease-out; }
       `}</style>
     </div>
   );
