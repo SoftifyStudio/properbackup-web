@@ -363,7 +363,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   }, [token]);
 
   const load = useCallback(async () => {
-    if (!token || !serverId) return;
+    if (!token || !serverId) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await fetchArchiveSnapshots(serverId, token, { limit: 2000 });
