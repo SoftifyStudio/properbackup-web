@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import AdminModeBar from '../layout/AdminModeBar.jsx';
 import ServerCard from './ServerCard.jsx';
+import StatusPanel from './StatusPanel.jsx';
 import AddServerModal from './AddServerModal.jsx';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import { boldPartsReact } from '../i18n/bold.jsx';
@@ -35,6 +36,7 @@ function PanelTabStrip({ value, onChange }) {
       aria-label={t('serversPage.navAria')}
     >
       {tab('servers', 'serversPage.tabServers')}
+      {tab('status', 'serversPage.tabStatus')}
       {tab('tokens', 'serversPage.tabTokens')}
     </nav>
   );
@@ -45,7 +47,7 @@ export default function ServersPage({ onSelectServer }) {
   const { t, formatDateTime } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
-  const mainTab = urlTab === 'tokens' ? 'tokens' : 'servers';
+  const mainTab = ['servers', 'status', 'tokens'].includes(urlTab) ? urlTab : 'servers';
   const [servers, setServers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -224,6 +226,10 @@ export default function ServersPage({ onSelectServer }) {
               </ul>
             )}
           </>
+        )}
+
+        {mainTab === 'status' && (
+          <StatusPanel servers={servers} loading={loading} />
         )}
 
         {mainTab === 'tokens' && (

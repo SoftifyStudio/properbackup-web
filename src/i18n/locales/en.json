@@ -50,7 +50,17 @@
     "colExpires": "Expires",
     "copyKey": "Copy key",
     "device": "device",
-    "devices": "devices"
+    "devices": "devices",
+    "tabStatus": "Status",
+    "statusTitle": "Server Status",
+    "statusSubtitle": "Live overview — green means the agent contacted the buffer within the last 5 minutes.",
+    "statusOnline": "Online",
+    "statusOffline": "Offline",
+    "statusNeverSeen": "Never connected",
+    "statusLastSeen": "Last seen",
+    "statusAllOnline": "All servers online",
+    "statusSomeOffline": "{{count}} server(s) offline",
+    "statusActiveSince": "Active since"
   },
   "tree": {
     "root": {

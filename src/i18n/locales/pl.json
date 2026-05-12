@@ -50,7 +50,17 @@
     "colExpires": "Wygasa",
     "copyKey": "Kopiuj klucz",
     "device": "urządzenie",
-    "devices": "urządzeń"
+    "devices": "urządzeń",
+    "tabStatus": "Status",
+    "statusTitle": "Status serwerów",
+    "statusSubtitle": "Podgląd na żywo — zielony oznacza kontakt agenta z buforem w ciągu ostatnich 5 minut.",
+    "statusOnline": "Online",
+    "statusOffline": "Offline",
+    "statusNeverSeen": "Nigdy nie połączony",
+    "statusLastSeen": "Ostatnio widziany",
+    "statusAllOnline": "Wszystkie serwery online",
+    "statusSomeOffline": "{{count}} serwer(ów) offline",
+    "statusActiveSince": "Aktywny od"
   },
   "tree": {
     "root": {
