@@ -263,11 +263,15 @@ export default function BackupsPage({ server, onBack }) {
   const addActivityEntry = useCallback((entry) => {
     setActivityLog((prev) => {
       if (entry.type === 'agentStatus') {
-        const lastIdx = prev.length - 1;
-        if (lastIdx >= 0 && prev[lastIdx].type === 'agentStatus' && prev[lastIdx].phase === entry.phase) {
-          const next = [...prev];
-          next[lastIdx] = { ...entry, id: prev[lastIdx].id };
-          return next;
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].type === 'agentStatus') {
+            if (prev[i].phase === entry.phase) {
+              const next = [...prev];
+              next[i] = { ...entry, id: prev[i].id };
+              return next;
+            }
+            break;
+          }
         }
       }
       const next = [...prev, { ...entry, id: ++activityIdRef.current }];
