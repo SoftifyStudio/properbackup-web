@@ -8,6 +8,7 @@ const LEVEL_STYLES = {
 };
 
 const PHASE_META = {
+  scanning:    { icon: '🔍', label: 'Scanning',   color: 'text-blue-600',   bg: 'bg-blue-50' },
   indexing:    { icon: '🔍', label: 'Scanning',   color: 'text-blue-600',   bg: 'bg-blue-50' },
   uploading:   { icon: '📤', label: 'Uploading',  color: 'text-accent',     bg: 'bg-accent/5' },
   sealing:     { icon: '🔒', label: 'Sealing',    color: 'text-purple-600', bg: 'bg-purple-50' },

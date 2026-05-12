@@ -262,6 +262,14 @@ export default function BackupsPage({ server, onBack }) {
   /** SSE event handlers — real-time updates from buffer */
   const addActivityEntry = useCallback((entry) => {
     setActivityLog((prev) => {
+      if (entry.type === 'agentStatus') {
+        const lastIdx = prev.length - 1;
+        if (lastIdx >= 0 && prev[lastIdx].type === 'agentStatus' && prev[lastIdx].phase === entry.phase) {
+          const next = [...prev];
+          next[lastIdx] = { ...entry, id: prev[lastIdx].id };
+          return next;
+        }
+      }
       const next = [...prev, { ...entry, id: ++activityIdRef.current }];
       return next.length > 500 ? next.slice(-400) : next;
     });
