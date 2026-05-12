@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 
-function fmtSpeed(bytesPerSec) {
-  if (bytesPerSec >= 1048576) return `${(bytesPerSec / 1048576).toFixed(1)} MB/s`;
-  if (bytesPerSec >= 1024) return `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
-  return `${Math.round(bytesPerSec)} B/s`;
+function fmtSpeed(filesPerSec) {
+  if (filesPerSec >= 1000) return `${(filesPerSec / 1000).toFixed(1)}k files/s`;
+  return `${Math.round(filesPerSec)} files/s`;
 }
 
 function fmtEta(seconds) {
   if (!seconds || seconds <= 0) return '';
   if (seconds < 60) return `~${Math.ceil(seconds)}s`;
-  if (seconds < 3600) return `~${Math.ceil(seconds / 60)} mins`;
+  if (seconds < 3600) return `~${Math.ceil(seconds / 60)} min`;
   return `~${(seconds / 3600).toFixed(1)}h`;
 }
 
@@ -24,14 +23,13 @@ function SyncingIcon() {
   );
 }
 
-const SEGMENTS = 40;
-
 /**
- * Persistent agent status card — ALWAYS shows the same-height card with progress bar.
- * The bar fills during active scans and stays full/empty in other states.
- * Never changes height, never disappears.
+ * Persistent agent status card with smooth Time Machine–style progress bar.
+ * Uses CSS transitions for fluid fill animation and client-side interpolation
+ * between server updates to avoid jumps.
  */
 const STATUS_HOLD_MS = 2000;
+const LERP_INTERVAL_MS = 50;
 
 const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles, sseConnected }) {
   const startRef = useRef(null);
@@ -43,6 +41,7 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
   const totalFiles = agentStatus?.totalFiles || 0;
   const scannedFiles = agentStatus?.scannedFiles || 0;
   const currentFile = agentStatus?.currentFile || '';
+  const detail = agentStatus?.detail || '';
   const rawIsActive = phase === 'indexing' || phase === 'scanning' || phase === 'uploading';
 
   /* Debounce: hold "active" state for at least STATUS_HOLD_MS after it goes away */
@@ -67,42 +66,70 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
 
   const isActive = displayActive;
 
-  /* Keep last valid counts for debounced display */
-  const lastValidRef = useRef({ totalFiles: 0, scannedFiles: 0 });
-  if (rawIsActive && totalFiles > 0) {
-    lastValidRef.current = { totalFiles, scannedFiles };
-  }
-  const displayTotal = rawIsActive ? totalFiles : lastValidRef.current.totalFiles;
-  const displayScanned = rawIsActive ? scannedFiles : lastValidRef.current.scannedFiles;
+  /* Smooth interpolation: lerp displayed values toward real values */
+  const [smoothScanned, setSmoothScanned] = useState(0);
+  const [smoothTotal, setSmoothTotal] = useState(0);
+  const targetRef = useRef({ scanned: 0, total: 0 });
+  const lerpRef = useRef(null);
 
+  useEffect(() => {
+    if (rawIsActive && totalFiles > 0) {
+      targetRef.current = { scanned: scannedFiles, total: totalFiles };
+    } else if (!rawIsActive) {
+      targetRef.current = { scanned: 0, total: 0 };
+    }
+  }, [rawIsActive, scannedFiles, totalFiles]);
+
+  useEffect(() => {
+    lerpRef.current = setInterval(() => {
+      setSmoothScanned(prev => {
+        const target = targetRef.current.scanned;
+        if (prev === target) return prev;
+        const diff = target - prev;
+        const step = Math.max(1, Math.ceil(Math.abs(diff) * 0.15));
+        return diff > 0 ? Math.min(prev + step, target) : Math.max(prev - step, target);
+      });
+      setSmoothTotal(prev => {
+        const target = targetRef.current.total;
+        if (prev === target) return prev;
+        const diff = target - prev;
+        const step = Math.max(1, Math.ceil(Math.abs(diff) * 0.15));
+        return diff > 0 ? Math.min(prev + step, target) : Math.max(prev - step, target);
+      });
+    }, LERP_INTERVAL_MS);
+    return () => clearInterval(lerpRef.current);
+  }, []);
+
+  /* ETA + speed calculation */
   useEffect(() => {
     if (!rawIsActive || totalFiles <= 0) { startRef.current = null; setEta(''); setSpeed(0); return; }
     if (!startRef.current) startRef.current = { time: Date.now(), files: scannedFiles };
     const elapsed = (Date.now() - startRef.current.time) / 1000;
     const done = scannedFiles - startRef.current.files;
-    if (done > 3 && elapsed > 1) {
+    if (done > 10 && elapsed > 1) {
       const rate = done / elapsed;
       const remaining = (totalFiles - scannedFiles) / rate;
       setEta(fmtEta(remaining));
-      setSpeed(rate * 1024);
+      setSpeed(rate);
     }
   }, [rawIsActive, scannedFiles, totalFiles]);
 
-  /* Compute progress bar fill */
-  let filled = 0;
-  let pct = 0;
-  if (isActive && displayTotal > 0) {
-    pct = Math.min(100, Math.round((displayScanned / displayTotal) * 100));
-    filled = Math.round((pct / 100) * SEGMENTS);
-  } else if (isActive) {
-    filled = 0;
-  }
+  /* Compute smooth percentage */
+  const pct = isActive && smoothTotal > 0
+    ? Math.min(100, (smoothScanned / smoothTotal) * 100)
+    : 0;
+
+  /* Phase description */
+  let phaseLabel = '';
+  if (phase === 'scanning') phaseLabel = 'Discovering files';
+  else if (phase === 'indexing') phaseLabel = 'Checking files';
+  else if (phase === 'uploading') phaseLabel = 'Uploading changes';
 
   /* Status label + badge */
   let statusBadge, statusLabel, statusIcon;
   if (isActive) {
     statusBadge = <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent bg-accent/10 px-2.5 py-1 rounded">Active</span>;
-    statusLabel = 'Snapshot in Progress';
+    statusLabel = phaseLabel || 'Snapshot in Progress';
     statusIcon = <SyncingIcon />;
   } else if (sseConnected) {
     statusBadge = (
@@ -130,10 +157,13 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
     );
   }
 
-  /* Segment color */
-  const segFilled = isActive ? 'bg-accent asc-segment-pulse' : sseConnected ? 'bg-emerald-400' : 'bg-gray-300';
-  const segEmpty = 'bg-gray-200';
-  const displayFilled = isActive ? filled : sseConnected ? SEGMENTS : 0;
+  /* Bar color */
+  const barColor = isActive
+    ? 'bg-accent'
+    : sseConnected ? 'bg-emerald-400' : 'bg-gray-300';
+  const barPct = isActive
+    ? pct
+    : sseConnected ? 100 : 0;
 
   const borderClass = isActive
     ? 'border-2 border-dashed border-accent/40'
@@ -155,24 +185,29 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
           {statusIcon}
         </div>
 
-        <div className="flex items-center gap-[2px] mb-3">
-          {Array.from({ length: SEGMENTS }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-5 rounded-sm flex-1 transition-all duration-300 ${
-                i < displayFilled ? segFilled : segEmpty
-              }`}
-              style={{ animationDelay: isActive && i < displayFilled ? `${(i % 6) * 100}ms` : undefined }}
-            />
-          ))}
+        {/* Smooth continuous progress bar */}
+        <div className="w-full bg-gray-200 rounded-full h-5 mb-3 overflow-hidden relative">
+          <div
+            className={`h-full rounded-full ${barColor} ${isActive ? 'asc-bar-glow' : ''}`}
+            style={{
+              width: `${barPct}%`,
+              transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              minWidth: isActive && barPct > 0 ? '2%' : undefined,
+            }}
+          />
+          {isActive && smoothTotal > 0 && (
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold asc-mono mix-blend-difference text-white">
+              {Math.round(pct)}%
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-8 text-xs" style={{ minHeight: 20 }}>
-          {isActive && displayTotal > 0 ? (
+          {isActive && smoothTotal > 0 ? (
             <>
               <div>
-                <span className="text-text4">Files Processed: </span>
-                <span className="font-bold text-text1 asc-mono">{displayScanned.toLocaleString()} / {displayTotal.toLocaleString()}</span>
+                <span className="text-text4">Files: </span>
+                <span className="font-bold text-text1 asc-mono">{smoothScanned.toLocaleString()} / {smoothTotal.toLocaleString()}</span>
               </div>
               {speed > 0 && (
                 <div>
@@ -187,6 +222,10 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
                 </div>
               )}
             </>
+          ) : isActive ? (
+            <div className="flex items-center gap-2">
+              <span className="text-text4">{detail || 'Preparing scan...'}</span>
+            </div>
           ) : sseConnected ? (
             <div className="flex items-center gap-2">
               <span className="text-text4">Agent connected</span>
@@ -235,12 +274,6 @@ const AgentStatusCard = memo(function AgentStatusCard({ agentStatus, recentFiles
 
 /* Scoped CSS for AgentStatusCard animations */
 const ASC_STYLES = `
-@keyframes asc-segment-pulse-kf {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.82; }
-}
-.asc-segment-pulse { animation: asc-segment-pulse-kf 3s ease-in-out infinite; }
-
 @keyframes asc-live-kf {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.85); }
@@ -249,6 +282,12 @@ const ASC_STYLES = `
 
 @keyframes asc-spin-kf { to { transform: rotate(360deg); } }
 .asc-spin { animation: asc-spin-kf 2s linear infinite; }
+
+@keyframes asc-bar-glow-kf {
+  0%, 100% { box-shadow: 0 0 8px rgba(15, 108, 189, 0.15); }
+  50% { box-shadow: 0 0 16px rgba(15, 108, 189, 0.3); }
+}
+.asc-bar-glow { animation: asc-bar-glow-kf 2s ease-in-out infinite; }
 
 .asc-mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace; }
 `;
