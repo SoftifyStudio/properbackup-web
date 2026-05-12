@@ -358,11 +358,11 @@ export default function BackupsPage({ server, onBack }) {
 
   useEffect(() => {
     if (!isAllowedTab) {
-      setServiceTab('backups');
+      setServiceTab('files');
       return;
     }
     if (serviceTab === 'logs' && !isSystemAdmin) {
-      setServiceTab('backups');
+      setServiceTab('files');
     }
   }, [isAllowedTab, serviceTab, isSystemAdmin, setServiceTab]);
 
