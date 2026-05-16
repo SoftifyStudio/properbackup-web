@@ -4,6 +4,7 @@ import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
+const DL_BASE = 'https://dl.properbackup.com';
 
 function detectOS() {
   const ua = navigator.userAgent.toLowerCase();
@@ -126,75 +127,174 @@ function SetupStep({ name, setName, serverType, setServerType, onNext, onBack, l
   );
 }
 
-function InstallStep({ serverType, os, setOs, activationToken, onNext, onBack }) {
+function CopyButton({ text, label = 'Copy' }) {
   const [copied, setCopied] = useState(false);
-
-  const getCommand = () => {
-    if (os === 'windows') {
-      return serverType === 'minecraft'
-        ? `Invoke-WebRequest -Uri "https://dl.properbackup.com/agent/latest/properbackup-agent.jar" -OutFile "properbackup-agent.jar"; java -jar properbackup-agent.jar --activate ${activationToken}`
-        : `Invoke-WebRequest -Uri "https://dl.properbackup.com/agent/latest/properbackup-agent.jar" -OutFile "properbackup-agent.jar"; java -jar properbackup-agent.jar --activate ${activationToken}; java -jar properbackup-agent.jar --install-service`;
-    }
-    if (serverType === 'minecraft') {
-      return `curl -Lo properbackup-agent.jar https://dl.properbackup.com/agent/latest/properbackup-agent.jar && java -jar properbackup-agent.jar --activate ${activationToken}`;
-    }
-    return `curl -Lo properbackup-agent.jar https://dl.properbackup.com/agent/latest/properbackup-agent.jar && java -jar properbackup-agent.jar --activate ${activationToken} && sudo java -jar properbackup-agent.jar --install-service`;
-  };
-
-  const command = getCommand();
-
   const copy = () => {
-    navigator.clipboard.writeText(command);
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  return (
+    <button
+      type="button"
+      className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all ${
+        copied
+          ? 'bg-green-500 text-white'
+          : 'bg-accent/10 text-accent hover:bg-accent/20 border border-accent/30'
+      }`}
+      onClick={copy}
+    >
+      {copied ? 'Copied!' : label}
+    </button>
+  );
+}
 
-  const typeLabel = serverType === 'minecraft' ? 'Minecraft server' : 'server';
-  const serviceNote = serverType === 'vps'
-    ? (os === 'windows' ? 'Downloads, activates, and installs as a Windows service.' : 'Downloads, activates, and installs as a systemd service (auto-restart on boot).')
-    : 'Downloads and activates the backup agent.';
+function MinecraftInstallStep({ activationToken, onNext, onBack }) {
+  const pluginUrl = `${DL_BASE}/mc/latest/ProperBackup.jar`;
+  const command = `/properbackup activate ${activationToken}`;
 
   return (
     <div>
-      <h2 className="text-text1 font-bold text-lg mb-1">One command to go</h2>
-      <p className="text-text3 text-sm mb-4">
-        Paste this on your {typeLabel} and you're done.
-      </p>
+      <h2 className="text-text1 font-bold text-lg mb-1">Install the plugin</h2>
+      <p className="text-text3 text-sm mb-5">Two quick steps and your Minecraft server is protected.</p>
 
-      <div className="flex gap-1 mb-3">
-        {[['linux', 'Linux'], ['macos', 'macOS'], ['windows', 'Windows']].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={`text-xs px-3 py-1.5 rounded-md font-medium transition ${
-              os === id ? 'bg-accent text-white' : 'bg-surface text-text3 hover:text-text2'
-            }`}
-            onClick={() => setOs(id)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="w-6 h-6 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+          <span className="text-text1 text-sm font-medium">Download the plugin</span>
+        </div>
+        <a
+          href={pluginUrl}
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold bg-accent text-white hover:bg-accent/90 transition-all"
+          download
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Download ProperBackup.jar
+        </a>
+        <p className="text-text4 text-[11px] mt-1.5">Drop it into your server's <code className="bg-surface px-1 rounded">plugins/</code> folder and restart.</p>
       </div>
 
-      <div className="bg-[#1e1e1e] rounded-lg p-4 mb-3 relative group">
-        <pre className="text-[#d4d4d4] text-xs font-mono whitespace-pre-wrap overflow-x-auto leading-relaxed break-all">
-          {command}
-        </pre>
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="w-6 h-6 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+          <span className="text-text1 text-sm font-medium">Activate in server console</span>
+        </div>
+        <div className="bg-[#1e1e1e] rounded-lg p-4 mb-2">
+          <pre className="text-[#d4d4d4] text-sm font-mono select-all">{command}</pre>
+        </div>
+        <CopyButton text={command} label="Copy command" />
       </div>
 
-      <button
-        type="button"
-        className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all mb-3 ${
-          copied
-            ? 'bg-green-500 text-white'
-            : 'bg-accent/10 text-accent hover:bg-accent/20 border border-accent/30'
-        }`}
-        onClick={copy}
-      >
-        {copied ? 'Copied to clipboard!' : 'Copy command'}
-      </button>
+      <div className="bg-accentLight border border-accent/20 rounded-xl2 p-3 mb-5">
+        <p className="text-accent text-xs leading-relaxed">
+          <strong>Your activation token:</strong>{' '}
+          <code className="bg-accent/10 px-1.5 py-0.5 rounded text-[11px] select-all">{activationToken}</code>
+        </p>
+      </div>
 
-      <p className="text-text4 text-[11px] mb-5 leading-relaxed">{serviceNote}</p>
+      <div className="flex gap-3">
+        <button type="button" className="btn-primary" onClick={onNext}>I've activated it</button>
+        <button type="button" className="btn-ghost" onClick={onBack}>Back</button>
+      </div>
+    </div>
+  );
+}
+
+function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
+  const oneLineCommand = `curl -sL ${DL_BASE}/install.sh | sudo bash -s -- ${activationToken}`;
+
+  const manualSteps = os === 'windows'
+    ? {
+        download: `${DL_BASE}/agent/latest/properbackup-agent-windows-x64.zip`,
+        activate: `properbackup-agent.bat --activate ${activationToken}`,
+      }
+    : {
+        download: `${DL_BASE}/agent/latest/properbackup-agent-${os === 'macos' ? 'macos' : 'linux'}-x64.tar.gz`,
+        activate: `./properbackup-agent --activate ${activationToken}`,
+      };
+
+  const [showManual, setShowManual] = useState(false);
+
+  return (
+    <div>
+      <h2 className="text-text1 font-bold text-lg mb-1">Install the agent</h2>
+      <p className="text-text3 text-sm mb-4">One command — installs, activates, and sets up auto-restart.</p>
+
+      {os !== 'windows' && !showManual && (
+        <>
+          <div className="bg-[#1e1e1e] rounded-lg p-4 mb-2">
+            <pre className="text-[#d4d4d4] text-xs font-mono whitespace-pre-wrap break-all leading-relaxed select-all">
+              {oneLineCommand}
+            </pre>
+          </div>
+          <CopyButton text={oneLineCommand} label="Copy command" />
+          <p className="text-text4 text-[11px] mt-2 mb-4 leading-relaxed">
+            Downloads the agent with bundled Java runtime, activates with your token, and installs as a systemd service. No Java installation required.
+          </p>
+        </>
+      )}
+
+      {(os === 'windows' || showManual) && (
+        <>
+          <div className="flex gap-1 mb-3">
+            {[['linux', 'Linux'], ['macos', 'macOS'], ['windows', 'Windows']].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition ${
+                  os === id ? 'bg-accent text-white' : 'bg-surface text-text3 hover:text-text2'
+                }`}
+                onClick={() => setOs(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-5 h-5 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+              <span className="text-text1 text-sm font-medium">Download</span>
+            </div>
+            <a
+              href={manualSteps.download}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold bg-accent text-white hover:bg-accent/90 transition-all"
+              download
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Download agent ({os === 'windows' ? 'Windows' : os === 'macos' ? 'macOS' : 'Linux'})
+            </a>
+            <p className="text-text4 text-[11px] mt-1">
+              {os === 'windows' ? 'Extract the zip, then run:' : 'Extract and run:'}
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-5 h-5 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+              <span className="text-text1 text-sm font-medium">Activate</span>
+            </div>
+            <div className="bg-[#1e1e1e] rounded-lg p-4 mb-2">
+              <pre className="text-[#d4d4d4] text-sm font-mono select-all break-all whitespace-pre-wrap">{manualSteps.activate}</pre>
+            </div>
+            <CopyButton text={manualSteps.activate} label="Copy command" />
+          </div>
+        </>
+      )}
+
+      {os !== 'windows' && (
+        <button
+          type="button"
+          className="text-text4 text-[11px] underline hover:text-text3 mb-4 block"
+          onClick={() => setShowManual(!showManual)}
+        >
+          {showManual ? 'Use one-line installer instead' : 'Prefer to download manually?'}
+        </button>
+      )}
 
       <div className="bg-accentLight border border-accent/20 rounded-xl2 p-3 mb-5">
         <p className="text-accent text-xs leading-relaxed">
@@ -329,9 +429,15 @@ export default function OnboardingWizard({ onComplete }) {
             error={error}
           />
         )}
-        {step === 2 && (
-          <InstallStep
-            serverType={serverType}
+        {step === 2 && serverType === 'minecraft' && (
+          <MinecraftInstallStep
+            activationToken={activationToken}
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+          />
+        )}
+        {step === 2 && serverType === 'vps' && (
+          <VpsInstallStep
             os={os}
             setOs={setOs}
             activationToken={activationToken}
