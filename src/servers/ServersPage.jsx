@@ -4,6 +4,7 @@ import AppHeader from '../layout/AppHeader.jsx';
 import AdminModeBar from '../layout/AdminModeBar.jsx';
 import ServerCard from './ServerCard.jsx';
 import AddServerModal from './AddServerModal.jsx';
+import OnboardingWizard from '../onboarding/OnboardingWizard.jsx';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import { boldPartsReact } from '../i18n/bold.jsx';
 import { useSearchParams } from 'react-router-dom';
@@ -163,22 +164,7 @@ export default function ServersPage({ onSelectServer }) {
             )}
 
             {!loading && !error && servers.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-14 h-14 rounded-2xl bg-surface border-2 border-dashed border-border flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-text4" viewBox="0 0 20 20" fill="currentColor">
-                    <path
-                      fillRule="evenodd"
-                      d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0zM2 13a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 1a1 1 0 11-2 0 1 1 0 012 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <p className="text-text2 font-medium text-sm mb-1">{t('serversPage.emptyTitle')}</p>
-                <p className="text-text4 text-xs mb-5">{t('serversPage.emptySubtitle')}</p>
-                <button className="btn-primary text-sm" onClick={() => setShowAdd(true)}>
-                  {t('serversPage.addFirst')}
-                </button>
-              </div>
+              <OnboardingWizard onComplete={() => { load(); loadQuota(); }} />
             )}
 
             {!loading && quota && quota.storageUsedBytes != null && servers.length > 0 && (
