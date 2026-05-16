@@ -600,7 +600,10 @@ export default function BackupsPage({ server, onBack }) {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       className="bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-5 rounded-lg text-sm shadow transition-all active:scale-[0.98]"
-                      onClick={() => setRecoveryTarget({ snap: selectedSnapshot, node: null })}
+                      onClick={() => {
+                        const normalized = { ...selectedSnapshot, raw: selectedSnapshot.raw || selectedSnapshot.objectName, timestamp: selectedSnapshot.timestamp || selectedSnapshot.sealedAt };
+                        setRecoveryTarget({ snap: normalized, node: null });
+                      }}
                     >
                       Restore to this moment
                     </button>
@@ -683,7 +686,8 @@ export default function BackupsPage({ server, onBack }) {
               serverId={server.id}
               onRestore={(snap) => {
                 setSelectedSnapshot(snap);
-                setRecoveryTarget({ snap, node: null });
+                const normalized = { ...snap, raw: snap.raw || snap.objectName, timestamp: snap.timestamp || snap.sealedAt };
+                setRecoveryTarget({ snap: normalized, node: null });
               }}
               onSelectSnapshot={(snap) => {
                 setSelectedSnapshot(snap);
