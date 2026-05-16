@@ -123,6 +123,24 @@ export async function fetchActivity(serverId, sessionToken, limit = 100) {
   return res.json();
 }
 
+/** Verification results and summary (JWT). */
+export async function fetchVerification(serverId, sessionToken, limit = 20) {
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/verification`);
+  u.searchParams.set('limit', String(limit));
+  const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
+  if (!res.ok) throw new Error(`verification failed: ${res.status}`);
+  return res.json();
+}
+
+/** Download audit report as PDF (JWT). */
+export async function downloadAuditReport(serverId, sessionToken) {
+  const res = await fetch(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/audit-report`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`audit-report failed: ${res.status}`);
+  return res.blob();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);

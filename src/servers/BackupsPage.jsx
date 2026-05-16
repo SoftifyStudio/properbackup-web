@@ -14,6 +14,7 @@ import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
 import AgentStatusCard, { AgentStatusStyles } from './AgentStatusCard.jsx';
 import MonitoringTab from './MonitoringTab.jsx';
+import VerificationPanel from './VerificationPanel.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject, fetchActivity } from '../api/bufferClient.js';
@@ -160,7 +161,7 @@ export default function BackupsPage({ server, onBack }) {
   const [latestSnapshot, setLatestSnapshot] = useState(null);
   const [recentFiles, setRecentFiles] = useState([]);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['files', 'timeline', 'activity', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
+  const isAllowedTab = ['files', 'timeline', 'activity', 'verification', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'files';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -530,6 +531,9 @@ export default function BackupsPage({ server, onBack }) {
           <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
             Activity
           </button>
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'verification' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('verification')}>
+            Verification
+          </button>
         </div>
         <div className="flex-1" />
         {(() => {
@@ -699,6 +703,11 @@ export default function BackupsPage({ server, onBack }) {
               agentStatus={liveIndexMeta.agentStatus}
               connected={sseConnected}
             />
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'verification' && (
+          <ErrorBoundary title="Verification" retryLabel="Refresh">
+            <VerificationPanel serverId={server.id} />
           </ErrorBoundary>
         )}
         {serviceTab === 'monitoring' && (
