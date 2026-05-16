@@ -46,16 +46,68 @@ function WelcomeStep({ onNext }) {
   );
 }
 
-function NameStep({ name, setName, onNext, onBack, loading, error }) {
+const SERVER_TYPES = [
+  {
+    id: 'minecraft',
+    label: 'Minecraft Server',
+    desc: 'Paper, Spigot, Fabric, Forge, Vanilla',
+    icon: (
+      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <rect x="7" y="7" width="4" height="4" />
+        <rect x="13" y="7" width="4" height="4" />
+        <rect x="9" y="13" width="6" height="4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'vps',
+    label: 'VPS / Dedicated',
+    desc: 'Linux server, cloud instance, bare metal',
+    icon: (
+      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="2" y="3" width="20" height="7" rx="1.5" />
+        <rect x="2" y="14" width="20" height="7" rx="1.5" />
+        <circle cx="6" cy="6.5" r="1" fill="currentColor" />
+        <circle cx="6" cy="17.5" r="1" fill="currentColor" />
+        <line x1="10" y1="6.5" x2="18" y2="6.5" strokeLinecap="round" />
+        <line x1="10" y1="17.5" x2="18" y2="17.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+];
+
+function SetupStep({ name, setName, serverType, setServerType, onNext, onBack, loading, error }) {
   return (
     <div>
-      <h2 className="text-text1 font-bold text-lg mb-1">Name your server</h2>
-      <p className="text-text3 text-sm mb-5">Choose a recognizable name for this device (e.g. "my-minecraft-server", "nas-01").</p>
+      <h2 className="text-text1 font-bold text-lg mb-1">Set up your server</h2>
+      <p className="text-text3 text-sm mb-5">What are you backing up?</p>
+
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        {SERVER_TYPES.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center ${
+              serverType === t.id
+                ? 'border-accent bg-accentLight'
+                : 'border-border bg-surface hover:border-text4'
+            }`}
+            onClick={() => setServerType(t.id)}
+          >
+            <div className={serverType === t.id ? 'text-accent' : 'text-text3'}>{t.icon}</div>
+            <span className={`text-sm font-semibold ${serverType === t.id ? 'text-accent' : 'text-text1'}`}>{t.label}</span>
+            <span className="text-[11px] text-text4 leading-tight">{t.desc}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="mb-5">
+        <label className="text-text2 text-xs font-medium mb-1.5 block">Server name</label>
         <input
           type="text"
           className="input"
-          placeholder="my-server"
+          placeholder={serverType === 'minecraft' ? 'my-minecraft-server' : 'vps-01'}
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && name.trim() && onNext()}
@@ -63,8 +115,9 @@ function NameStep({ name, setName, onNext, onBack, loading, error }) {
         />
         {error && <p className="text-danger text-xs mt-2">{error}</p>}
       </div>
+
       <div className="flex gap-3">
-        <button type="button" className="btn-primary" onClick={onNext} disabled={!name.trim() || loading}>
+        <button type="button" className="btn-primary" onClick={onNext} disabled={!name.trim() || !serverType || loading}>
           {loading ? 'Generating...' : 'Continue'}
         </button>
         <button type="button" className="btn-ghost" onClick={onBack}>Back</button>
@@ -73,48 +126,42 @@ function NameStep({ name, setName, onNext, onBack, loading, error }) {
   );
 }
 
-function InstallStep({ os, setOs, activationToken, onNext, onBack }) {
+function InstallStep({ serverType, os, setOs, activationToken, onNext, onBack }) {
   const [copied, setCopied] = useState(false);
 
-  const installCommands = {
-    linux: `# Download agent
-curl -Lo properbackup-agent.jar https://dl.properbackup.com/agent/latest/properbackup-agent.jar
-
-# Activate with your token
-java -jar properbackup-agent.jar --activate ${activationToken}
-
-# Install as systemd service (auto-restart on boot)
-java -jar properbackup-agent.jar --install-service`,
-    macos: `# Download agent
-curl -Lo properbackup-agent.jar https://dl.properbackup.com/agent/latest/properbackup-agent.jar
-
-# Activate with your token
-java -jar properbackup-agent.jar --activate ${activationToken}
-
-# Install as launchd service (auto-start on login)
-java -jar properbackup-agent.jar --install-service`,
-    windows: `# Download agent (PowerShell)
-Invoke-WebRequest -Uri "https://dl.properbackup.com/agent/latest/properbackup-agent.jar" -OutFile "properbackup-agent.jar"
-
-# Activate with your token
-java -jar properbackup-agent.jar --activate ${activationToken}
-
-# Start agent (GUI mode)
-java -jar properbackup-agent.jar --gui`,
+  const getCommand = () => {
+    if (os === 'windows') {
+      return serverType === 'minecraft'
+        ? `Invoke-WebRequest -Uri "https://dl.properbackup.com/agent/latest/properbackup-agent.jar" -OutFile "properbackup-agent.jar"; java -jar properbackup-agent.jar --activate ${activationToken}`
+        : `Invoke-WebRequest -Uri "https://dl.properbackup.com/agent/latest/properbackup-agent.jar" -OutFile "properbackup-agent.jar"; java -jar properbackup-agent.jar --activate ${activationToken}; java -jar properbackup-agent.jar --install-service`;
+    }
+    if (serverType === 'minecraft') {
+      return `curl -Lo properbackup-agent.jar https://dl.properbackup.com/agent/latest/properbackup-agent.jar && java -jar properbackup-agent.jar --activate ${activationToken}`;
+    }
+    return `curl -Lo properbackup-agent.jar https://dl.properbackup.com/agent/latest/properbackup-agent.jar && java -jar properbackup-agent.jar --activate ${activationToken} && sudo java -jar properbackup-agent.jar --install-service`;
   };
 
+  const command = getCommand();
+
   const copy = () => {
-    navigator.clipboard.writeText(installCommands[os]);
+    navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const typeLabel = serverType === 'minecraft' ? 'Minecraft server' : 'server';
+  const serviceNote = serverType === 'vps'
+    ? (os === 'windows' ? 'Downloads, activates, and installs as a Windows service.' : 'Downloads, activates, and installs as a systemd service (auto-restart on boot).')
+    : 'Downloads and activates the backup agent.';
+
   return (
     <div>
-      <h2 className="text-text1 font-bold text-lg mb-1">Install the agent</h2>
-      <p className="text-text3 text-sm mb-4">Run these commands on the server you want to back up.</p>
+      <h2 className="text-text1 font-bold text-lg mb-1">One command to go</h2>
+      <p className="text-text3 text-sm mb-4">
+        Paste this on your {typeLabel} and you're done.
+      </p>
 
-      <div className="flex gap-1 mb-4">
+      <div className="flex gap-1 mb-3">
         {[['linux', 'Linux'], ['macos', 'macOS'], ['windows', 'Windows']].map(([id, label]) => (
           <button
             key={id}
@@ -129,27 +176,35 @@ java -jar properbackup-agent.jar --gui`,
         ))}
       </div>
 
-      <div className="bg-[#1e1e1e] rounded-lg p-4 mb-4 relative">
-        <pre className="text-[#d4d4d4] text-xs font-mono whitespace-pre-wrap overflow-x-auto leading-relaxed">
-          {installCommands[os]}
+      <div className="bg-[#1e1e1e] rounded-lg p-4 mb-3 relative group">
+        <pre className="text-[#d4d4d4] text-xs font-mono whitespace-pre-wrap overflow-x-auto leading-relaxed break-all">
+          {command}
         </pre>
-        <button
-          type="button"
-          className="absolute top-2 right-2 text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition"
-          onClick={copy}
-        >
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
       </div>
+
+      <button
+        type="button"
+        className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all mb-3 ${
+          copied
+            ? 'bg-green-500 text-white'
+            : 'bg-accent/10 text-accent hover:bg-accent/20 border border-accent/30'
+        }`}
+        onClick={copy}
+      >
+        {copied ? 'Copied to clipboard!' : 'Copy command'}
+      </button>
+
+      <p className="text-text4 text-[11px] mb-5 leading-relaxed">{serviceNote}</p>
 
       <div className="bg-accentLight border border-accent/20 rounded-xl2 p-3 mb-5">
         <p className="text-accent text-xs leading-relaxed">
-          <strong>Activation token:</strong> <code className="bg-accent/10 px-1 py-0.5 rounded text-[11px]">{activationToken}</code>
+          <strong>Your activation token:</strong>{' '}
+          <code className="bg-accent/10 px-1.5 py-0.5 rounded text-[11px] select-all">{activationToken}</code>
         </p>
       </div>
 
       <div className="flex gap-3">
-        <button type="button" className="btn-primary" onClick={onNext}>I've installed it</button>
+        <button type="button" className="btn-primary" onClick={onNext}>I've run the command</button>
         <button type="button" className="btn-ghost" onClick={onBack}>Back</button>
       </div>
     </div>
@@ -211,7 +266,7 @@ function WaitingStep({ serverId, onDone, onBack }) {
         <div className="w-8 h-8 border-3 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
       <h2 className="text-text1 font-bold text-lg mb-2">Waiting for agent{dots}</h2>
-      <p className="text-text3 text-sm mb-6">Run the commands from the previous step on your server. The agent will connect automatically once activated.</p>
+      <p className="text-text3 text-sm mb-6">Run the command from the previous step on your server. The agent will connect automatically.</p>
       <button type="button" className="btn-ghost text-xs" onClick={onBack}>Go back to instructions</button>
     </div>
   );
@@ -221,6 +276,7 @@ export default function OnboardingWizard({ onComplete }) {
   const { token } = useAuth();
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  const [serverType, setServerType] = useState('minecraft');
   const [os, setOs] = useState(detectOS);
   const [activationToken, setActivationToken] = useState('');
   const [serverId, setServerId] = useState('');
@@ -262,9 +318,11 @@ export default function OnboardingWizard({ onComplete }) {
 
         {step === 0 && <WelcomeStep onNext={() => setStep(1)} />}
         {step === 1 && (
-          <NameStep
+          <SetupStep
             name={name}
             setName={setName}
+            serverType={serverType}
+            setServerType={setServerType}
             onNext={generateToken}
             onBack={() => setStep(0)}
             loading={loading}
@@ -273,6 +331,7 @@ export default function OnboardingWizard({ onComplete }) {
         )}
         {step === 2 && (
           <InstallStep
+            serverType={serverType}
             os={os}
             setOs={setOs}
             activationToken={activationToken}
