@@ -415,5 +415,66 @@
       "expired": "Expired",
       "trial_expired": "Trial expired"
     }
+  },
+  "emailVerify": {
+    "title": "Verify your email",
+    "body": "We sent a verification link to {{email}}. Check your inbox (and spam) and click the link to activate your account.",
+    "resend": "Resend verification email",
+    "resending": "Sending…",
+    "resent": "Verification email sent!",
+    "verified": "Email verified! Redirecting…",
+    "invalidToken": "This verification link is invalid or has expired.",
+    "alreadyVerified": "Email already verified.",
+    "checking": "Verifying…"
+  },
+  "planSelection": {
+    "title": "Choose your plan",
+    "trialDisclaimer": "30 days free trial. Your account will be activated immediately, and payment simulation will trigger after the trial period ends unless canceled.",
+    "monthly": "Monthly",
+    "annual": "Annual",
+    "monthlyPrice": "19 PLN/mo",
+    "annualPrice": "190 PLN/yr",
+    "annualSave": "Save 38 PLN",
+    "selectPlan": "Continue with {{plan}}",
+    "features": {
+      "storage": "2 TB encrypted storage",
+      "encryption": "Zero-Knowledge AES-256-GCM",
+      "restore": "1-Click Restore",
+      "budgetGuard": "BudgetGuard cost protection",
+      "auditReport": "Auto-Test Restore & Audit PDF"
+    }
+  },
+  "payment": {
+    "title": "Payment",
+    "testMode": "Test mode (sandbox)",
+    "testModeHint": "No real charges — simulated BLIK and online transfer.",
+    "orderId": "Order: {{id}}",
+    "methodBlik": "BLIK",
+    "methodTransfer": "Online transfer",
+    "simulatePayment": "Simulate payment",
+    "simulating": "Processing…",
+    "success": "Payment successful!",
+    "planActivated": "Your {{plan}} plan is now active until {{date}}.",
+    "backToPanel": "Back to panel"
+  },
+  "countdown": {
+    "waitingForActivation": "Waiting for activation...",
+    "refreshNow": "Refresh now",
+    "refreshingIn": "Refreshing in {{seconds}}",
+    "agentConnected": "Agent connected!",
+    "agentNotDetected": "Agent not detected yet — keep the agent running."
+  },
+  "restoreTree": {
+    "title": "Granular restore",
+    "selectFiles": "Select files and folders to restore",
+    "selectedCount": "{{count}} items selected",
+    "restoreSelected": "Restore selected",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "noFiles": "No files found in this snapshot.",
+    "restoring": "Restoring…",
+    "restoreComplete": "Restore initiated for {{count}} items."
   }
 }

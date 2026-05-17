@@ -207,7 +207,7 @@ function TimelineRuler({ dayEntries, onJump, currentDayKey }) {
 }
 
 /* ── Main Component ── */
-export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, sseConnected, latestSnapshot }) {
+export default function SnapshotTimeline({ serverId, onRestore, onGranularRestore, onSelectSnapshot, selectedSnapshot, verification, sseConnected, latestSnapshot }) {
   const { token } = useAuth();
   const { formatDateTime } = useI18n();
   const [snapshots, setSnapshots] = useState([]);
@@ -532,6 +532,17 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                     </svg>
                     {downloading === selectedSnapshot.objectName ? 'Downloading...' : 'Download'}
                   </button>
+                  {onGranularRestore && (
+                    <button
+                      className="btn-ghost text-xs py-2 px-4 flex items-center gap-1.5"
+                      onClick={() => onGranularRestore(selectedSnapshot)}
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Granular
+                    </button>
+                  )}
                   <button
                     className="tl-restore-btn btn-primary text-xs py-2 px-6 font-semibold relative overflow-hidden"
                     onClick={() => onRestore(selectedSnapshot)}

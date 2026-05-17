@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
@@ -282,35 +282,61 @@ function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
 
 const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
   const { token } = useAuth();
+  const { t } = useI18n();
   const [status, setStatus] = useState('waiting');
-  const [dots, setDots] = useState('');
+  const [countdown, setCountdown] = useState(5);
+  const [lastCheckResult, setLastCheckResult] = useState(null);
+  const countdownRef = useRef(null);
+  const checkingRef = useRef(false);
+
+  const pollServer = useCallback(async () => {
+    if (!token || !serverId || checkingRef.current) return;
+    checkingRef.current = true;
+    try {
+      const res = await fetch(`${BASE_URL}/servers/${encodeURIComponent(serverId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setLastCheckResult('not_found');
+        return;
+      }
+      const data = await res.json();
+      if (data.lastSeen || data.lastSeenAt) {
+        setStatus('connected');
+        setLastCheckResult('connected');
+      } else {
+        setLastCheckResult('not_detected');
+      }
+    } catch (_) {
+      setLastCheckResult('error');
+    } finally {
+      checkingRef.current = false;
+    }
+  }, [token, serverId]);
 
   useEffect(() => {
-    const dotInterval = setInterval(() => {
-      setDots(d => d.length >= 3 ? '' : d + '.');
-    }, 500);
-    return () => clearInterval(dotInterval);
+    if (status === 'connected') return;
+    pollServer();
   }, []);
 
   useEffect(() => {
-    if (!token || !serverId) return;
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/servers/${encodeURIComponent(serverId)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && (data.lastSeen || data.lastSeenAt)) {
-          setStatus('connected');
+    if (status === 'connected') return;
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          pollServer();
+          return 5;
         }
-      } catch (_) { /* retry */ }
-    };
-    check();
-    const interval = setInterval(check, 3000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [token, serverId]);
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, [status, pollServer]);
+
+  const handleRefreshNow = useCallback(() => {
+    setCountdown(5);
+    pollServer();
+  }, [pollServer]);
 
   if (status === 'connected') {
     return (
@@ -320,7 +346,7 @@ const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
             <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="text-text1 font-bold text-lg mb-2">Agent connected!</h2>
+        <h2 className="text-text1 font-bold text-lg mb-2">{t('countdown.agentConnected')}</h2>
         <p className="text-text3 text-sm mb-6">Your server is now being backed up. Files are encrypted locally before upload — your password never leaves the device.</p>
         <button type="button" className="btn-primary px-8 py-2.5 text-sm font-semibold" onClick={onDone}>
           Go to dashboard
@@ -334,8 +360,31 @@ const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
       <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
         <div className="w-8 h-8 border-3 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
-      <h2 className="text-text1 font-bold text-lg mb-2">Waiting for agent{dots}</h2>
-      <p className="text-text3 text-sm mb-6">Run the command from the previous step on your server. The agent will connect automatically.</p>
+      <h2 className="text-text1 font-bold text-lg mb-2">{t('countdown.waitingForActivation')}</h2>
+      <p className="text-text3 text-sm mb-4">Run the command from the previous step on your server. The agent will connect automatically.</p>
+
+      {/* Countdown ticker + Refresh Now */}
+      <div className="flex items-center justify-center gap-3 mb-4">
+        <button
+          type="button"
+          onClick={handleRefreshNow}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent rounded-lg text-sm font-medium hover:bg-accent/20 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {t('countdown.refreshNow')}
+        </button>
+        <span className="text-xs text-text4 tabular-nums min-w-[120px]">
+          {t('countdown.refreshingIn', { seconds: countdown })}
+        </span>
+      </div>
+
+      {/* Last check result */}
+      {lastCheckResult === 'not_detected' && (
+        <p className="text-xs text-amber-600 mb-4">{t('countdown.agentNotDetected')}</p>
+      )}
+
       <button type="button" className="btn-ghost text-xs" onClick={onBack}>Go back to instructions</button>
     </div>
   );

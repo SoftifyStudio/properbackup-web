@@ -415,5 +415,66 @@
       "expired": "Wygasła",
       "trial_expired": "Trial wygasł"
     }
+  },
+  "emailVerify": {
+    "title": "Zweryfikuj swój email",
+    "body": "Wysłaliśmy link weryfikacyjny na adres {{email}}. Sprawdź swoją skrzynkę (i spam) i kliknij link, aby aktywować konto.",
+    "resend": "Wyślij ponownie",
+    "resending": "Wysyłam…",
+    "resent": "Email weryfikacyjny wysłany!",
+    "verified": "Email zweryfikowany! Przekierowanie…",
+    "invalidToken": "Link weryfikacyjny jest nieprawidłowy lub wygasł.",
+    "alreadyVerified": "Email już zweryfikowany.",
+    "checking": "Weryfikuję…"
+  },
+  "planSelection": {
+    "title": "Wybierz plan",
+    "trialDisclaimer": "30 dni za darmo. Twoje konto zostanie aktywowane natychmiast, a symulacja płatności nastąpi po zakończeniu okresu próbnego, chyba że anulujesz.",
+    "monthly": "Miesięczny",
+    "annual": "Roczny",
+    "monthlyPrice": "19 PLN/mies.",
+    "annualPrice": "190 PLN/rok",
+    "annualSave": "Oszczędzasz 38 PLN",
+    "selectPlan": "Kontynuuj z planem {{plan}}",
+    "features": {
+      "storage": "2 TB szyfrowanej przestrzeni",
+      "encryption": "Zero-Knowledge AES-256-GCM",
+      "restore": "1-Click Restore",
+      "budgetGuard": "Ochrona kosztów BudgetGuard",
+      "auditReport": "Auto-Test Restore i raport Audit PDF"
+    }
+  },
+  "payment": {
+    "title": "Płatność",
+    "testMode": "Tryb testowy (sandbox)",
+    "testModeHint": "Brak prawdziwych opłat — symulowany BLIK i przelew online.",
+    "orderId": "Zamówienie: {{id}}",
+    "methodBlik": "BLIK",
+    "methodTransfer": "Przelew online",
+    "simulatePayment": "Symuluj płatność",
+    "simulating": "Przetwarzam…",
+    "success": "Płatność zakończona sukcesem!",
+    "planActivated": "Twój plan {{plan}} jest aktywny do {{date}}.",
+    "backToPanel": "Wróć do panelu"
+  },
+  "countdown": {
+    "waitingForActivation": "Oczekiwanie na aktywację...",
+    "refreshNow": "Odśwież teraz",
+    "refreshingIn": "Odświeżanie za {{seconds}}",
+    "agentConnected": "Agent połączony!",
+    "agentNotDetected": "Agent jeszcze nie wykryty — upewnij się, że agent działa."
+  },
+  "restoreTree": {
+    "title": "Granularne przywracanie",
+    "selectFiles": "Wybierz pliki i foldery do przywrócenia",
+    "selectedCount": "{{count}} elementów zaznaczonych",
+    "restoreSelected": "Przywróć zaznaczone",
+    "selectAll": "Zaznacz wszystko",
+    "deselectAll": "Odznacz wszystko",
+    "expandAll": "Rozwiń wszystko",
+    "collapseAll": "Zwiń wszystko",
+    "noFiles": "Brak plików w tym snapshocie.",
+    "restoring": "Przywracam…",
+    "restoreComplete": "Rozpoczęto przywracanie {{count}} elementów."
   }
 }

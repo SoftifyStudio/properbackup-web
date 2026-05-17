@@ -5,6 +5,7 @@ import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
 import SubscriptionPage from './subscription/SubscriptionPage.jsx';
+import EmailVerifyPage from './auth/EmailVerifyPage.jsx';
 
 import {
   BrowserRouter,
@@ -29,8 +30,23 @@ function AgentQueryCleaner() {
   return null;
 }
 
+function EmailVerifyRoute() {
+  const { token, emailVerified } = useAuth();
+  const [search] = useSearchParams();
+  const navigate = useNavigate();
+  const verifyToken = search.get('token');
+
+  if (!token && !verifyToken) return <Navigate to="/login" replace />;
+
+  if (emailVerified && !verifyToken) {
+    return <Navigate to="/servers" replace />;
+  }
+
+  return <EmailVerifyPage verifyToken={verifyToken} />;
+}
+
 function AppRoutesInner() {
-  const { token } = useAuth();
+  const { token, emailVerified } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
   const [search] = useSearchParams();
@@ -39,6 +55,10 @@ function AppRoutesInner() {
 
   if (!token) {
     return <AuthLanding />;
+  }
+
+  if (!emailVerified) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (serverId) {
@@ -75,6 +95,7 @@ function AppRoutes() {
         <Route path="/servers" element={<AppRoutesInner />} />
         <Route path="/servers/:serverId" element={<AppRoutesInner />} />
         <Route path="/account/subscription" element={<SubscriptionPageWrapper />} />
+        <Route path="/verify-email" element={<EmailVerifyRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
