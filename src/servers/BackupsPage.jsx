@@ -29,7 +29,7 @@ import { useI18n } from '../i18n/I18nContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
 
-function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
+const StatusBar = React.memo(function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
   const { t, formatDateTime } = useI18n();
   return (
     <div className="shrink-0 flex items-center gap-6 px-6 py-2 border-b border-border bg-sidebar text-xs text-text3">
@@ -61,7 +61,7 @@ function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
       </span>
     </div>
   );
-}
+});
 
 /* ── More Menu (Monitoring / Settings / Logs) ── */
 function MoreMenu({ serviceTab, setServiceTab, isSystemAdmin }) {
@@ -339,23 +339,27 @@ export default function BackupsPage({ server, onBack }) {
         rows.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
       }
       setFileStates(rows);
-      setLiveIndexMeta({
-        agentStatus: firstInv?.agentStatus ?? null,
-        rootsCount: firstInv?.roots?.length ?? 0,
-        totalFiles: firstInv?.totalFiles ?? 0,
+      setLiveIndexMeta((m) => ({
+        ...m,
+        agentStatus: firstInv?.agentStatus ?? m.agentStatus,
+        rootsCount: firstInv?.roots?.length ?? m.rootsCount,
+        totalFiles: firstInv?.totalFiles ?? m.totalFiles,
         loading: false,
-      });
+      }));
     } catch {
       setLiveIndexMeta((m) => ({ ...m, loading: false }));
     }
   }, [token, server.id, fileSortMode]);
 
+  const fetchAdminLogsRef = useRef(fetchAdminLogs);
+  fetchAdminLogsRef.current = fetchAdminLogs;
+
   useEffect(() => {
     if (!isSystemAdmin) return;
-    fetchAdminLogs();
-    const id = setInterval(fetchAdminLogs, 3000);
+    fetchAdminLogsRef.current();
+    const id = setInterval(() => fetchAdminLogsRef.current(), 3000);
     return () => clearInterval(id);
-  }, [isSystemAdmin, fetchAdminLogs]);
+  }, [isSystemAdmin]);
 
   useEffect(() => {
     if (!isAllowedTab) {

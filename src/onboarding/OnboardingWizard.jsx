@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
@@ -127,7 +127,7 @@ function SetupStep({ name, setName, serverType, setServerType, onNext, onBack, l
   );
 }
 
-function CopyButton({ text, label = 'Copy' }) {
+const CopyButton = memo(function CopyButton({ text, label = 'Copy' }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(text);
@@ -147,7 +147,7 @@ function CopyButton({ text, label = 'Copy' }) {
       {copied ? 'Copied!' : label}
     </button>
   );
-}
+});
 
 function MinecraftInstallStep({ activationToken, onNext, onBack }) {
   const pluginUrl = `${DL_BASE}/mc/latest/ProperBackup.jar`;
@@ -280,7 +280,7 @@ function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
   );
 }
 
-function WaitingStep({ serverId, onDone, onBack }) {
+const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
   const { token } = useAuth();
   const [status, setStatus] = useState('waiting');
   const [dots, setDots] = useState('');
@@ -339,7 +339,7 @@ function WaitingStep({ serverId, onDone, onBack }) {
       <button type="button" className="btn-ghost text-xs" onClick={onBack}>Go back to instructions</button>
     </div>
   );
-}
+});
 
 export default function OnboardingWizard({ onComplete }) {
   const { token } = useAuth();
