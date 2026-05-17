@@ -457,6 +457,14 @@
     "planActivated": "Twój plan {{plan}} jest aktywny do {{date}}.",
     "backToPanel": "Wróć do panelu"
   },
+  "paymentGate": {
+    "title": "Zaktualizuj swoją domyślną metodę płatności",
+    "description": "Aby aktywować serwer, musisz skonfigurować metodę płatności lub zrealizować kod podarunkowy.",
+    "actionSubscription": "Przejdź do subskrypcji",
+    "actionGiftCode": "Mam kod podarunkowy",
+    "blocked": "Ta akcja wymaga aktywnej subskrypcji.",
+    "bannerText": "Skonfiguruj metodę płatności lub zrealizuj kod podarunkowy, aby odblokować wszystkie funkcje."
+  },
   "giftCode": {
     "title": "Kod podarunkowy",
     "description": "Masz kod podarunkowy? Wpisz go poniżej, aby aktywować subskrypcję.",

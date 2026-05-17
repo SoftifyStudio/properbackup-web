@@ -457,6 +457,14 @@
     "planActivated": "Your {{plan}} plan is now active until {{date}}.",
     "backToPanel": "Back to panel"
   },
+  "paymentGate": {
+    "title": "Update your default payment method",
+    "description": "To activate a server you need to set up a payment method or redeem a gift code.",
+    "actionSubscription": "Go to subscription",
+    "actionGiftCode": "I have a gift code",
+    "blocked": "This action requires an active subscription.",
+    "bannerText": "Set up a payment method or redeem a gift code to unlock all features."
+  },
   "giftCode": {
     "title": "Gift code",
     "description": "Have a gift code? Enter it below to activate your subscription.",

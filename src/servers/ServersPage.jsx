@@ -7,7 +7,8 @@ import AddServerModal from './AddServerModal.jsx';
 import OnboardingWizard from '../onboarding/OnboardingWizard.jsx';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import { boldPartsReact } from '../i18n/bold.jsx';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import PaymentGateBanner, { usePaymentGate } from '../subscription/PaymentGateBanner.jsx';
 
 import { bufferBaseUrl } from '../bufferConfig.js';
 
@@ -44,6 +45,8 @@ function PanelTabStrip({ value, onChange }) {
 export default function ServersPage({ onSelectServer }) {
   const { token, isSystemAdmin } = useAuth();
   const { t, formatDateTime } = useI18n();
+  const navigate = useNavigate();
+  const gated = usePaymentGate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
   const mainTab = urlTab === 'tokens' ? 'tokens' : 'servers';
@@ -147,7 +150,12 @@ export default function ServersPage({ onSelectServer }) {
                   {isSystemAdmin ? t('serversPage.subtitleAdmin') : t('serversPage.subtitleUser')}
                 </p>
               </div>
-              <button className="btn-primary text-sm" onClick={() => setShowAdd(true)}>
+              <button
+                className="btn-primary text-sm"
+                onClick={() => setShowAdd(true)}
+                disabled={gated}
+                title={gated ? t('paymentGate.blocked') : undefined}
+              >
                 {t('serversPage.addServer')}
               </button>
             </div>
@@ -163,8 +171,20 @@ export default function ServersPage({ onSelectServer }) {
               <div className="bg-dangerLight border border-danger/20 rounded-xl2 p-4 text-danger text-sm">{error}</div>
             )}
 
-            {!loading && !error && servers.length === 0 && (
+            {gated && (
+              <div className="mb-6">
+                <PaymentGateBanner onGoToSubscription={() => navigate('/account/subscription')} />
+              </div>
+            )}
+
+            {!loading && !error && servers.length === 0 && !gated && (
               <OnboardingWizard onComplete={() => { load(); loadQuota(); }} />
+            )}
+
+            {!loading && !error && servers.length === 0 && gated && (
+              <div className="rounded-xl2 border border-border bg-panel p-8 text-center text-text3 text-sm">
+                {t('serversPage.emptyTitle')}
+              </div>
             )}
 
             {!loading && quota && quota.storageUsedBytes != null && servers.length > 0 && (
@@ -214,6 +234,11 @@ export default function ServersPage({ onSelectServer }) {
 
         {mainTab === 'tokens' && (
           <>
+            {gated && (
+              <div className="mb-6">
+                <PaymentGateBanner onGoToSubscription={() => navigate('/account/subscription')} />
+              </div>
+            )}
             <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
               <div>
                 <h1 className="text-text1 font-bold text-lg">{t('serversPage.tokensTitle')}</h1>
@@ -223,7 +248,13 @@ export default function ServersPage({ onSelectServer }) {
                 <button type="button" className="btn-ghost text-sm" onClick={() => loadTokens()} disabled={tokensLoading}>
                   {t('serversPage.refresh')}
                 </button>
-                <button type="button" className="btn-primary text-sm" onClick={() => setShowAdd(true)}>
+                <button
+                  type="button"
+                  className="btn-primary text-sm"
+                  onClick={() => setShowAdd(true)}
+                  disabled={gated}
+                  title={gated ? t('paymentGate.blocked') : undefined}
+                >
                   {t('serversPage.newToken')}
                 </button>
               </div>
