@@ -302,7 +302,7 @@ function WaitingStep({ serverId, onDone, onBack }) {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled && data.lastSeenAt) {
+        if (!cancelled && (data.lastSeen || data.lastSeenAt)) {
           setStatus('connected');
         }
       } catch (_) { /* retry */ }
