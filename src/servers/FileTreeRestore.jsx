@@ -1,206 +1,139 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { List as VirtualList } from 'react-window';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
-function buildTree(files) {
-  const root = { name: '', children: {}, files: [], path: '' };
-  for (const f of files) {
+function buildTree(filePaths) {
+  const root = { name: '', children: new Map(), files: [], path: '' };
+  for (const f of filePaths) {
     const parts = f.split('/').filter(Boolean);
+    if (parts.length === 0) continue;
     let node = root;
     for (let i = 0; i < parts.length - 1; i++) {
       const dir = parts[i];
-      if (!node.children[dir]) {
-        node.children[dir] = { name: dir, children: {}, files: [], path: parts.slice(0, i + 1).join('/') };
+      if (!node.children.has(dir)) {
+        const childPath = parts.slice(0, i + 1).join('/');
+        node.children.set(dir, { name: dir, children: new Map(), files: [], path: childPath });
       }
-      node = node.children[dir];
+      node = node.children.get(dir);
     }
     node.files.push(parts[parts.length - 1]);
   }
   return root;
 }
 
-function getCheckState(node, checked) {
-  let total = 0;
-  let selected = 0;
-  for (const f of node.files) {
-    const key = node.path ? `${node.path}/${f}` : f;
-    total++;
-    if (checked.has(key)) selected++;
+function getNodeAtPath(root, segments) {
+  let node = root;
+  for (const seg of segments) {
+    if (!node.children.has(seg)) return null;
+    node = node.children.get(seg);
   }
-  for (const child of Object.values(node.children)) {
-    const sub = getCheckState(child, checked);
-    total += sub.total;
-    selected += sub.selected;
-  }
-  return { total, selected };
+  return node;
 }
 
-function toggleNode(node, checked, newState) {
-  const next = new Set(checked);
-  for (const f of node.files) {
-    const key = node.path ? `${node.path}/${f}` : f;
-    if (newState) next.add(key); else next.delete(key);
-  }
-  for (const child of Object.values(node.children)) {
-    toggleNodeInto(child, next, newState);
-  }
-  return next;
+function countAll(node) {
+  let n = node.files.length;
+  for (const child of node.children.values()) n += countAll(child);
+  return n;
 }
 
-function toggleNodeInto(node, set, newState) {
+function countChecked(node, checked) {
+  let n = 0;
   for (const f of node.files) {
     const key = node.path ? `${node.path}/${f}` : f;
-    if (newState) set.add(key); else set.delete(key);
+    if (checked.has(key)) n++;
   }
-  for (const child of Object.values(node.children)) {
-    toggleNodeInto(child, set, newState);
-  }
+  for (const child of node.children.values()) n += countChecked(child, checked);
+  return n;
 }
 
-const IndeterminateCheckbox = React.memo(function IndeterminateCheckbox({ checked, indeterminate, onChange, label }) {
+function toggleAllUnder(node, set, on) {
+  for (const f of node.files) {
+    const key = node.path ? `${node.path}/${f}` : f;
+    if (on) set.add(key); else set.delete(key);
+  }
+  for (const child of node.children.values()) toggleAllUnder(child, set, on);
+}
+
+const ROW_HEIGHT = 40;
+const MAX_LIST_HEIGHT = 560;
+
+const IndeterminateCheckbox = React.memo(function IndeterminateCheckbox({ checked, indeterminate, onChange }) {
   const ref = useRef(null);
   useEffect(() => {
     if (ref.current) ref.current.indeterminate = indeterminate;
   }, [indeterminate]);
-
   return (
-    <label className="flex items-center gap-2 cursor-pointer select-none">
-      <input
-        ref={ref}
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        className="accent-accent w-4 h-4 rounded"
-      />
-      <span className="text-sm text-text1 truncate">{label}</span>
-    </label>
-  );
-});
-
-const TreeNode = React.memo(function TreeNode({ node, checked, onToggle, depth, expanded, onExpand }) {
-  const state = useMemo(() => getCheckState(node, checked), [node, checked]);
-  const isChecked = state.total > 0 && state.selected === state.total;
-  const isIndeterminate = state.selected > 0 && state.selected < state.total;
-  const isExpanded = expanded.has(node.path);
-  const hasChildren = Object.keys(node.children).length > 0 || node.files.length > 0;
-
-  const handleToggle = useCallback(() => {
-    onToggle(node, !isChecked);
-  }, [node, isChecked, onToggle]);
-
-  const handleExpand = useCallback(() => {
-    onExpand(node.path);
-  }, [node.path, onExpand]);
-
-  return (
-    <div style={{ paddingLeft: depth * 16 }}>
-      <div className="flex items-center gap-1 py-0.5 hover:bg-surface/50 rounded px-1 group">
-        {hasChildren ? (
-          <button onClick={handleExpand} className="w-5 h-5 flex items-center justify-center text-text4 hover:text-text2 flex-shrink-0">
-            <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ) : <span className="w-5" />}
-        <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-        </svg>
-        <IndeterminateCheckbox
-          checked={isChecked}
-          indeterminate={isIndeterminate}
-          onChange={handleToggle}
-          label={node.name || '/'}
-        />
-      </div>
-
-      {isExpanded && (
-        <>
-          {Object.values(node.children)
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map(child => (
-              <TreeNode
-                key={child.path}
-                node={child}
-                checked={checked}
-                onToggle={onToggle}
-                depth={depth + 1}
-                expanded={expanded}
-                onExpand={onExpand}
-              />
-            ))}
-          {node.files.sort().map(f => {
-            const key = node.path ? `${node.path}/${f}` : f;
-            return (
-              <div key={key} style={{ paddingLeft: (depth + 1) * 16 }} className="flex items-center gap-1 py-0.5 hover:bg-surface/50 rounded px-1">
-                <span className="w-5" />
-                <svg className="w-4 h-4 text-text4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={checked.has(key)}
-                    onChange={() => {
-                      const next = new Set(checked);
-                      if (next.has(key)) next.delete(key); else next.add(key);
-                      onToggle(null, false, next);
-                    }}
-                    className="accent-accent w-4 h-4 rounded"
-                  />
-                  <span className="text-sm text-text2 truncate">{f}</span>
-                </label>
-              </div>
-            );
-          })}
-        </>
-      )}
-    </div>
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="accent-accent w-4 h-4 rounded cursor-pointer shrink-0"
+    />
   );
 });
 
 export default function FileTreeRestore({ files, onRestore, loading }) {
   const { t } = useI18n();
   const [checked, setChecked] = useState(new Set());
-  const [expanded, setExpanded] = useState(new Set(['']));
+  const [currentPath, setCurrentPath] = useState([]);
 
   const tree = useMemo(() => buildTree(files || []), [files]);
 
-  const handleToggle = useCallback((node, newState, directSet) => {
-    if (directSet) {
-      setChecked(directSet);
-      return;
+  const currentNode = useMemo(
+    () => getNodeAtPath(tree, currentPath) || tree,
+    [tree, currentPath],
+  );
+
+  const entries = useMemo(() => {
+    const result = [];
+    const folders = [...currentNode.children.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, node]) => ({ type: 'folder', name, node }));
+    result.push(...folders);
+
+    const sortedFiles = [...currentNode.files].sort((a, b) => a.localeCompare(b));
+    for (const f of sortedFiles) {
+      result.push({ type: 'file', name: f, fullPath: currentNode.path ? `${currentNode.path}/${f}` : f });
     }
-    setChecked(prev => toggleNode(node, prev, newState));
+    return result;
+  }, [currentNode]);
+
+  const navigateIn = useCallback((folderName) => {
+    setCurrentPath(prev => [...prev, folderName]);
   }, []);
 
-  const handleExpand = useCallback((path) => {
-    setExpanded(prev => {
+  const navigateTo = useCallback((segments) => {
+    setCurrentPath(segments);
+  }, []);
+
+  const handleFolderToggle = useCallback((node) => {
+    setChecked(prev => {
       const next = new Set(prev);
-      if (next.has(path)) next.delete(path); else next.add(path);
+      const total = countAll(node);
+      const sel = countChecked(node, next);
+      toggleAllUnder(node, next, sel < total);
       return next;
     });
   }, []);
 
-  const expandAll = useCallback(() => {
-    const all = new Set(['']);
-    const walk = (node) => {
-      all.add(node.path);
-      Object.values(node.children).forEach(walk);
-    };
-    walk(tree);
-    setExpanded(all);
-  }, [tree]);
-
-  const collapseAll = useCallback(() => {
-    setExpanded(new Set(['']));
+  const handleFileToggle = useCallback((fullPath) => {
+    setChecked(prev => {
+      const next = new Set(prev);
+      if (next.has(fullPath)) next.delete(fullPath); else next.add(fullPath);
+      return next;
+    });
   }, []);
 
   const selectAll = useCallback(() => {
-    setChecked(toggleNode(tree, new Set(), true));
+    setChecked(() => {
+      const next = new Set();
+      toggleAllUnder(tree, next, true);
+      return next;
+    });
   }, [tree]);
 
-  const deselectAll = useCallback(() => {
-    setChecked(new Set());
-  }, []);
+  const deselectAll = useCallback(() => setChecked(new Set()), []);
 
   if (!files || files.length === 0) {
     return (
@@ -210,34 +143,127 @@ export default function FileTreeRestore({ files, onRestore, loading }) {
     );
   }
 
+  const hasBackRow = currentPath.length > 0;
+  const itemCount = entries.length + (hasBackRow ? 1 : 0);
+  const listHeight = Math.min(itemCount * ROW_HEIGHT, MAX_LIST_HEIGHT);
+
+  const Row = ({ index, style }) => {
+    if (hasBackRow && index === 0) {
+      return (
+        <div
+          style={style}
+          className="flex items-center gap-3 px-4 cursor-pointer hover:bg-surface/60 border-b border-border"
+          onClick={() => navigateTo(currentPath.slice(0, -1))}
+        >
+          <span className="w-4" />
+          <svg className="w-4 h-4 text-accent shrink-0" viewBox="0 0 16 16" fill="none">
+            <path d="M10 4l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-sm text-accent font-medium">..</span>
+        </div>
+      );
+    }
+
+    const entryIdx = hasBackRow ? index - 1 : index;
+    const entry = entries[entryIdx];
+    if (!entry) return null;
+
+    if (entry.type === 'folder') {
+      const { node } = entry;
+      const total = countAll(node);
+      const sel = countChecked(node, checked);
+      const isChecked = total > 0 && sel === total;
+      const isIndeterminate = sel > 0 && sel < total;
+
+      return (
+        <div style={style} className="flex items-center gap-3 px-4 border-b border-border hover:bg-surface/60">
+          <IndeterminateCheckbox
+            checked={isChecked}
+            indeterminate={isIndeterminate}
+            onChange={() => handleFolderToggle(node)}
+          />
+          <svg className="w-4 h-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+          </svg>
+          <span
+            className="flex-1 text-sm text-text1 truncate cursor-pointer hover:text-accent hover:underline"
+            onClick={() => navigateIn(entry.name)}
+          >
+            {entry.name}
+          </span>
+          <span className="text-xs text-text4 shrink-0 tabular-nums">{total}</span>
+        </div>
+      );
+    }
+
+    const isFileChecked = checked.has(entry.fullPath);
+    return (
+      <div style={style} className="flex items-center gap-3 px-4 border-b border-border hover:bg-surface/60">
+        <input
+          type="checkbox"
+          checked={isFileChecked}
+          onChange={() => handleFileToggle(entry.fullPath)}
+          className="accent-accent w-4 h-4 rounded cursor-pointer shrink-0"
+        />
+        <svg className="w-4 h-4 text-text4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+        <span className="flex-1 text-sm text-text2 truncate">{entry.name}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-border bg-panel text-sm min-h-[36px] flex-shrink-0 overflow-x-auto">
+        <button className="text-accent hover:underline font-medium shrink-0" onClick={() => navigateTo([])}>
+          /
+        </button>
+        {currentPath.map((seg, i) => (
+          <React.Fragment key={i}>
+            <svg className="w-3 h-3 text-text4 shrink-0 mx-0.5" viewBox="0 0 12 12" fill="none">
+              <path d="M4.5 2.5l3.5 3.5-3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <button
+              className={`shrink-0 ${i === currentPath.length - 1 ? 'text-text1 font-medium' : 'text-accent hover:underline'}`}
+              onClick={() => navigateTo(currentPath.slice(0, i + 1))}
+            >
+              {seg}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-panel text-xs flex-shrink-0">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-panel text-xs flex-shrink-0">
         <button onClick={selectAll} className="text-accent hover:underline">{t('restoreTree.selectAll')}</button>
         <span className="text-text4">|</span>
         <button onClick={deselectAll} className="text-accent hover:underline">{t('restoreTree.deselectAll')}</button>
-        <span className="text-text4">|</span>
-        <button onClick={expandAll} className="text-accent hover:underline">{t('restoreTree.expandAll')}</button>
-        <span className="text-text4">|</span>
-        <button onClick={collapseAll} className="text-accent hover:underline">{t('restoreTree.collapseAll')}</button>
         <span className="flex-1" />
         <span className="text-text3">{t('restoreTree.selectedCount', { count: checked.size })}</span>
       </div>
 
-      {/* Tree */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-1">
-        <TreeNode
-          node={tree}
-          checked={checked}
-          onToggle={handleToggle}
-          depth={0}
-          expanded={expanded}
-          onExpand={handleExpand}
-        />
+      {/* Virtualized flat list */}
+      <div className="flex-1 min-h-0">
+        {entries.length === 0 && currentPath.length === 0 ? (
+          <div className="text-center text-text3 text-sm py-8">
+            {t('restoreTree.noFiles')}
+          </div>
+        ) : (
+          <VirtualList
+            height={listHeight}
+            itemCount={itemCount}
+            itemSize={ROW_HEIGHT}
+            width="100%"
+            overscanCount={15}
+          >
+            {Row}
+          </VirtualList>
+        )}
       </div>
 
-      {/* Action */}
+      {/* Restore action */}
       {checked.size > 0 && (
         <div className="flex-shrink-0 px-3 py-3 border-t border-border bg-panel">
           <button

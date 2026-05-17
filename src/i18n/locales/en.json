@@ -492,8 +492,6 @@
     "restoreSelected": "Restore selected",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "expandAll": "Expand all",
-    "collapseAll": "Collapse all",
     "noFiles": "No files found in this snapshot.",
     "restoring": "Restoring…",
     "restoreComplete": "Restore initiated for {{count}} items."

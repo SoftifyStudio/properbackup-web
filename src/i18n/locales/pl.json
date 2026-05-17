@@ -492,8 +492,6 @@
     "restoreSelected": "Przywróć zaznaczone",
     "selectAll": "Zaznacz wszystko",
     "deselectAll": "Odznacz wszystko",
-    "expandAll": "Rozwiń wszystko",
-    "collapseAll": "Zwiń wszystko",
     "noFiles": "Brak plików w tym snapshocie.",
     "restoring": "Przywracam…",
     "restoreComplete": "Rozpoczęto przywracanie {{count}} elementów."
