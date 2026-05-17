@@ -28,7 +28,7 @@ function StepDots({ current, total }) {
   );
 }
 
-function WelcomeStep({ onNext }) {
+function WelcomeStep({ onNext, t }) {
   return (
     <div className="text-center">
       <div className="w-20 h-20 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6">
@@ -36,12 +36,12 @@ function WelcomeStep({ onNext }) {
           <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <h2 className="text-text1 font-bold text-xl mb-2">Welcome to ProperBackup</h2>
+      <h2 className="text-text1 font-bold text-xl mb-2">{t('onboarding.welcomeTitle')}</h2>
       <p className="text-text3 text-sm mb-8 max-w-sm mx-auto">
-        Set up your first encrypted backup in under 2 minutes. Your files will be protected with AES-256-GCM encryption — only you hold the key.
+        {t('onboarding.welcomeDesc')}
       </p>
       <button type="button" className="btn-primary px-8 py-2.5 text-sm font-semibold" onClick={onNext}>
-        Get started
+        {t('onboarding.getStarted')}
       </button>
     </div>
   );
@@ -78,33 +78,37 @@ const SERVER_TYPES = [
   },
 ];
 
-function SetupStep({ name, setName, serverType, setServerType, onNext, onBack, loading, error }) {
+function SetupStep({ name, setName, serverType, setServerType, onNext, onBack, loading, error, t }) {
+  const serverTypes = [
+    { ...SERVER_TYPES[0], label: t('onboarding.mcLabel'), desc: t('onboarding.mcDesc') },
+    { ...SERVER_TYPES[1], label: t('onboarding.vpsLabel'), desc: t('onboarding.vpsDesc') },
+  ];
   return (
     <div>
-      <h2 className="text-text1 font-bold text-lg mb-1">Set up your server</h2>
-      <p className="text-text3 text-sm mb-5">What are you backing up?</p>
+      <h2 className="text-text1 font-bold text-lg mb-1">{t('onboarding.setupTitle')}</h2>
+      <p className="text-text3 text-sm mb-5">{t('onboarding.setupDesc')}</p>
 
       <div className="grid grid-cols-2 gap-3 mb-5">
-        {SERVER_TYPES.map(t => (
+        {serverTypes.map(st => (
           <button
-            key={t.id}
+            key={st.id}
             type="button"
             className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center ${
-              serverType === t.id
+              serverType === st.id
                 ? 'border-accent bg-accentLight'
                 : 'border-border bg-surface hover:border-text4'
             }`}
-            onClick={() => setServerType(t.id)}
+            onClick={() => setServerType(st.id)}
           >
-            <div className={serverType === t.id ? 'text-accent' : 'text-text3'}>{t.icon}</div>
-            <span className={`text-sm font-semibold ${serverType === t.id ? 'text-accent' : 'text-text1'}`}>{t.label}</span>
-            <span className="text-[11px] text-text4 leading-tight">{t.desc}</span>
+            <div className={serverType === st.id ? 'text-accent' : 'text-text3'}>{st.icon}</div>
+            <span className={`text-sm font-semibold ${serverType === st.id ? 'text-accent' : 'text-text1'}`}>{st.label}</span>
+            <span className="text-[11px] text-text4 leading-tight">{st.desc}</span>
           </button>
         ))}
       </div>
 
       <div className="mb-5">
-        <label className="text-text2 text-xs font-medium mb-1.5 block">Server name</label>
+        <label className="text-text2 text-xs font-medium mb-1.5 block">{t('onboarding.serverName')}</label>
         <input
           type="text"
           className="input"
@@ -119,15 +123,15 @@ function SetupStep({ name, setName, serverType, setServerType, onNext, onBack, l
 
       <div className="flex gap-3">
         <button type="button" className="btn-primary" onClick={onNext} disabled={!name.trim() || !serverType || loading}>
-          {loading ? 'Generating...' : 'Continue'}
+          {loading ? t('onboarding.generating') : t('onboarding.continue')}
         </button>
-        <button type="button" className="btn-ghost" onClick={onBack}>Back</button>
+        <button type="button" className="btn-ghost" onClick={onBack}>{t('onboarding.back')}</button>
       </div>
     </div>
   );
 }
 
-const CopyButton = memo(function CopyButton({ text, label = 'Copy' }) {
+const CopyButton = memo(function CopyButton({ text, label, copiedLabel }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(text);
@@ -144,24 +148,24 @@ const CopyButton = memo(function CopyButton({ text, label = 'Copy' }) {
       }`}
       onClick={copy}
     >
-      {copied ? 'Copied!' : label}
+      {copied ? (copiedLabel || 'Copied!') : (label || 'Copy')}
     </button>
   );
 });
 
-function MinecraftInstallStep({ activationToken, onNext, onBack }) {
+function MinecraftInstallStep({ activationToken, onNext, onBack, t }) {
   const pluginUrl = `${DL_BASE}/mc/latest/ProperBackup.jar`;
   const command = `/properbackup activate ${activationToken}`;
 
   return (
     <div>
-      <h2 className="text-text1 font-bold text-lg mb-1">Install the plugin</h2>
-      <p className="text-text3 text-sm mb-5">Two quick steps and your Minecraft server is protected.</p>
+      <h2 className="text-text1 font-bold text-lg mb-1">{t('onboarding.mcInstallTitle')}</h2>
+      <p className="text-text3 text-sm mb-5">{t('onboarding.mcInstallDesc')}</p>
 
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2">
           <span className="w-6 h-6 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
-          <span className="text-text1 text-sm font-medium">Download the plugin</span>
+          <span className="text-text1 text-sm font-medium">{t('onboarding.downloadPlugin')}</span>
         </div>
         <a
           href={pluginUrl}
@@ -171,38 +175,38 @@ function MinecraftInstallStep({ activationToken, onNext, onBack }) {
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Download ProperBackup.jar
+          {t('onboarding.downloadPluginBtn')}
         </a>
-        <p className="text-text4 text-[11px] mt-1.5">Drop it into your server's <code className="bg-surface px-1 rounded">plugins/</code> folder and restart.</p>
+        <p className="text-text4 text-[11px] mt-1.5">{t('onboarding.mcPluginHint')}</p>
       </div>
 
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2">
           <span className="w-6 h-6 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
-          <span className="text-text1 text-sm font-medium">Activate in server console</span>
+          <span className="text-text1 text-sm font-medium">{t('onboarding.activateConsole')}</span>
         </div>
         <div className="bg-[#1e1e1e] rounded-lg p-4 mb-2">
           <pre className="text-[#d4d4d4] text-sm font-mono select-all">{command}</pre>
         </div>
-        <CopyButton text={command} label="Copy command" />
+        <CopyButton text={command} label={t('onboarding.copyCommand')} copiedLabel={t('onboarding.copied')} />
       </div>
 
       <div className="bg-accentLight border border-accent/20 rounded-xl2 p-3 mb-5">
         <p className="text-accent text-xs leading-relaxed">
-          <strong>Your activation token:</strong>{' '}
+          <strong>{t('onboarding.activationToken')}</strong>{' '}
           <code className="bg-accent/10 px-1.5 py-0.5 rounded text-[11px] select-all">{activationToken}</code>
         </p>
       </div>
 
       <div className="flex gap-3">
-        <button type="button" className="btn-primary" onClick={onNext}>I've activated it</button>
-        <button type="button" className="btn-ghost" onClick={onBack}>Back</button>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.mcDoneBtn')}</button>
+        <button type="button" className="btn-ghost" onClick={onBack}>{t('onboarding.back')}</button>
       </div>
     </div>
   );
 }
 
-function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
+function VpsInstallStep({ os, setOs, activationToken, onNext, onBack, t }) {
   const downloadUrl = os === 'windows'
     ? `${DL_BASE}/agent/latest/properbackup-agent-windows-x64.zip`
     : `${DL_BASE}/agent/latest/properbackup-agent-${os === 'macos' ? 'macos' : 'linux'}-x64.tar.gz`;
@@ -215,8 +219,8 @@ function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
 
   return (
     <div>
-      <h2 className="text-text1 font-bold text-lg mb-1">Install the agent</h2>
-      <p className="text-text3 text-sm mb-4">Download, extract, run one command. Java is already included.</p>
+      <h2 className="text-text1 font-bold text-lg mb-1">{t('onboarding.vpsInstallTitle')}</h2>
+      <p className="text-text3 text-sm mb-4">{t('onboarding.vpsInstallDesc')}</p>
 
       <div className="flex gap-1 mb-4">
         {[['linux', 'Linux'], ['macos', 'macOS'], ['windows', 'Windows']].map(([id, label]) => (
@@ -236,7 +240,7 @@ function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2">
           <span className="w-6 h-6 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
-          <span className="text-text1 text-sm font-medium">Download the agent</span>
+          <span className="text-text1 text-sm font-medium">{t('onboarding.downloadAgent')}</span>
         </div>
         <a
           href={downloadUrl}
@@ -246,35 +250,35 @@ function VpsInstallStep({ os, setOs, activationToken, onNext, onBack }) {
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Download ProperBackup ({osLabel})
+          {t('onboarding.downloadAgentBtn', { os: osLabel })}
         </a>
         <p className="text-text4 text-[11px] mt-1.5">
-          {os === 'windows' ? 'Extract the zip and open a terminal in that folder.' : 'Extract the archive and open a terminal in that folder.'}
+          {os === 'windows' ? t('onboarding.vpsExtractHintWin') : t('onboarding.vpsExtractHint')}
         </p>
       </div>
 
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2">
           <span className="w-6 h-6 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
-          <span className="text-text1 text-sm font-medium">Run this command</span>
+          <span className="text-text1 text-sm font-medium">{t('onboarding.runCommand')}</span>
         </div>
         <div className="bg-[#1e1e1e] rounded-lg p-4 mb-2">
           <pre className="text-[#d4d4d4] text-sm font-mono select-all break-all whitespace-pre-wrap">{command}</pre>
         </div>
-        <CopyButton text={command} label="Copy command" />
-        <p className="text-text4 text-[11px] mt-1.5">Activates the agent and installs it as a background service (auto-restart on boot).</p>
+        <CopyButton text={command} label={t('onboarding.copyCommand')} copiedLabel={t('onboarding.copied')} />
+        <p className="text-text4 text-[11px] mt-1.5">{t('onboarding.vpsServiceHint')}</p>
       </div>
 
       <div className="bg-accentLight border border-accent/20 rounded-xl2 p-3 mb-5">
         <p className="text-accent text-xs leading-relaxed">
-          <strong>Your activation token:</strong>{' '}
+          <strong>{t('onboarding.activationToken')}</strong>{' '}
           <code className="bg-accent/10 px-1.5 py-0.5 rounded text-[11px] select-all">{activationToken}</code>
         </p>
       </div>
 
       <div className="flex gap-3">
-        <button type="button" className="btn-primary" onClick={onNext}>I've run the command</button>
-        <button type="button" className="btn-ghost" onClick={onBack}>Back</button>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.vpsDoneBtn')}</button>
+        <button type="button" className="btn-ghost" onClick={onBack}>{t('onboarding.back')}</button>
       </div>
     </div>
   );
@@ -317,7 +321,7 @@ const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
   useEffect(() => {
     if (status === 'connected') return;
     pollServer();
-  }, []);
+  }, [pollServer, status]);
 
   useEffect(() => {
     if (status === 'connected') return;
@@ -347,9 +351,9 @@ const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
           </svg>
         </div>
         <h2 className="text-text1 font-bold text-lg mb-2">{t('countdown.agentConnected')}</h2>
-        <p className="text-text3 text-sm mb-6">Your server is now being backed up. Files are encrypted locally before upload — your password never leaves the device.</p>
+        <p className="text-text3 text-sm mb-6">{t('onboarding.connectedDesc')}</p>
         <button type="button" className="btn-primary px-8 py-2.5 text-sm font-semibold" onClick={onDone}>
-          Go to dashboard
+          {t('onboarding.goToDashboard')}
         </button>
       </div>
     );
@@ -361,7 +365,7 @@ const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
         <div className="w-8 h-8 border-3 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
       <h2 className="text-text1 font-bold text-lg mb-2">{t('countdown.waitingForActivation')}</h2>
-      <p className="text-text3 text-sm mb-4">Run the command from the previous step on your server. The agent will connect automatically.</p>
+      <p className="text-text3 text-sm mb-4">{t('onboarding.waitingDesc')}</p>
 
       {/* Countdown ticker + Refresh Now */}
       <div className="flex items-center justify-center gap-3 mb-4">
@@ -385,13 +389,14 @@ const WaitingStep = memo(function WaitingStep({ serverId, onDone, onBack }) {
         <p className="text-xs text-amber-600 mb-4">{t('countdown.agentNotDetected')}</p>
       )}
 
-      <button type="button" className="btn-ghost text-xs" onClick={onBack}>Go back to instructions</button>
+      <button type="button" className="btn-ghost text-xs" onClick={onBack}>{t('onboarding.goBackInstructions')}</button>
     </div>
   );
 });
 
 export default function OnboardingWizard({ onComplete }) {
   const { token } = useAuth();
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [serverType, setServerType] = useState('minecraft');
@@ -403,7 +408,7 @@ export default function OnboardingWizard({ onComplete }) {
 
   const generateToken = async () => {
     if (!name.trim()) {
-      setError('Please enter a server name');
+      setError(t('onboarding.enterServerName'));
       return;
     }
     setLoading(true);
@@ -434,7 +439,7 @@ export default function OnboardingWizard({ onComplete }) {
       <div className="bg-panel rounded-2xl shadow-xl border border-border w-full max-w-lg p-8">
         <StepDots current={step} total={4} />
 
-        {step === 0 && <WelcomeStep onNext={() => setStep(1)} />}
+        {step === 0 && <WelcomeStep onNext={() => setStep(1)} t={t} />}
         {step === 1 && (
           <SetupStep
             name={name}
@@ -445,6 +450,7 @@ export default function OnboardingWizard({ onComplete }) {
             onBack={() => setStep(0)}
             loading={loading}
             error={error}
+            t={t}
           />
         )}
         {step === 2 && serverType === 'minecraft' && (
@@ -452,6 +458,7 @@ export default function OnboardingWizard({ onComplete }) {
             activationToken={activationToken}
             onNext={() => setStep(3)}
             onBack={() => setStep(1)}
+            t={t}
           />
         )}
         {step === 2 && serverType === 'vps' && (
@@ -461,6 +468,7 @@ export default function OnboardingWizard({ onComplete }) {
             activationToken={activationToken}
             onNext={() => setStep(3)}
             onBack={() => setStep(1)}
+            t={t}
           />
         )}
         {step === 3 && (
