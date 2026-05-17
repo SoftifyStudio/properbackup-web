@@ -20,7 +20,7 @@ async function startCheckout(token, planId) {
 }
 
 export default function SubscriptionPage({ onBack }) {
-  const { token } = useAuth();
+  const { token, updateSubscriptionPlan } = useAuth();
   const { t } = useI18n();
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -137,7 +137,7 @@ export default function SubscriptionPage({ onBack }) {
             </div>
 
             {/* Gift code */}
-            <GiftCodePanel onRedeemed={() => loadSub()} />
+            <GiftCodePanel onRedeemed={(data) => { if (data?.plan) updateSubscriptionPlan(data.plan); loadSub(); }} />
 
             {/* Plans */}
             <div>

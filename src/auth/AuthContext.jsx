@@ -45,6 +45,13 @@ export function AuthProvider({ children }) {
     setAuth(updated);
   }, [auth]);
 
+  const updateSubscriptionPlan = useCallback((plan) => {
+    if (!auth) return;
+    const updated = { ...auth, subscriptionPlan: plan };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setAuth(updated);
+  }, [auth]);
+
   return (
     <AuthContext.Provider value={{
       user: auth,
@@ -58,6 +65,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       markEmailVerified,
+      updateSubscriptionPlan,
     }}>
       {children}
     </AuthContext.Provider>
