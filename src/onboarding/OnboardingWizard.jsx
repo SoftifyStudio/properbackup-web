@@ -177,7 +177,7 @@ function MinecraftInstallStep({ activationToken, onNext, onBack, t }) {
           </svg>
           {t('onboarding.downloadPluginBtn')}
         </a>
-        <p className="text-text4 text-[11px] mt-1.5">{t('onboarding.mcPluginHint')}</p>
+        <p className="text-text4 text-[11px] mt-1.5">{t('onboarding.mcPluginHintPre')}<code className="bg-surface px-1 rounded">{t('onboarding.mcPluginHintFolder')}</code>{t('onboarding.mcPluginHintPost')}</p>
       </div>
 
       <div className="mb-5">
