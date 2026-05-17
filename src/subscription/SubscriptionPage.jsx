@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
+import GiftCodePanel from './GiftCodePanel.jsx';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
@@ -134,6 +135,9 @@ export default function SubscriptionPage({ onBack }) {
                 </p>
               )}
             </div>
+
+            {/* Gift code */}
+            <GiftCodePanel onRedeemed={() => loadSub()} />
 
             {/* Plans */}
             <div>

@@ -141,6 +141,23 @@ export async function downloadAuditReport(serverId, sessionToken) {
   return res.blob();
 }
 
+/** Redeem a gift code to activate subscription (JWT). */
+export async function redeemGiftCode(code, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/redeem-gift`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = data.error;
+    throw err;
+  }
+  return data;
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);

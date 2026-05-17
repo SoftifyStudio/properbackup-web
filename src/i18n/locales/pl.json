@@ -457,6 +457,19 @@
     "planActivated": "Twój plan {{plan}} jest aktywny do {{date}}.",
     "backToPanel": "Wróć do panelu"
   },
+  "giftCode": {
+    "title": "Kod podarunkowy",
+    "description": "Masz kod podarunkowy? Wpisz go poniżej, aby aktywować subskrypcję.",
+    "placeholder": "np. GIFT-ABC-123",
+    "redeem": "Zrealizuj kod",
+    "redeeming": "Realizuję…",
+    "success": "Kod podarunkowy zrealizowany!",
+    "activated": "Twój plan {{plan}} jest aktywny do {{date}}.",
+    "errorRequired": "Wpisz kod podarunkowy.",
+    "errorInvalid": "Kod nie został znaleziony, jest już wykorzystany lub wygasł.",
+    "errorConflict": "Ten kod został właśnie zrealizowany przez kogoś innego.",
+    "errorGeneric": "Nie udało się zrealizować kodu. Spróbuj ponownie później."
+  },
   "countdown": {
     "waitingForActivation": "Oczekiwanie na aktywację...",
     "refreshNow": "Odśwież teraz",

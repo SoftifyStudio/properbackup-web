@@ -457,6 +457,19 @@
     "planActivated": "Your {{plan}} plan is now active until {{date}}.",
     "backToPanel": "Back to panel"
   },
+  "giftCode": {
+    "title": "Gift code",
+    "description": "Have a gift code? Enter it below to activate your subscription.",
+    "placeholder": "e.g. GIFT-ABC-123",
+    "redeem": "Redeem code",
+    "redeeming": "Redeeming…",
+    "success": "Gift code redeemed!",
+    "activated": "Your {{plan}} plan is now active until {{date}}.",
+    "errorRequired": "Enter a gift code.",
+    "errorInvalid": "Gift code not found, already used, or expired.",
+    "errorConflict": "This code was just redeemed by someone else.",
+    "errorGeneric": "Could not redeem code. Try again later."
+  },
   "countdown": {
     "waitingForActivation": "Waiting for activation...",
     "refreshNow": "Refresh now",
