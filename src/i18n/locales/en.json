@@ -453,7 +453,12 @@
     "cancelError": "Failed to cancel subscription. Please try again.",
     "renewError": "Failed to reactivate subscription. Please try again.",
     "cancelledNotRenewing": "Cancelled — will not renew",
-    "reactivate": "Reactivate renewal"
+    "reactivate": "Reactivate renewal",
+    "reactivateSuccess": "Subscription renewal has been reactivated.",
+    "currency": "PLN",
+    "nettoShort": "netto",
+    "bruttoShort": "gross",
+    "cardBrand": "CARD"
   },
   "emailVerify": {
     "title": "Verify your email",

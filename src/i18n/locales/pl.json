@@ -453,7 +453,12 @@
     "cancelError": "Nie udało się anulować subskrypcji. Spróbuj ponownie.",
     "renewError": "Nie udało się reaktywować subskrypcji. Spróbuj ponownie.",
     "cancelledNotRenewing": "Anulowana — nie zostanie odnowiona",
-    "reactivate": "Reaktywuj odnowienie"
+    "reactivate": "Reaktywuj odnowienie",
+    "reactivateSuccess": "Odnowienie subskrypcji zostało reaktywowane.",
+    "currency": "PLN",
+    "nettoShort": "netto",
+    "bruttoShort": "brutto",
+    "cardBrand": "KARTA"
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",

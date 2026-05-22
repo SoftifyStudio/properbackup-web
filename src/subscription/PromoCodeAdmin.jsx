@@ -207,7 +207,7 @@ export default function PromoCodeAdmin({ onBack }) {
                       <td className="px-4 py-3 font-mono text-text1">{c.code}</td>
                       <td className="px-4 py-3 text-text2">{c.type}</td>
                       <td className="px-4 py-3 text-text2">
-                        {c.discountPercent ? `${c.discountPercent}%` : c.discountGrosze ? `${(c.discountGrosze / 100).toFixed(2)} PLN` : '—'}
+                        {c.discountPercent ? `${c.discountPercent}%` : c.discountGrosze ? `${(c.discountGrosze / 100).toFixed(2)} ${t('subscription.currency')}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-center text-text2">{c.usedCount} / {c.maxUses}</td>
                       <td className="px-4 py-3 text-center">

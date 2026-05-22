@@ -40,7 +40,7 @@ export default function PromoCodePanel({ onValidated }) {
   const discountLabel = () => {
     if (!result?.valid) return null;
     if (result.discountPercent) return `-${result.discountPercent}%`;
-    if (result.discountGrosze) return `-${(result.discountGrosze / 100).toFixed(2)} PLN`;
+    if (result.discountGrosze) return `-${(result.discountGrosze / 100).toFixed(2)} ${t('subscription.currency')}`;
     return null;
   };
 

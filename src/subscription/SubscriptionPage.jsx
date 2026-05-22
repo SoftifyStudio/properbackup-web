@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import PromoCodePanel from './PromoCodePanel.jsx';
+import Toast from './Toast.jsx';
 import { createStripeCheckout, fetchCardInfo, cancelSubscription, reactivateSubscription, verifyStripeSession } from '../api/bufferClient.js';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
@@ -26,7 +27,7 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, t }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-12 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-md">
-              <span className="text-white text-[10px] font-bold uppercase">{cardInfo.brand || 'CARD'}</span>
+              <span className="text-white text-[10px] font-bold uppercase">{cardInfo.brand || t('subscription.cardBrand')}</span>
             </div>
             <div>
               <p className="text-sm font-mono text-text1 tracking-wider">•••• •••• •••• {cardInfo.last4}</p>
@@ -84,7 +85,7 @@ function PlanCard({
   const hasDiscount = prorated > 0 || promoDiscount > 0;
 
   const borderClass = isActive
-    ? 'border-2 border-accent bg-accent/5'
+    ? 'border-2 border-accent ring-2 ring-accent/30 bg-accent/5 shadow-lg shadow-accent/10'
     : highlight
     ? 'border-2 border-accent'
     : 'border border-border hover:border-accent/40';
@@ -108,8 +109,8 @@ function PlanCard({
         {hasDiscount ? (
           <>
             <div className="flex items-baseline gap-2">
-              <span className="text-base text-text4 line-through">{formatGrosze(base)} PLN</span>
-              <span className="text-xs text-text4">netto</span>
+              <span className="text-base text-text4 line-through">{formatGrosze(base)} {t('subscription.currency')}</span>
+              <span className="text-xs text-text4">{t('subscription.nettoShort')}</span>
             </div>
             <span className="text-xs text-text3">/ {period}</span>
 
@@ -117,26 +118,26 @@ function PlanCard({
               {prorated > 0 && (
                 <div className="flex justify-between">
                   <span className="text-text3">{t('subscription.proratedDiscount', { days: pricing.daysRemaining || 0, amount: formatGrosze(prorated) })}</span>
-                  <span className="text-text2">-{formatGrosze(prorated)} PLN</span>
+                  <span className="text-text2">-{formatGrosze(prorated)} {t('subscription.currency')}</span>
                 </div>
               )}
               {promoDiscount > 0 && (
                 <div className="flex justify-between">
                   <span className="text-emerald-600">{t('subscription.promoDiscount', { code: promoResult?.code, amount: formatGrosze(promoDiscount) })}</span>
-                  <span className="text-emerald-600">-{formatGrosze(promoDiscount)} PLN</span>
+                  <span className="text-emerald-600">-{formatGrosze(promoDiscount)} {t('subscription.currency')}</span>
                 </div>
               )}
               <div className="flex justify-between pt-1 border-t border-border/50">
                 <span className="text-text2">{t('subscription.nettoLabel')}</span>
-                <span className="text-text1 font-medium">{formatGrosze(finalNetto)} PLN</span>
+                <span className="text-text1 font-medium">{formatGrosze(finalNetto)} {t('subscription.currency')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text3">{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })}</span>
-                <span className="text-text3">+{formatGrosze(vatAmount)} PLN</span>
+                <span className="text-text3">+{formatGrosze(vatAmount)} {t('subscription.currency')}</span>
               </div>
               <div className="flex justify-between pt-1 border-t border-border/50">
                 <span className="font-semibold text-text1">{t('subscription.bruttoLabel')}</span>
-                <span className="font-bold text-emerald-600 text-sm">{formatGrosze(brutto)} PLN</span>
+                <span className="font-bold text-emerald-600 text-sm">{formatGrosze(brutto)} {t('subscription.currency')}</span>
               </div>
             </div>
           </>
@@ -144,10 +145,10 @@ function PlanCard({
           <>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-bold text-accent">{formatGrosze(base)}</span>
-              <span className="text-sm text-text3">PLN netto / {period}</span>
+              <span className="text-sm text-text3">{t('subscription.currency')} {t('subscription.nettoShort')} / {period}</span>
             </div>
             <div className="text-xs text-text3 mt-0.5">
-              +{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })} = <span className="font-medium text-text1">{formatGrosze(Math.round(base * (1 + vatRate)))} PLN</span> brutto
+              +{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })} = <span className="font-medium text-text1">{formatGrosze(Math.round(base * (1 + vatRate)))} {t('subscription.currency')}</span> {t('subscription.bruttoShort')}
             </div>
           </>
         )}
@@ -202,8 +203,17 @@ export default function SubscriptionPage({ onBack }) {
   const { t, formatDateTime } = useI18n();
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [toasts, setToasts] = useState([]);
   const [stripeSuccess, setStripeSuccess] = useState(false);
+
+  const addToast = useCallback((message, type = 'error') => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [promoResult, setPromoResult] = useState(null);
   const [cardInfo, setCardInfo] = useState(null);
@@ -213,7 +223,6 @@ export default function SubscriptionPage({ onBack }) {
   const loadSub = useCallback(async (silent = false) => {
     if (!token) return;
     if (!silent) setLoading(true);
-    setError('');
     try {
       const res = await fetch(`${BASE_URL}/account/subscription`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -222,7 +231,7 @@ export default function SubscriptionPage({ onBack }) {
       const data = await res.json();
       setSub(data);
     } catch (e) {
-      if (!silent) setError(e.message);
+      if (!silent) addToast(e.message, 'error');
     } finally {
       if (!silent) setLoading(false);
       isInitialLoad.current = false;
@@ -252,6 +261,7 @@ export default function SubscriptionPage({ onBack }) {
     if (params.get('stripe') === 'success') {
       const sid = params.get('session_id');
       setStripeSuccess(true);
+      addToast(t('subscription.stripeSuccess'), 'success');
       window.history.replaceState({}, '', window.location.pathname);
       if (sid && token) {
         verifyStripeSession(sid, token)
@@ -263,7 +273,7 @@ export default function SubscriptionPage({ onBack }) {
       }
     }
     if (params.get('stripe') === 'cancelled') {
-      setError(t('subscription.stripeCancelled'));
+      addToast(t('subscription.stripeCancelled'), 'error');
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -280,7 +290,6 @@ export default function SubscriptionPage({ onBack }) {
 
   const handleStripeCheckout = async (planId) => {
     setCheckoutLoading(planId);
-    setError('');
     try {
       const code = promoResult?.valid ? promoResult.code : undefined;
       const { checkoutUrl } = await createStripeCheckout(planId, token, code);
@@ -288,20 +297,19 @@ export default function SubscriptionPage({ onBack }) {
         window.location.href = checkoutUrl;
       }
     } catch (e) {
-      setError(e.message);
+      addToast(e.message, 'error');
       setCheckoutLoading(null);
     }
   };
 
   const handleCancelSubscription = async () => {
     setCancelLoading(true);
-    setError('');
     try {
       await cancelSubscription(token);
-      setError('');
+      addToast(t('subscription.cancelSuccess'), 'success');
       await loadSub(true);
     } catch (e) {
-      setError(t('subscription.cancelError'));
+      addToast(t('subscription.cancelError'), 'error');
     } finally {
       setCancelLoading(false);
     }
@@ -310,12 +318,12 @@ export default function SubscriptionPage({ onBack }) {
   const handleRenewSubscription = async () => {
     if (isCancelledButActive) {
       setCancelLoading(true);
-      setError('');
       try {
         await reactivateSubscription(token);
+        addToast(t('subscription.reactivateSuccess'), 'success');
         await loadSub(true);
       } catch (e) {
-        setError(t('subscription.renewError'));
+        addToast(t('subscription.renewError'), 'error');
       } finally {
         setCancelLoading(false);
       }
@@ -369,18 +377,6 @@ export default function SubscriptionPage({ onBack }) {
             <div className="flex items-center gap-3 text-text3 text-sm py-8 justify-center">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               {t('subscription.loading')}
-            </div>
-          )}
-
-          {error && (
-            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm mb-6">
-              {error}
-            </div>
-          )}
-
-          {stripeSuccess && (
-            <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm mb-6">
-              {t('subscription.stripeSuccess')}
             </div>
           )}
 
@@ -521,6 +517,13 @@ export default function SubscriptionPage({ onBack }) {
           )}
         </div>
       </main>
+
+      {/* Toast notifications */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        {toasts.map((toast) => (
+          <Toast key={toast.id} id={toast.id} message={toast.message} type={toast.type} onClose={removeToast} />
+        ))}
+      </div>
     </div>
   );
 }
