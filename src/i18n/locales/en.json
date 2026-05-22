@@ -435,7 +435,21 @@
     "promoDiscount": "Coupon {{code}}: -{{amount}} PLN",
     "selectAndPay": "Select & pay",
     "paymentHint": "Choose a plan and proceed to Stripe checkout.",
-    "testModeBanner": "TEST MODE — test card: 4242 4242 4242 4242, any date and CVC"
+    "testModeBanner": "TEST MODE — test card: 4242 4242 4242 4242, any date and CVC",
+    "activePlan": "Active plan",
+    "cancelRenewal": "Cancel renewal",
+    "renewNow": "Renew now",
+    "storageUsage": "Used",
+    "nettoLabel": "Net",
+    "vatLabel": "VAT ({{rate}}%)",
+    "bruttoLabel": "Gross (to pay)",
+    "paymentMethod": "Payment method",
+    "noCardAttached": "No card attached",
+    "addCard": "Add card",
+    "changeCard": "Change card",
+    "cardExpires": "Expires: {{date}}",
+    "cancelSuccess": "Subscription renewal has been cancelled.",
+    "cancelError": "Failed to cancel subscription. Please try again."
   },
   "emailVerify": {
     "title": "Verify your email",

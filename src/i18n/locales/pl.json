@@ -435,7 +435,21 @@
     "promoDiscount": "Kupon {{code}}: -{{amount}} PLN",
     "selectAndPay": "Wybierz i zapłać",
     "paymentHint": "Wybierz plan i przejdź do płatności przez Stripe.",
-    "testModeBanner": "TRYB TESTOWY — karta testowa: 4242 4242 4242 4242, dowolna data i CVC"
+    "testModeBanner": "TRYB TESTOWY — karta testowa: 4242 4242 4242 4242, dowolna data i CVC",
+    "activePlan": "Aktywny plan",
+    "cancelRenewal": "Anuluj odnowienie",
+    "renewNow": "Odnów teraz",
+    "storageUsage": "Wykorzystane",
+    "nettoLabel": "Netto",
+    "vatLabel": "VAT ({{rate}}%)",
+    "bruttoLabel": "Brutto (do zapłaty)",
+    "paymentMethod": "Metoda płatności",
+    "noCardAttached": "Brak podpiętej karty",
+    "addCard": "Dodaj kartę",
+    "changeCard": "Zmień kartę",
+    "cardExpires": "Wygasa: {{date}}",
+    "cancelSuccess": "Odnowienie subskrypcji zostało anulowane.",
+    "cancelError": "Nie udało się anulować subskrypcji. Spróbuj ponownie."
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",

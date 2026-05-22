@@ -192,6 +192,25 @@ export async function fetchStripePublicKey(sessionToken) {
   return res.json();
 }
 
+/** Get masked card info for user's payment method. */
+export async function fetchCardInfo(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/card-info`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`card-info failed: ${res.status}`);
+  return res.json();
+}
+
+/** Cancel subscription renewal (via Stripe API). */
+export async function cancelSubscription(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/cancel-subscription`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Length': '0' },
+  });
+  if (!res.ok) throw new Error(`cancel-subscription failed: ${res.status}`);
+  return res.json();
+}
+
 /** Admin: list promo codes (JWT, admin only). */
 export async function fetchPromoCodes(sessionToken) {
   const res = await fetch(`${BASE_URL}/admin/promo-codes`, {

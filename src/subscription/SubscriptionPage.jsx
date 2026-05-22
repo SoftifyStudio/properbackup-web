@@ -2,25 +2,209 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import PromoCodePanel from './PromoCodePanel.jsx';
-import { createStripeCheckout } from '../api/bufferClient.js';
+import { createStripeCheckout, fetchCardInfo, cancelSubscription } from '../api/bufferClient.js';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
+const DEFAULT_VAT_RATE = 0.23;
 
 function formatGrosze(grosze) {
   return (grosze / 100).toFixed(2);
 }
 
+function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, t }) {
+  return (
+    <div className="rounded-xl border border-border bg-panel p-5 shadow-card">
+      <div className="flex items-center gap-2 mb-4">
+        <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+        <h3 className="text-base font-bold text-text1">{t('subscription.paymentMethod')}</h3>
+      </div>
+      {cardInfo?.hasCard ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-md">
+              <span className="text-white text-[10px] font-bold uppercase">{cardInfo.brand || 'CARD'}</span>
+            </div>
+            <div>
+              <p className="text-sm font-mono text-text1 tracking-wider">•••• •••• •••• {cardInfo.last4}</p>
+              <p className="text-xs text-text3">
+                {t('subscription.cardExpires', { date: `${String(cardInfo.expMonth).padStart(2, '0')}/${cardInfo.expYear}` })}
+              </p>
+            </div>
+          </div>
+          <button
+            className="px-3 py-1.5 text-xs font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors"
+            onClick={onChangeCard}
+          >
+            {t('subscription.changeCard')}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-text3">{t('subscription.noCardAttached')}</p>
+          <button
+            className="px-4 py-2 text-sm font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors"
+            onClick={onAddCard}
+          >
+            {t('subscription.addCard')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanCard({
+  planId, name, desc, period, highlight, isActive,
+  pricing, promoResult, vatRate, checkoutLoading,
+  onCheckout, onCancel, onRenew, t,
+}) {
+  const base = pricing.basePriceGrosze;
+  const prorated = pricing.proratedDiscountGrosze || 0;
+
+  let promoDiscount = 0;
+  if (promoResult?.valid) {
+    const applicablePlan = promoResult.applicablePlan;
+    if (!applicablePlan || applicablePlan === planId) {
+      if (promoResult.discountPercent) {
+        promoDiscount = Math.round(base * promoResult.discountPercent / 100);
+      } else if (promoResult.discountGrosze) {
+        promoDiscount = promoResult.discountGrosze;
+      }
+    }
+  }
+
+  const finalNetto = Math.max(0, base - prorated - promoDiscount);
+  const vatAmount = Math.round(finalNetto * vatRate);
+  const brutto = finalNetto + vatAmount;
+  const hasDiscount = prorated > 0 || promoDiscount > 0;
+
+  const borderClass = isActive
+    ? 'border-2 border-accent bg-accent/5'
+    : highlight
+    ? 'border-2 border-accent'
+    : 'border border-border hover:border-accent/40';
+
+  return (
+    <div className={`rounded-xl ${borderClass} bg-panel p-5 shadow-card ${highlight || isActive ? 'relative' : ''} transition-colors`}>
+      {isActive && (
+        <div className="absolute -top-3 left-4 bg-accent text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+          {t('subscription.activePlan')}
+        </div>
+      )}
+      {!isActive && highlight && (
+        <div className="absolute -top-3 right-4 bg-accent text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+          {t('subscription.bestValue')}
+        </div>
+      )}
+
+      <h3 className="text-base font-bold text-text1 mb-1">{name}</h3>
+
+      <div className="mb-3">
+        {hasDiscount ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="text-base text-text4 line-through">{formatGrosze(base)} PLN</span>
+              <span className="text-xs text-text4">netto</span>
+            </div>
+            <span className="text-xs text-text3">/ {period}</span>
+
+            <div className="mt-2 pt-2 border-t border-border/50 space-y-1 text-xs">
+              {prorated > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-text3">{t('subscription.proratedDiscount', { days: pricing.daysRemaining || 0, amount: formatGrosze(prorated) })}</span>
+                  <span className="text-text2">-{formatGrosze(prorated)} PLN</span>
+                </div>
+              )}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-emerald-600">{t('subscription.promoDiscount', { code: promoResult?.code, amount: formatGrosze(promoDiscount) })}</span>
+                  <span className="text-emerald-600">-{formatGrosze(promoDiscount)} PLN</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-1 border-t border-border/50">
+                <span className="text-text2">{t('subscription.nettoLabel')}</span>
+                <span className="text-text1 font-medium">{formatGrosze(finalNetto)} PLN</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text3">{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })}</span>
+                <span className="text-text3">+{formatGrosze(vatAmount)} PLN</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-border/50">
+                <span className="font-semibold text-text1">{t('subscription.bruttoLabel')}</span>
+                <span className="font-bold text-emerald-600 text-sm">{formatGrosze(brutto)} PLN</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-accent">{formatGrosze(base)}</span>
+              <span className="text-sm text-text3">PLN netto / {period}</span>
+            </div>
+            <div className="text-xs text-text3 mt-0.5">
+              +{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })} = <span className="font-medium text-text1">{formatGrosze(Math.round(base * (1 + vatRate)))} PLN</span> brutto
+            </div>
+          </>
+        )}
+      </div>
+
+      {!isActive && highlight && <p className="text-xs text-emerald-600 font-semibold mb-2">{t('subscription.annualSaving')}</p>}
+      <p className="text-xs text-text3 mb-3">{desc}</p>
+
+      <ul className="text-xs text-text3 space-y-1 mb-4">
+        {['featureEncryption', 'featureRestore', 'featureSupport'].map((f) => (
+          <li key={f} className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0" viewBox="0 0 14 14" fill="none">
+              <path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {t(`subscription.${f}`)}
+          </li>
+        ))}
+      </ul>
+
+      {isActive ? (
+        <div className="flex gap-2">
+          <button
+            className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 text-xs font-medium rounded-lg transition-colors"
+            onClick={onCancel}
+          >
+            {t('subscription.cancelRenewal')}
+          </button>
+          <button
+            className="flex-1 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-semibold rounded-lg transition-colors"
+            onClick={onRenew}
+          >
+            {t('subscription.renewNow')}
+          </button>
+        </div>
+      ) : (
+        <button
+          className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+          disabled={checkoutLoading === planId}
+          onClick={() => onCheckout(planId)}
+        >
+          {checkoutLoading === planId ? t('subscription.redirecting') : t('subscription.selectAndPay')}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SubscriptionPage({ onBack }) {
   const { token, updateSubscriptionPlan } = useAuth();
-  const { t } = useI18n();
+  const { t, formatDateTime } = useI18n();
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stripeSuccess, setStripeSuccess] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [promoResult, setPromoResult] = useState(null);
+  const [cardInfo, setCardInfo] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const isInitialLoad = useRef(true);
 
   const loadSub = useCallback(async (silent = false) => {
@@ -42,19 +226,30 @@ export default function SubscriptionPage({ onBack }) {
     }
   }, [token]);
 
+  const loadCardInfo = useCallback(async () => {
+    if (!token) return;
+    try {
+      const data = await fetchCardInfo(token);
+      setCardInfo(data);
+    } catch {
+      setCardInfo({ hasCard: false });
+    }
+  }, [token]);
+
   useEffect(() => {
     if (sub?.plan && sub.plan !== 'trial' && sub.plan !== 'none') {
       updateSubscriptionPlan(sub.plan);
     }
   }, [sub?.plan]);
 
-  useEffect(() => { loadSub(); }, [loadSub]);
+  useEffect(() => { loadSub(); loadCardInfo(); }, [loadSub, loadCardInfo]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('stripe') === 'success') {
       setStripeSuccess(true);
       loadSub(true);
+      loadCardInfo();
       window.history.replaceState({}, '', window.location.pathname);
     }
     if (params.get('stripe') === 'cancelled') {
@@ -63,28 +258,14 @@ export default function SubscriptionPage({ onBack }) {
     }
   }, []);
 
-  const calcPlanPrice = (planId) => {
-    if (!sub?.pricing) return null;
-    const p = planId === 'annual' ? sub.pricing.annual : sub.pricing.monthly;
-    if (!p) return null;
-    const base = p.basePriceGrosze;
-    const prorated = p.proratedDiscountGrosze || 0;
+  const vatRate = sub?.vatRate ?? DEFAULT_VAT_RATE;
+  const isTestMode = sub?.stripeMode === 'test'
+    || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRIPE_TEST_MODE === 'true')
+    || BASE_URL.includes('localhost')
+    || BASE_URL.includes('staging');
 
-    let promoDiscount = 0;
-    if (promoResult?.valid) {
-      const applicablePlan = promoResult.applicablePlan;
-      if (!applicablePlan || applicablePlan === planId) {
-        if (promoResult.discountPercent) {
-          promoDiscount = Math.round(base * promoResult.discountPercent / 100);
-        } else if (promoResult.discountGrosze) {
-          promoDiscount = promoResult.discountGrosze;
-        }
-      }
-    }
-
-    const final_ = Math.max(0, base - prorated - promoDiscount);
-    return { base, prorated, promoDiscount, final: final_ };
-  };
+  const isActiveSub = sub?.status === 'active';
+  const activePlanId = isActiveSub ? sub.plan : null;
 
   const handleStripeCheckout = async (planId) => {
     setCheckoutLoading(planId);
@@ -101,6 +282,30 @@ export default function SubscriptionPage({ onBack }) {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    setCancelLoading(true);
+    setError('');
+    try {
+      await cancelSubscription(token);
+      setError('');
+      await loadSub(true);
+    } catch (e) {
+      setError(t('subscription.cancelError'));
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleRenewSubscription = async () => {
+    if (activePlanId) {
+      handleStripeCheckout(activePlanId);
+    }
+  };
+
+  const handleAddCard = () => {
+    handleStripeCheckout('monthly');
+  };
+
   const statusBadge = (status) => {
     const map = {
       trial: 'bg-blue-100 text-blue-700',
@@ -112,78 +317,12 @@ export default function SubscriptionPage({ onBack }) {
     return map[status] || 'bg-gray-100 text-gray-600';
   };
 
-  const isTestMode = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRIPE_TEST_MODE === 'true')
-    || BASE_URL.includes('localhost')
-    || BASE_URL.includes('staging');
-
-  const renderPlanCard = (planId, nameKey, descKey, period, highlight) => {
-    const price = calcPlanPrice(planId);
-    const hasDiscount = price && (price.prorated > 0 || price.promoDiscount > 0);
-
-    return (
-      <div className={`rounded-xl ${highlight ? 'border-2 border-accent' : 'border border-border'} bg-panel p-5 shadow-card ${highlight ? 'relative' : 'hover:border-accent/40'} transition-colors`}>
-        {highlight && (
-          <div className="absolute -top-3 right-4 bg-accent text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
-            {t('subscription.bestValue')}
-          </div>
-        )}
-        <h3 className="text-base font-bold text-text1 mb-1">{t(nameKey)}</h3>
-
-        {/* Price display */}
-        <div className="mb-3">
-          {hasDiscount ? (
-            <>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg text-text4 line-through">{formatGrosze(price.base)} PLN</span>
-                <span className="text-2xl font-bold text-emerald-600">{formatGrosze(price.final)} PLN</span>
-              </div>
-              <span className="text-xs text-text3">/ {t(`subscription.${period}`)}</span>
-              <div className="mt-1 space-y-0.5">
-                {price.prorated > 0 && (
-                  <p className="text-xs text-text3">
-                    {t('subscription.proratedDiscount', { amount: formatGrosze(price.prorated), days: sub.daysRemaining })}
-                  </p>
-                )}
-                {price.promoDiscount > 0 && (
-                  <p className="text-xs text-emerald-600 font-medium">
-                    {t('subscription.promoDiscount', { amount: formatGrosze(price.promoDiscount), code: promoResult?.code })}
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-accent">{price ? formatGrosze(price.base) : '—'}</span>
-                <span className="text-sm text-text3">PLN / {t(`subscription.${period}`)}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {highlight && <p className="text-xs text-emerald-600 font-semibold mb-3">{t('subscription.annualSaving')}</p>}
-        <p className="text-sm text-text3 mb-4">{t(descKey)}</p>
-
-        <ul className="text-xs text-text3 space-y-1.5 mb-5">
-          {['featureEncryption', 'featureRestore', 'featureSupport'].map((f) => (
-            <li key={f} className="flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor">
-                <path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {t(`subscription.${f}`)}
-            </li>
-          ))}
-        </ul>
-
-        <button
-          className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-          disabled={checkoutLoading === planId}
-          onClick={() => handleStripeCheckout(planId)}
-        >
-          {checkoutLoading === planId ? t('subscription.redirecting') : t('subscription.selectAndPay')}
-        </button>
-      </div>
-    );
+  const planLabel = () => {
+    if (!sub) return '';
+    if (sub.plan === 'trial') return t('subscription.trialPlan');
+    if (sub.plan === 'monthly') return t('subscription.planMonthly');
+    if (sub.plan === 'annual') return t('subscription.planAnnual');
+    return sub.plan?.toUpperCase() || '';
   };
 
   return (
@@ -192,118 +331,166 @@ export default function SubscriptionPage({ onBack }) {
         <span className="text-sm font-semibold text-text1">{t('subscription.title')}</span>
       </AppHeader>
 
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-8 max-w-3xl w-full mx-auto">
-        {/* Stripe sandbox banner */}
-        {isTestMode && (
-          <div className="px-4 py-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs mb-6 flex items-center gap-2">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-            <span>{t('subscription.testModeBanner')}</span>
-          </div>
-        )}
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="w-full px-6 py-6">
+          {/* Stripe sandbox banner */}
+          {isTestMode && (
+            <div className="px-4 py-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs mb-6 flex items-center gap-2">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span>{t('subscription.testModeBanner')}</span>
+            </div>
+          )}
 
-        {loading && isInitialLoad.current && (
-          <div className="flex items-center gap-3 text-text3 text-sm py-8 justify-center">
-            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            {t('subscription.loading')}
-          </div>
-        )}
+          {loading && isInitialLoad.current && (
+            <div className="flex items-center gap-3 text-text3 text-sm py-8 justify-center">
+              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              {t('subscription.loading')}
+            </div>
+          )}
 
-        {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm mb-6">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm mb-6">
+              {error}
+            </div>
+          )}
 
-        {stripeSuccess && (
-          <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm mb-6">
-            {t('subscription.stripeSuccess')}
-          </div>
-        )}
+          {stripeSuccess && (
+            <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm mb-6">
+              {t('subscription.stripeSuccess')}
+            </div>
+          )}
 
-        {sub && !(loading && isInitialLoad.current) && (
-          <div className="space-y-8">
-            {/* Current status */}
-            <div className="rounded-xl border border-border bg-panel p-6 shadow-card">
-              <h2 className="text-lg font-bold text-text1 mb-4">{t('subscription.currentPlan')}</h2>
-              <div className="flex items-center gap-3 mb-4">
-                <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${statusBadge(sub.status)}`}>
-                  {t(`subscription.status.${sub.status}`)}
-                </span>
-                {sub.plan && sub.plan !== 'none' && (
-                  <span className="text-sm text-text2">
-                    {sub.plan === 'trial' ? t('subscription.trialPlan') : sub.plan?.toUpperCase()}
+          {sub && !(loading && isInitialLoad.current) && (
+            <>
+              {/* Current plan — full width */}
+              <div className="rounded-xl border border-border bg-panel p-6 shadow-card mb-6">
+                <h2 className="text-lg font-bold text-text1 mb-4">{t('subscription.currentPlan')}</h2>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${statusBadge(sub.status)}`}>
+                    {t(`subscription.status.${sub.status}`)}
                   </span>
+                  <span className="text-sm text-text2">{planLabel()}</span>
+                </div>
+
+                {sub.status === 'pending_payment' && (
+                  <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm mb-4">
+                    {t('subscription.pendingPaymentHint')}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-text4 text-xs uppercase tracking-wide">{t('subscription.daysRemaining')}</span>
+                    <p className="text-text1 font-semibold text-lg mt-0.5">{sub.daysRemaining}</p>
+                  </div>
+                  <div>
+                    <span className="text-text4 text-xs uppercase tracking-wide">{t('subscription.storageLimit')}</span>
+                    <p className="text-text1 font-semibold text-lg mt-0.5">{sub.storageLimitLabel}</p>
+                  </div>
+                  <div>
+                    <span className="text-text4 text-xs uppercase tracking-wide">{t('subscription.storageUsage')}</span>
+                    <p className="text-text1 font-semibold text-lg mt-0.5">{sub.storageUsedLabel}</p>
+                  </div>
+                </div>
+
+                {/* Storage usage bar */}
+                {sub.storageUsedBytes != null && (
+                  <div className="mt-5 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between text-xs text-text3 mb-1.5">
+                      <span>{t('subscription.storageUsed')}</span>
+                      <span className={sub.storageExceeded ? 'text-red-600 font-semibold' : ''}>
+                        {sub.storageUsedLabel} / {sub.storageLimitLabel}
+                        {' '}({(sub.storageUsedPercent || 0).toFixed(1)}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          sub.storageExceeded ? 'bg-red-500' :
+                          (sub.storageUsedPercent || 0) > 80 ? 'bg-amber-500' :
+                          'bg-accent'
+                        }`}
+                        style={{ width: `${Math.min(100, sub.storageUsedPercent || 0)}%` }}
+                      />
+                    </div>
+                    {sub.storageExceeded && (
+                      <p className="text-xs text-red-600 mt-1.5 font-medium">
+                        {t('subscription.storageExceeded')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {sub.trialExpiresAt && sub.status === 'trial' && (
+                  <p className="text-xs text-text4 mt-4">
+                    {t('subscription.trialExpires', { date: new Date(sub.trialExpiresAt).toLocaleDateString() })}
+                  </p>
+                )}
+                {sub.subscriptionExpiresAt && isActiveSub && (
+                  <p className="text-xs text-text4 mt-4">
+                    {t('subscription.trialExpires', { date: new Date(sub.subscriptionExpiresAt).toLocaleDateString() })}
+                  </p>
                 )}
               </div>
 
-              {sub.status === 'pending_payment' && (
-                <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm mb-4">
-                  {t('subscription.pendingPaymentHint')}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-text4 text-xs uppercase tracking-wide">{t('subscription.daysRemaining')}</span>
-                  <p className="text-text1 font-semibold text-lg mt-0.5">{sub.daysRemaining}</p>
-                </div>
-                <div>
-                  <span className="text-text4 text-xs uppercase tracking-wide">{t('subscription.storageLimit')}</span>
-                  <p className="text-text1 font-semibold text-lg mt-0.5">{sub.storageLimitLabel}</p>
-                </div>
-              </div>
-
-              {/* Storage usage bar */}
-              {sub.storageUsedBytes != null && (
-                <div className="mt-5 pt-4 border-t border-border">
-                  <div className="flex items-center justify-between text-xs text-text3 mb-1.5">
-                    <span>{t('subscription.storageUsed')}</span>
-                    <span className={sub.storageExceeded ? 'text-red-600 font-semibold' : ''}>
-                      {sub.storageUsedLabel} / {sub.storageLimitLabel}
-                      {' '}({(sub.storageUsedPercent || 0).toFixed(1)}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        sub.storageExceeded ? 'bg-red-500' :
-                        (sub.storageUsedPercent || 0) > 80 ? 'bg-amber-500' :
-                        'bg-accent'
-                      }`}
-                      style={{ width: `${Math.min(100, sub.storageUsedPercent || 0)}%` }}
+              {/* 2-column layout: left = plans (in panel), right (wider 460px) = payment + promo */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_460px] gap-6">
+                {/* LEFT column: Available plans */}
+                <div className="rounded-xl border border-border bg-panel p-6 shadow-card">
+                  <h2 className="text-lg font-bold text-text1 mb-1">{t('subscription.availablePlans')}</h2>
+                  <p className="text-sm text-text3 mb-5">{t('subscription.paymentHint')}</p>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <PlanCard
+                      planId="monthly"
+                      name={t('subscription.planMonthly')}
+                      desc={t('subscription.planMonthlyDesc')}
+                      period={t('subscription.month')}
+                      highlight={false}
+                      isActive={activePlanId === 'monthly'}
+                      pricing={{ ...sub.pricing.monthly, daysRemaining: sub.daysRemaining }}
+                      promoResult={promoResult}
+                      vatRate={vatRate}
+                      checkoutLoading={checkoutLoading}
+                      onCheckout={handleStripeCheckout}
+                      onCancel={handleCancelSubscription}
+                      onRenew={handleRenewSubscription}
+                      t={t}
+                    />
+                    <PlanCard
+                      planId="annual"
+                      name={t('subscription.planAnnual')}
+                      desc={t('subscription.planAnnualDesc')}
+                      period={t('subscription.year')}
+                      highlight={activePlanId !== 'annual'}
+                      isActive={activePlanId === 'annual'}
+                      pricing={{ ...sub.pricing.annual, daysRemaining: sub.daysRemaining }}
+                      promoResult={promoResult}
+                      vatRate={vatRate}
+                      checkoutLoading={checkoutLoading}
+                      onCheckout={handleStripeCheckout}
+                      onCancel={handleCancelSubscription}
+                      onRenew={handleRenewSubscription}
+                      t={t}
                     />
                   </div>
-                  {sub.storageExceeded && (
-                    <p className="text-xs text-red-600 mt-1.5 font-medium">
-                      {t('subscription.storageExceeded')}
-                    </p>
-                  )}
                 </div>
-              )}
 
-              {sub.trialExpiresAt && sub.status === 'trial' && (
-                <p className="text-xs text-text4 mt-4">
-                  {t('subscription.trialExpires', { date: new Date(sub.trialExpiresAt).toLocaleDateString() })}
-                </p>
-              )}
-            </div>
-
-            {/* Promo code panel */}
-            <PromoCodePanel onValidated={setPromoResult} />
-
-            {/* Plans — Stripe Checkout */}
-            <div>
-              <h2 className="text-lg font-bold text-text1 mb-4">{t('subscription.availablePlans')}</h2>
-              <p className="text-sm text-text3 mb-4">{t('subscription.paymentHint')}</p>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {renderPlanCard('monthly', 'subscription.planMonthly', 'subscription.planMonthlyDesc', 'month', false)}
-                {renderPlanCard('annual', 'subscription.planAnnual', 'subscription.planAnnualDesc', 'year', true)}
+                {/* RIGHT column (wider): Payment method + Promo code */}
+                <div className="space-y-6">
+                  <PaymentCardSection
+                    cardInfo={cardInfo}
+                    onAddCard={handleAddCard}
+                    onChangeCard={handleAddCard}
+                    t={t}
+                  />
+                  <PromoCodePanel onValidated={setPromoResult} />
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );
