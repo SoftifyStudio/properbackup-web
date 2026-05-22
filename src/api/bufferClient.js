@@ -201,6 +201,17 @@ export async function fetchCardInfo(sessionToken) {
   return res.json();
 }
 
+/** Verify a Stripe Checkout session after redirect — activates plan if paid. */
+export async function verifyStripeSession(sessionId, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/verify-session`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  });
+  if (!res.ok) throw new Error(`verify-session failed: ${res.status}`);
+  return res.json();
+}
+
 /** Cancel subscription renewal (via Stripe API). */
 export async function cancelSubscription(sessionToken) {
   const res = await fetch(`${BASE_URL}/payment/stripe/cancel-subscription`, {
@@ -208,6 +219,15 @@ export async function cancelSubscription(sessionToken) {
     headers: { ...sessionHeaders(sessionToken), 'Content-Length': '0' },
   });
   if (!res.ok) throw new Error(`cancel-subscription failed: ${res.status}`);
+  return res.json();
+}
+
+export async function reactivateSubscription(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/reactivate`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Length': '0' },
+  });
+  if (!res.ok) throw new Error(`reactivate failed: ${res.status}`);
   return res.json();
 }
 

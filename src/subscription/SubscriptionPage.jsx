@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import PromoCodePanel from './PromoCodePanel.jsx';
-import { createStripeCheckout, fetchCardInfo, cancelSubscription } from '../api/bufferClient.js';
+import { createStripeCheckout, fetchCardInfo, cancelSubscription, reactivateSubscription, verifyStripeSession } from '../api/bufferClient.js';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
@@ -58,12 +58,13 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, t }) {
 }
 
 function PlanCard({
-  planId, name, desc, period, highlight, isActive,
+  planId, name, desc, period, highlight, isActive, cancelledButActive,
   pricing, promoResult, vatRate, checkoutLoading,
   onCheckout, onCancel, onRenew, t,
 }) {
   const base = pricing.basePriceGrosze;
-  const prorated = pricing.proratedDiscountGrosze || 0;
+  const rawProrated = pricing.proratedDiscountGrosze || 0;
+  const prorated = Math.min(rawProrated, base);
 
   let promoDiscount = 0;
   if (promoResult?.valid) {
@@ -168,17 +169,19 @@ function PlanCard({
 
       {isActive ? (
         <div className="flex gap-2">
+          {!cancelledButActive && (
+            <button
+              className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 text-xs font-medium rounded-lg transition-colors"
+              onClick={onCancel}
+            >
+              {t('subscription.cancelRenewal')}
+            </button>
+          )}
           <button
-            className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 text-xs font-medium rounded-lg transition-colors"
-            onClick={onCancel}
-          >
-            {t('subscription.cancelRenewal')}
-          </button>
-          <button
-            className="flex-1 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-semibold rounded-lg transition-colors"
+            className={`${cancelledButActive ? 'w-full' : 'flex-1'} py-2 bg-accent hover:bg-accent/90 text-white text-xs font-semibold rounded-lg transition-colors`}
             onClick={onRenew}
           >
-            {t('subscription.renewNow')}
+            {cancelledButActive ? t('subscription.reactivate') : t('subscription.renewNow')}
           </button>
         </div>
       ) : (
@@ -247,10 +250,17 @@ export default function SubscriptionPage({ onBack }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('stripe') === 'success') {
+      const sid = params.get('session_id');
       setStripeSuccess(true);
-      loadSub(true);
-      loadCardInfo();
       window.history.replaceState({}, '', window.location.pathname);
+      if (sid && token) {
+        verifyStripeSession(sid, token)
+          .then(() => { loadSub(true); loadCardInfo(); })
+          .catch((e) => { console.warn('verify-session failed:', e); loadSub(true); loadCardInfo(); });
+      } else {
+        loadSub(true);
+        loadCardInfo();
+      }
     }
     if (params.get('stripe') === 'cancelled') {
       setError(t('subscription.stripeCancelled'));
@@ -266,6 +276,7 @@ export default function SubscriptionPage({ onBack }) {
 
   const isActiveSub = sub?.status === 'active';
   const activePlanId = isActiveSub ? sub.plan : null;
+  const isCancelledButActive = isActiveSub && sub?.cancelAtPeriodEnd;
 
   const handleStripeCheckout = async (planId) => {
     setCheckoutLoading(planId);
@@ -297,7 +308,18 @@ export default function SubscriptionPage({ onBack }) {
   };
 
   const handleRenewSubscription = async () => {
-    if (activePlanId) {
+    if (isCancelledButActive) {
+      setCancelLoading(true);
+      setError('');
+      try {
+        await reactivateSubscription(token);
+        await loadSub(true);
+      } catch (e) {
+        setError(t('subscription.renewError'));
+      } finally {
+        setCancelLoading(false);
+      }
+    } else if (activePlanId) {
       handleStripeCheckout(activePlanId);
     }
   };
@@ -430,7 +452,12 @@ export default function SubscriptionPage({ onBack }) {
                 )}
                 {sub.subscriptionExpiresAt && isActiveSub && (
                   <p className="text-xs text-text4 mt-4">
-                    {t('subscription.trialExpires', { date: new Date(sub.subscriptionExpiresAt).toLocaleDateString() })}
+                    {t('subscription.planExpires', { date: new Date(sub.subscriptionExpiresAt).toLocaleDateString() })}
+                    {isCancelledButActive && (
+                      <span className="ml-2 text-amber-600 font-medium">
+                        ({t('subscription.cancelledNotRenewing')})
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
@@ -449,6 +476,7 @@ export default function SubscriptionPage({ onBack }) {
                       period={t('subscription.month')}
                       highlight={false}
                       isActive={activePlanId === 'monthly'}
+                      cancelledButActive={activePlanId === 'monthly' && isCancelledButActive}
                       pricing={{ ...sub.pricing.monthly, daysRemaining: sub.daysRemaining }}
                       promoResult={promoResult}
                       vatRate={vatRate}
@@ -465,6 +493,7 @@ export default function SubscriptionPage({ onBack }) {
                       period={t('subscription.year')}
                       highlight={activePlanId !== 'annual'}
                       isActive={activePlanId === 'annual'}
+                      cancelledButActive={activePlanId === 'annual' && isCancelledButActive}
                       pricing={{ ...sub.pricing.annual, daysRemaining: sub.daysRemaining }}
                       promoResult={promoResult}
                       vatRate={vatRate}

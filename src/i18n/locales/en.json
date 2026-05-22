@@ -403,6 +403,7 @@
     "daysRemaining": "Days remaining",
     "storageLimit": "Storage limit",
     "trialExpires": "Trial expires: {{date}}",
+    "planExpires": "Subscription expires: {{date}}",
     "availablePlans": "Available plans",
     "year": "year",
     "storageIncluded": "{{limit}} storage included",
@@ -421,7 +422,7 @@
     "annualSaving": "Save 38 PLN per year",
     "bestValue": "Best value",
     "stripeSetupHint": "Verify your card to start a free 30-day trial. No charges until the trial ends.",
-    "stripeSuccess": "Card verified! Your 30-day free trial is now active.",
+    "stripeSuccess": "Payment successful! Your subscription is now active.",
     "stripeCancelled": "Card verification was cancelled. You can try again anytime.",
     "pendingPaymentHint": "Add a payment card or redeem a gift code to start your free 30-day trial.",
     "status": {
@@ -449,7 +450,10 @@
     "changeCard": "Change card",
     "cardExpires": "Expires: {{date}}",
     "cancelSuccess": "Subscription renewal has been cancelled.",
-    "cancelError": "Failed to cancel subscription. Please try again."
+    "cancelError": "Failed to cancel subscription. Please try again.",
+    "renewError": "Failed to reactivate subscription. Please try again.",
+    "cancelledNotRenewing": "Cancelled — will not renew",
+    "reactivate": "Reactivate renewal"
   },
   "emailVerify": {
     "title": "Verify your email",
