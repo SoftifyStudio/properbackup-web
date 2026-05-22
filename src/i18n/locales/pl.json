@@ -1,5 +1,9 @@
 {
-  "lang": { "label": "Język", "pl": "Polski", "en": "English" },
+  "lang": {
+    "label": "Język",
+    "pl": "Polski",
+    "en": "English"
+  },
   "common": {
     "dash": "—",
     "relativeJustNow": "przed chwilą",
@@ -426,7 +430,12 @@
       "expired": "Wygasła",
       "trial_expired": "Trial wygasł",
       "pending_payment": "Oczekuje na metodę płatności"
-    }
+    },
+    "proratedDiscount": "Rabat prorated: -{{amount}} PLN ({{days}} dni pozostało)",
+    "promoDiscount": "Kupon {{code}}: -{{amount}} PLN",
+    "selectAndPay": "Wybierz i zapłać",
+    "paymentHint": "Wybierz plan i przejdź do płatności przez Stripe.",
+    "testModeBanner": "TRYB TESTOWY — karta testowa: 4242 4242 4242 4242, dowolna data i CVC"
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",
@@ -549,5 +558,48 @@
     "connectedDesc": "Twój serwer jest teraz backupowany. Pliki są szyfrowane lokalnie przed wysłaniem — Twoje hasło nigdy nie opuszcza urządzenia.",
     "goToDashboard": "Przejdź do panelu",
     "goBackInstructions": "Wróć do instrukcji"
+  },
+  "promoCode": {
+    "title": "Kod promocyjny",
+    "description": "Masz kod promocyjny? Wpisz go poniżej, aby sprawdzić zniżkę.",
+    "placeholder": "np. PROMO-50",
+    "check": "Sprawdź kod",
+    "checking": "Sprawdzanie…",
+    "validMessage": "Kupon {{code}} aktywny: {{discount}}",
+    "errorInvalid": "Kod nie został znaleziony, jest już wykorzystany lub wygasł.",
+    "errorFirstOrder": "Ten kod jest dostępny tylko dla nowych klientów.",
+    "errorAlreadyUsed": "Ten kod został już przez Ciebie wykorzystany.",
+    "errorNetwork": "Nie udało się sprawdzić kodu. Spróbuj ponownie.",
+    "errorGeneric": "Nie udało się sprawdzić kodu. Spróbuj ponownie później."
+  },
+  "promoAdmin": {
+    "back": "Panel",
+    "title": "Kody promocyjne",
+    "createTitle": "Nowy kod promocyjny",
+    "listTitle": "Istniejące kody",
+    "code": "Kod",
+    "type": "Typ",
+    "typePercentage": "Procentowy",
+    "typeFixed": "Kwotowy (PLN)",
+    "typeOneTime": "Jednorazowy",
+    "typeFirstOrder": "Pierwsze zamówienie",
+    "discountPercent": "Zniżka %",
+    "discountGrosze": "Kwota (grosze)",
+    "applicablePlan": "Plan",
+    "allPlans": "Wszystkie plany",
+    "monthly": "Miesięczny",
+    "annual": "Roczny",
+    "maxUses": "Max użyć",
+    "expiresAt": "Wygasa",
+    "create": "Utwórz kod",
+    "creating": "Tworzenie…",
+    "discount": "Zniżka",
+    "usage": "Użycia",
+    "status": "Status",
+    "actions": "Akcje",
+    "active": "Aktywny",
+    "inactive": "Nieaktywny",
+    "deactivate": "Dezaktywuj",
+    "empty": "Brak kodów promocyjnych. Utwórz pierwszy powyżej."
   }
 }

@@ -5,6 +5,7 @@ import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
 import SubscriptionPage from './subscription/SubscriptionPage.jsx';
+import PromoCodeAdmin from './subscription/PromoCodeAdmin.jsx';
 import EmailVerifyPage from './auth/EmailVerifyPage.jsx';
 
 import {
@@ -84,6 +85,13 @@ function SubscriptionPageWrapper() {
   return <SubscriptionPage onBack={() => navigate('/servers')} />;
 }
 
+function PromoCodeAdminWrapper() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  if (!token) return <Navigate to="/login" replace />;
+  return <PromoCodeAdmin onBack={() => navigate('/servers')} />;
+}
+
 function AppRoutes() {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -95,6 +103,7 @@ function AppRoutes() {
         <Route path="/servers" element={<AppRoutesInner />} />
         <Route path="/servers/:serverId" element={<AppRoutesInner />} />
         <Route path="/account/subscription" element={<SubscriptionPageWrapper />} />
+        <Route path="/admin/promo-codes" element={<PromoCodeAdminWrapper />} />
         <Route path="/verify-email" element={<EmailVerifyRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

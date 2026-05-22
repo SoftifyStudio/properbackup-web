@@ -158,11 +158,23 @@ export async function redeemGiftCode(code, sessionToken) {
   return data;
 }
 
-/** Create Stripe Checkout session (setup mode — card verification without charge). */
-export async function createStripeCheckout(plan, sessionToken) {
-  const res = await fetch(`${BASE_URL}/payment/stripe/checkout?plan=${encodeURIComponent(plan)}`, {
+/** Validate a promo code without marking as used (JWT). */
+export async function validatePromoCode(code, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/validate-promo`, {
     method: 'POST',
-    headers: sessionHeaders(sessionToken),
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) throw new Error(`validate-promo failed: ${res.status}`);
+  return res.json();
+}
+
+/** Create Stripe Checkout session with payment mode (prorated + promo discounts). */
+export async function createStripeCheckout(plan, sessionToken, promoCode) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/checkout`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan, promoCode: promoCode || undefined }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -177,6 +189,36 @@ export async function fetchStripePublicKey(sessionToken) {
     headers: sessionHeaders(sessionToken),
   });
   if (!res.ok) throw new Error(`stripe public-key failed: ${res.status}`);
+  return res.json();
+}
+
+/** Admin: list promo codes (JWT, admin only). */
+export async function fetchPromoCodes(sessionToken) {
+  const res = await fetch(`${BASE_URL}/admin/promo-codes`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`promo-codes failed: ${res.status}`);
+  return res.json();
+}
+
+/** Admin: create promo code (JWT, admin only). */
+export async function createPromoCode(data, sessionToken) {
+  const res = await fetch(`${BASE_URL}/admin/promo-codes`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create promo-code failed: ${res.status}`);
+  return res.json();
+}
+
+/** Admin: deactivate promo code (JWT, admin only). */
+export async function deactivatePromoCode(id, sessionToken) {
+  const res = await fetch(`${BASE_URL}/admin/promo-codes/${id}`, {
+    method: 'DELETE',
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`deactivate promo-code failed: ${res.status}`);
   return res.json();
 }
 
