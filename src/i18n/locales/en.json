@@ -409,11 +409,23 @@
     "redirecting": "Redirecting to checkout…",
     "storageUsed": "Storage used",
     "storageExceeded": "Storage limit exceeded. New backups are paused until you free up space or upgrade your plan.",
+    "month": "mo",
+    "planMonthly": "Monthly",
+    "planMonthlyDesc": "Flexible month-to-month billing. Cancel anytime.",
+    "planAnnual": "Annual",
+    "planAnnualDesc": "Best value — two months free compared to monthly.",
+    "annualSaving": "Save 38 PLN per year",
+    "bestValue": "Best value",
+    "stripeSetupHint": "Verify your card to start a free 30-day trial. No charges until the trial ends.",
+    "stripeSuccess": "Card verified! Your 30-day free trial is now active.",
+    "stripeCancelled": "Card verification was cancelled. You can try again anytime.",
+    "pendingPaymentHint": "Add a payment card or redeem a gift code to start your free 30-day trial.",
     "status": {
       "trial": "Trial",
       "active": "Active",
       "expired": "Expired",
-      "trial_expired": "Trial expired"
+      "trial_expired": "Trial expired",
+      "pending_payment": "Awaiting payment method"
     }
   },
   "emailVerify": {

@@ -2,22 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import GiftCodePanel from './GiftCodePanel.jsx';
+import { createStripeCheckout } from '../api/bufferClient.js';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
-
-async function startCheckout(token, planId) {
-  const res = await fetch(`${BASE_URL}/account/checkout?plan=${planId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  const { checkoutUrl } = await res.json();
-  window.open(checkoutUrl, '_blank');
-}
 
 export default function SubscriptionPage({ onBack }) {
   const { token, updateSubscriptionPlan } = useAuth();
@@ -25,6 +14,7 @@ export default function SubscriptionPage({ onBack }) {
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [stripeSuccess, setStripeSuccess] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
 
   const loadSub = useCallback(async () => {
@@ -36,15 +26,46 @@ export default function SubscriptionPage({ onBack }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setSub(await res.json());
+      const data = await res.json();
+      setSub(data);
+      if (data.plan && data.plan !== 'trial' && data.plan !== 'none') {
+        updateSubscriptionPlan(data.plan);
+      }
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, updateSubscriptionPlan]);
 
   useEffect(() => { loadSub(); }, [loadSub]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe') === 'success') {
+      setStripeSuccess(true);
+      loadSub();
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (params.get('stripe') === 'cancelled') {
+      setError(t('subscription.stripeCancelled'));
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const handleStripeCheckout = async (planId) => {
+    setCheckoutLoading(planId);
+    setError('');
+    try {
+      const { checkoutUrl } = await createStripeCheckout(planId, token);
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+      }
+    } catch (e) {
+      setError(e.message);
+      setCheckoutLoading(null);
+    }
+  };
 
   const statusBadge = (status) => {
     const map = {
@@ -52,6 +73,7 @@ export default function SubscriptionPage({ onBack }) {
       active: 'bg-emerald-100 text-emerald-700',
       expired: 'bg-red-100 text-red-700',
       trial_expired: 'bg-red-100 text-red-700',
+      pending_payment: 'bg-amber-100 text-amber-700',
     };
     return map[status] || 'bg-gray-100 text-gray-600';
   };
@@ -76,6 +98,12 @@ export default function SubscriptionPage({ onBack }) {
           </div>
         )}
 
+        {stripeSuccess && (
+          <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm mb-6">
+            {t('subscription.stripeSuccess')}
+          </div>
+        )}
+
         {sub && !loading && (
           <div className="space-y-8">
             {/* Current status */}
@@ -85,10 +113,18 @@ export default function SubscriptionPage({ onBack }) {
                 <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${statusBadge(sub.status)}`}>
                   {t(`subscription.status.${sub.status}`)}
                 </span>
-                <span className="text-sm text-text2">
-                  {sub.plan === 'trial' ? t('subscription.trialPlan') : sub.plan?.toUpperCase()}
-                </span>
+                {sub.plan && sub.plan !== 'none' && (
+                  <span className="text-sm text-text2">
+                    {sub.plan === 'trial' ? t('subscription.trialPlan') : sub.plan?.toUpperCase()}
+                  </span>
+                )}
               </div>
+
+              {sub.status === 'pending_payment' && (
+                <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm mb-4">
+                  {t('subscription.pendingPaymentHint')}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -139,53 +175,76 @@ export default function SubscriptionPage({ onBack }) {
             {/* Gift code */}
             <GiftCodePanel onRedeemed={(data) => { if (data?.plan) updateSubscriptionPlan(data.plan); loadSub(); }} />
 
-            {/* Plans */}
+            {/* Plans — Stripe Checkout */}
             <div>
               <h2 className="text-lg font-bold text-text1 mb-4">{t('subscription.availablePlans')}</h2>
+              <p className="text-sm text-text3 mb-4">{t('subscription.stripeSetupHint')}</p>
               <div className="grid sm:grid-cols-2 gap-4">
-                {(sub.plans || []).map(plan => (
-                  <div key={plan.id} className="rounded-xl border border-border bg-panel p-5 shadow-card hover:border-accent/40 transition-colors">
-                    <h3 className="text-base font-bold text-text1 mb-1">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1 mb-3">
-                      <span className="text-2xl font-bold text-accent">{'$'}{plan.priceUsd}</span>
-                      <span className="text-sm text-text3">/ {t('subscription.year')}</span>
-                    </div>
-                    <p className="text-sm text-text3 mb-4">
-                      {t('subscription.storageIncluded', { limit: plan.storageLimitLabel })}
-                    </p>
-                    <ul className="text-xs text-text3 space-y-1.5 mb-5">
-                      <li className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        {t('subscription.featureEncryption')}
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        {t('subscription.featureRestore')}
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        {t('subscription.featureSupport')}
-                      </li>
-                    </ul>
-                    <button
-                      className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-                      disabled={checkoutLoading === plan.id}
-                      onClick={async () => {
-                        setCheckoutLoading(plan.id);
-                        setError('');
-                        try {
-                          await startCheckout(token, plan.id);
-                        } catch (e) {
-                          setError(e.message);
-                        } finally {
-                          setCheckoutLoading(null);
-                        }
-                      }}
-                    >
-                      {checkoutLoading === plan.id ? t('subscription.redirecting') : t('subscription.selectPlan')}
-                    </button>
+                {/* Monthly Plan */}
+                <div className="rounded-xl border border-border bg-panel p-5 shadow-card hover:border-accent/40 transition-colors">
+                  <h3 className="text-base font-bold text-text1 mb-1">{t('subscription.planMonthly')}</h3>
+                  <div className="flex items-baseline gap-1 mb-3">
+                    <span className="text-2xl font-bold text-accent">19</span>
+                    <span className="text-sm text-text3">PLN / {t('subscription.month')}</span>
                   </div>
-                ))}
+                  <p className="text-sm text-text3 mb-4">{t('subscription.planMonthlyDesc')}</p>
+                  <ul className="text-xs text-text3 space-y-1.5 mb-5">
+                    <li className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {t('subscription.featureEncryption')}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {t('subscription.featureRestore')}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {t('subscription.featureSupport')}
+                    </li>
+                  </ul>
+                  <button
+                    className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                    disabled={checkoutLoading === 'monthly'}
+                    onClick={() => handleStripeCheckout('monthly')}
+                  >
+                    {checkoutLoading === 'monthly' ? t('subscription.redirecting') : t('subscription.selectPlan')}
+                  </button>
+                </div>
+
+                {/* Annual Plan */}
+                <div className="rounded-xl border-2 border-accent bg-panel p-5 shadow-card relative">
+                  <div className="absolute -top-3 right-4 bg-accent text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                    {t('subscription.bestValue')}
+                  </div>
+                  <h3 className="text-base font-bold text-text1 mb-1">{t('subscription.planAnnual')}</h3>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-2xl font-bold text-accent">190</span>
+                    <span className="text-sm text-text3">PLN / {t('subscription.year')}</span>
+                  </div>
+                  <p className="text-xs text-emerald-600 font-semibold mb-3">{t('subscription.annualSaving')}</p>
+                  <p className="text-sm text-text3 mb-4">{t('subscription.planAnnualDesc')}</p>
+                  <ul className="text-xs text-text3 space-y-1.5 mb-5">
+                    <li className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {t('subscription.featureEncryption')}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {t('subscription.featureRestore')}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 14 14" fill="currentColor"><path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {t('subscription.featureSupport')}
+                    </li>
+                  </ul>
+                  <button
+                    className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                    disabled={checkoutLoading === 'annual'}
+                    onClick={() => handleStripeCheckout('annual')}
+                  >
+                    {checkoutLoading === 'annual' ? t('subscription.redirecting') : t('subscription.selectPlan')}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

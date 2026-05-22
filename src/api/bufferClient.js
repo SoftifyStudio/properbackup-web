@@ -158,6 +158,28 @@ export async function redeemGiftCode(code, sessionToken) {
   return data;
 }
 
+/** Create Stripe Checkout session (setup mode — card verification without charge). */
+export async function createStripeCheckout(plan, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/checkout?plan=${encodeURIComponent(plan)}`, {
+    method: 'POST',
+    headers: sessionHeaders(sessionToken),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
+/** Get Stripe publishable key from backend. */
+export async function fetchStripePublicKey(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/public-key`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`stripe public-key failed: ${res.status}`);
+  return res.json();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
