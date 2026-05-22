@@ -28,15 +28,18 @@ export default function SubscriptionPage({ onBack }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setSub(data);
-      if (data.plan && data.plan !== 'trial' && data.plan !== 'none') {
-        updateSubscriptionPlan(data.plan);
-      }
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [token, updateSubscriptionPlan]);
+  }, [token]);
+
+  useEffect(() => {
+    if (sub?.plan && sub.plan !== 'trial' && sub.plan !== 'none') {
+      updateSubscriptionPlan(sub.plan);
+    }
+  }, [sub?.plan]);
 
   useEffect(() => { loadSub(); }, [loadSub]);
 
