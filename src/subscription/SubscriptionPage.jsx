@@ -14,7 +14,7 @@ function formatGrosze(grosze) {
   return (grosze / 100).toFixed(2);
 }
 
-function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, t }) {
+function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, isTestMode, t }) {
   return (
     <div className="rounded-xl border border-border bg-panel p-5 shadow-card">
       <div className="flex items-center gap-2 mb-4">
@@ -34,6 +34,11 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, t }) {
               <p className="text-xs text-text3">
                 {t('subscription.cardExpires', { date: `${String(cardInfo.expMonth).padStart(2, '0')}/${cardInfo.expYear}` })}
               </p>
+              {isTestMode && (
+                <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 text-amber-700 border border-amber-300 rounded">
+                  Test Mode
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -45,7 +50,14 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, t }) {
         </div>
       ) : (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-text3">{t('subscription.noCardAttached')}</p>
+          <div>
+            <p className="text-sm text-text3">{t('subscription.noCardAttached')}</p>
+            {isTestMode && (
+              <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 text-amber-700 border border-amber-300 rounded">
+                Test Mode
+              </span>
+            )}
+          </div>
           <button
             className="px-4 py-2 text-sm font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors"
             onClick={onAddCard}
@@ -363,15 +375,7 @@ export default function SubscriptionPage({ onBack }) {
 
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <div className="w-full px-6 py-6">
-          {/* Stripe sandbox banner */}
-          {isTestMode && (
-            <div className="px-4 py-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs mb-6 flex items-center gap-2">
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <span>{t('subscription.testModeBanner')}</span>
-            </div>
-          )}
+
 
           {loading && isInitialLoad.current && (
             <div className="flex items-center gap-3 text-text3 text-sm py-8 justify-center">
@@ -508,6 +512,7 @@ export default function SubscriptionPage({ onBack }) {
                     cardInfo={cardInfo}
                     onAddCard={handleAddCard}
                     onChangeCard={handleAddCard}
+                    isTestMode={isTestMode}
                     t={t}
                   />
                   <PromoCodePanel onValidated={setPromoResult} />
