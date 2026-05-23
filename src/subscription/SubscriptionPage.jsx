@@ -6,6 +6,7 @@ import Toast from './Toast.jsx';
 import { createStripeCheckout, fetchCardInfo, cancelSubscription, reactivateSubscription, verifyStripeSession } from '../api/bufferClient.js';
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import { computePlanPricing } from './pricing.js';
 
 const BASE_URL = bufferBaseUrl();
 const DEFAULT_VAT_RATE = 0.23;
@@ -75,26 +76,23 @@ function PlanCard({
   pricing, promoResult, vatRate, checkoutLoading,
   onCheckout, onCancel, onRenew, t,
 }) {
-  const base = pricing.basePriceGrosze;
-  const rawProrated = pricing.proratedDiscountGrosze || 0;
-  const prorated = Math.min(rawProrated, base);
-
-  let promoDiscount = 0;
-  if (promoResult?.valid) {
-    const applicablePlan = promoResult.applicablePlan;
-    if (!applicablePlan || applicablePlan === planId) {
-      if (promoResult.discountPercent) {
-        promoDiscount = Math.round(base * promoResult.discountPercent / 100);
-      } else if (promoResult.discountGrosze) {
-        promoDiscount = promoResult.discountGrosze;
-      }
-    }
-  }
-
-  const finalNetto = Math.max(0, base - prorated - promoDiscount);
-  const vatAmount = Math.round(finalNetto * vatRate);
-  const brutto = finalNetto + vatAmount;
-  const hasDiscount = prorated > 0 || promoDiscount > 0;
+  // basePriceGrosze is GROSS (brutto, VAT-inclusive). This is what Stripe charges.
+  // The displayed brutto MUST match Stripe's charge — otherwise we violate consumer protection.
+  // All math is delegated to ./pricing.js so it's unit-tested independently of React.
+  const {
+    base, prorated, promoDiscount, brutto,
+    baseNet, baseVat, finalNet: finalNetto, finalVat: vatAmount,
+    overflowCredit, hasDiscount,
+  } = computePlanPricing({
+    basePriceGrosze: pricing.basePriceGrosze,
+    proratedDiscountGrosze: pricing.proratedDiscountGrosze,
+    overflowCreditGrosze: pricing.overflowCreditGrosze,
+    netPriceGrosze: pricing.netPriceGrosze,
+    vatGrosze: pricing.vatGrosze,
+    vatRate,
+    promoResult,
+    planId,
+  });
 
   const borderClass = isActive
     ? 'border-2 border-accent ring-2 ring-accent/30 bg-accent/5 shadow-lg shadow-accent/10'
@@ -122,7 +120,7 @@ function PlanCard({
           <>
             <div className="flex items-baseline gap-2">
               <span className="text-base text-text4 line-through">{formatGrosze(base)} {t('subscription.currency')}</span>
-              <span className="text-xs text-text4">{t('subscription.nettoShort')}</span>
+              <span className="text-xs text-text4">{t('subscription.bruttoShort')}</span>
             </div>
             <span className="text-xs text-text3">/ {period}</span>
 
@@ -140,27 +138,27 @@ function PlanCard({
                 </div>
               )}
               <div className="flex justify-between pt-1 border-t border-border/50">
-                <span className="text-text2">{t('subscription.nettoLabel')}</span>
-                <span className="text-text1 font-medium">{formatGrosze(finalNetto)} {t('subscription.currency')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text3">{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })}</span>
-                <span className="text-text3">+{formatGrosze(vatAmount)} {t('subscription.currency')}</span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-border/50">
                 <span className="font-semibold text-text1">{t('subscription.bruttoLabel')}</span>
                 <span className="font-bold text-emerald-600 text-sm">{formatGrosze(brutto)} {t('subscription.currency')}</span>
               </div>
+              <div className="text-[11px] text-text3">
+                {t('subscription.bruttoIncludesVat', { net: formatGrosze(finalNetto), vat: formatGrosze(vatAmount), rate: Math.round(vatRate * 100) })}
+              </div>
+              {overflowCredit > 0 && (
+                <div className="flex justify-between pt-1 border-t border-border/50 text-emerald-700">
+                  <span>{t('subscription.overflowCredit', { amount: formatGrosze(overflowCredit) })}</span>
+                </div>
+              )}
             </div>
           </>
         ) : (
           <>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-bold text-accent">{formatGrosze(base)}</span>
-              <span className="text-sm text-text3">{t('subscription.currency')} {t('subscription.nettoShort')} / {period}</span>
+              <span className="text-sm text-text3">{t('subscription.currency')} {t('subscription.bruttoShort')} / {period}</span>
             </div>
             <div className="text-xs text-text3 mt-0.5">
-              +{t('subscription.vatLabel', { rate: Math.round(vatRate * 100) })} = <span className="font-medium text-text1">{formatGrosze(Math.round(base * (1 + vatRate)))} {t('subscription.currency')}</span> {t('subscription.bruttoShort')}
+              {t('subscription.bruttoIncludesVat', { net: formatGrosze(baseNet), vat: formatGrosze(baseVat), rate: Math.round(vatRate * 100) })}
             </div>
           </>
         )}
@@ -291,10 +289,11 @@ export default function SubscriptionPage({ onBack }) {
   }, []);
 
   const vatRate = sub?.vatRate ?? DEFAULT_VAT_RATE;
-  const isTestMode = sub?.stripeMode === 'test'
-    || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRIPE_TEST_MODE === 'true')
-    || BASE_URL.includes('localhost')
-    || BASE_URL.includes('staging');
+  // Test mode flag is server-authoritative ONLY. Previously we OR-ed in URL heuristics
+  // (localhost / 'staging' substring) and a Vite env var — those leaked the test badge into
+  // production whenever the URL or env happened to match. The backend reports stripeMode
+  // from STRIPE_MODE (test|live); trust that and only that.
+  const isTestMode = sub?.stripeMode === 'test';
 
   const isActiveSub = sub?.status === 'active';
   const activePlanId = isActiveSub ? sub.plan : null;

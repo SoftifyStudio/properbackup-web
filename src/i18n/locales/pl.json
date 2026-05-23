@@ -444,6 +444,8 @@
     "nettoLabel": "Netto",
     "vatLabel": "VAT ({{rate}}%)",
     "bruttoLabel": "Brutto (do zapłaty)",
+    "bruttoIncludesVat": "(w tym netto {{net}} PLN + VAT {{rate}}% {{vat}} PLN)",
+    "overflowCredit": "Kredyt {{amount}} PLN zostanie zaliczony na kolejne faktury",
     "paymentMethod": "Metoda płatności",
     "noCardAttached": "Brak podpiętej karty",
     "addCard": "Dodaj kartę",

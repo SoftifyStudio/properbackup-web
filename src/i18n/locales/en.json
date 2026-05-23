@@ -444,6 +444,8 @@
     "nettoLabel": "Net",
     "vatLabel": "VAT ({{rate}}%)",
     "bruttoLabel": "Gross (to pay)",
+    "bruttoIncludesVat": "(incl. net {{net}} PLN + VAT {{rate}}% {{vat}} PLN)",
+    "overflowCredit": "Credit {{amount}} PLN will be applied to upcoming invoices",
     "paymentMethod": "Payment method",
     "noCardAttached": "No card attached",
     "addCard": "Add card",
