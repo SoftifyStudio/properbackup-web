@@ -19,6 +19,7 @@
     "serviceMode": "Tryb serwisanta",
     "serviceModeTitle": "Wpisz klucz otrzymany od zespołu ProperBackup",
     "logout": "Wyloguj",
+    "subscription": "Subskrypcja",
     "userPlaceholder": "—"
   },
   "adminBar": {

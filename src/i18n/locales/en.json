@@ -19,6 +19,7 @@
     "serviceMode": "Serviceman mode",
     "serviceModeTitle": "Enter the key you received from the ProperBackup team",
     "logout": "Log out",
+    "subscription": "Subscription",
     "userPlaceholder": "—"
   },
   "adminBar": {
