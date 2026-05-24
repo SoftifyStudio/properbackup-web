@@ -81,7 +81,7 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, isTestMode, t }
 
 function PlanCard({
   planId, name, desc, period, highlight, isActive, cancelledButActive,
-  pricing, promoResult, vatRate, checkoutLoading, downgradeBlocked,
+  pricing, promoResult, vatRate, checkoutLoading,
   onCheckout, onCancel, onRenew, t,
 }) {
   // basePriceGrosze is GROSS (brutto, VAT-inclusive). This is what Stripe charges.
@@ -202,16 +202,6 @@ function PlanCard({
             onClick={onRenew}
           >
             {cancelledButActive ? t('subscription.reactivate') : t('subscription.renewNow')}
-          </button>
-        </div>
-      ) : downgradeBlocked ? (
-        <div className="text-center">
-          <p className="text-xs text-amber-600 font-medium mb-1">{t('subscription.downgradeBlocked')}</p>
-          <button
-            className="w-full py-2.5 bg-gray-300 text-gray-500 text-sm font-semibold rounded-lg cursor-not-allowed"
-            disabled
-          >
-            {t('subscription.selectAndPay')}
           </button>
         </div>
       ) : (
@@ -540,7 +530,6 @@ export default function SubscriptionPage({ onBack }) {
                       promoResult={promoResult}
                       vatRate={vatRate}
                       checkoutLoading={checkoutLoading}
-                      downgradeBlocked={activePlanId === 'annual' && sub.daysRemaining > 31}
                       onCheckout={handleStripeCheckout}
                       onCancel={handleCancelSubscription}
                       onRenew={handleRenewSubscription}

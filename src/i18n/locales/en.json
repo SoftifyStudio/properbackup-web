@@ -439,7 +439,6 @@
     "paymentHint": "Choose a plan and proceed to Stripe checkout.",
     "testModeBanner": "TEST MODE — test card: 4242 4242 4242 4242, any date and CVC",
     "activePlan": "Active plan",
-    "downgradeBlocked": "Annual plan is active — switching to monthly is blocked until the current plan expires.",
     "cancelRenewal": "Cancel renewal",
     "renewNow": "Renew now",
     "storageUsage": "Used",
