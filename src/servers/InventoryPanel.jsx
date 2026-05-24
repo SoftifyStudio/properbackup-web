@@ -77,7 +77,7 @@ export default function InventoryPanel({ server, token }) {
       } catch {
         /* ignore */
       }
-    }, 1000);
+    }, 5000);
     return () => clearInterval(id);
   }, [token, server?.id]);
 

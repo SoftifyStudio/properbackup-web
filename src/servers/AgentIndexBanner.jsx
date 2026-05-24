@@ -59,7 +59,7 @@ const VerificationBadge = React.memo(function VerificationBadge({ verification, 
   return null;
 });
 
-function IndexingProgressBar({ phase, loading, totalFiles, scannedFiles }) {
+const IndexingProgressBar = React.memo(function IndexingProgressBar({ phase, loading, totalFiles, scannedFiles }) {
   const hasDeterminate = phase === 'indexing'
     && typeof totalFiles === 'number' && totalFiles > 0
     && typeof scannedFiles === 'number';
@@ -102,7 +102,7 @@ function IndexingProgressBar({ phase, loading, totalFiles, scannedFiles }) {
       )}
     </div>
   );
-}
+});
 
 /**
  * Karta stanu agenta (macOS Tahoe / Spotlight style):

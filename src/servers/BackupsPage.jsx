@@ -14,7 +14,9 @@ import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
 import AgentStatusCard, { AgentStatusStyles } from './AgentStatusCard.jsx';
 import MonitoringTab from './MonitoringTab.jsx';
+import VerificationPanel from './VerificationPanel.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
+import FileTreeRestore from './FileTreeRestore.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject, fetchActivity } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
@@ -28,7 +30,7 @@ import { useI18n } from '../i18n/I18nContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
 
-function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
+const StatusBar = React.memo(function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
   const { t, formatDateTime } = useI18n();
   return (
     <div className="shrink-0 flex items-center gap-6 px-6 py-2 border-b border-border bg-sidebar text-xs text-text3">
@@ -60,7 +62,7 @@ function StatusBar({ nodeCount, snapshotCount, orphanCount, updatedAt }) {
       </span>
     </div>
   );
-}
+});
 
 /* ── More Menu (Monitoring / Settings / Logs) ── */
 function MoreMenu({ serviceTab, setServiceTab, isSystemAdmin }) {
@@ -132,6 +134,9 @@ export default function BackupsPage({ server, onBack }) {
   const [pathsIdx, setPathsIdx]       = useState(fixtureIdxData.paths);
   const [updatedAt, setUpdatedAt]     = useState(fixtureIdxData.updated);
   const [recoveryTarget, setRecoveryTarget] = useState(null);
+  const [granularRestore, setGranularRestore] = useState(null);
+  const [granularFiles, setGranularFiles] = useState([]);
+  const [granularLoading, setGranularLoading] = useState(false);
   const [refreshing, setRefreshing]         = useState(false);
   const [error, setError]                   = useState(null);
   const [logs, setLogs]                     = useState([]);
@@ -160,7 +165,7 @@ export default function BackupsPage({ server, onBack }) {
   const [latestSnapshot, setLatestSnapshot] = useState(null);
   const [recentFiles, setRecentFiles] = useState([]);
   const urlTab = searchParams.get('tab');
-  const isAllowedTab = ['files', 'timeline', 'activity', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
+  const isAllowedTab = ['files', 'timeline', 'activity', 'verification', 'monitoring', 'settings', 'logs'].includes(urlTab || '');
   const serviceTab = isAllowedTab ? urlTab : 'files';
 
   const setServiceTab = useCallback((nextTab) => {
@@ -338,23 +343,27 @@ export default function BackupsPage({ server, onBack }) {
         rows.sort((a, b) => a.fullPath.localeCompare(b.fullPath));
       }
       setFileStates(rows);
-      setLiveIndexMeta({
-        agentStatus: firstInv?.agentStatus ?? null,
-        rootsCount: firstInv?.roots?.length ?? 0,
-        totalFiles: firstInv?.totalFiles ?? 0,
+      setLiveIndexMeta((m) => ({
+        ...m,
+        agentStatus: firstInv?.agentStatus ?? m.agentStatus,
+        rootsCount: firstInv?.roots?.length ?? m.rootsCount,
+        totalFiles: firstInv?.totalFiles ?? m.totalFiles,
         loading: false,
-      });
+      }));
     } catch {
       setLiveIndexMeta((m) => ({ ...m, loading: false }));
     }
   }, [token, server.id, fileSortMode]);
 
+  const fetchAdminLogsRef = useRef(fetchAdminLogs);
+  fetchAdminLogsRef.current = fetchAdminLogs;
+
   useEffect(() => {
     if (!isSystemAdmin) return;
-    fetchAdminLogs();
-    const id = setInterval(fetchAdminLogs, 3000);
+    fetchAdminLogsRef.current();
+    const id = setInterval(() => fetchAdminLogsRef.current(), 3000);
     return () => clearInterval(id);
-  }, [isSystemAdmin, fetchAdminLogs]);
+  }, [isSystemAdmin]);
 
   useEffect(() => {
     if (!isAllowedTab) {
@@ -530,6 +539,9 @@ export default function BackupsPage({ server, onBack }) {
           <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'activity' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('activity')}>
             Activity
           </button>
+          <button className={`btn-ghost text-xs py-1.5 ${serviceTab === 'verification' ? 'ring-1 ring-accent/40 font-semibold' : ''}`} onClick={() => setServiceTab('verification')}>
+            Verification
+          </button>
         </div>
         <div className="flex-1" />
         {(() => {
@@ -596,7 +608,10 @@ export default function BackupsPage({ server, onBack }) {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       className="bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-5 rounded-lg text-sm shadow transition-all active:scale-[0.98]"
-                      onClick={() => setRecoveryTarget({ snap: selectedSnapshot, node: null })}
+                      onClick={() => {
+                        const normalized = { ...selectedSnapshot, raw: selectedSnapshot.raw || selectedSnapshot.objectName, timestamp: selectedSnapshot.timestamp || selectedSnapshot.sealedAt };
+                        setRecoveryTarget({ snap: normalized, node: null });
+                      }}
                     >
                       Restore to this moment
                     </button>
@@ -679,7 +694,23 @@ export default function BackupsPage({ server, onBack }) {
               serverId={server.id}
               onRestore={(snap) => {
                 setSelectedSnapshot(snap);
-                setRecoveryTarget({ snap, node: null });
+                const normalized = { ...snap, raw: snap.raw || snap.objectName, timestamp: snap.timestamp || snap.sealedAt };
+                setRecoveryTarget({ snap: normalized, node: null });
+              }}
+              onGranularRestore={async (snap) => {
+                setGranularRestore(snap);
+                setGranularLoading(true);
+                try {
+                  const res = await fetch(`${BASE_URL}/servers/${encodeURIComponent(server.id)}/file-tree`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setGranularFiles(data.files || []);
+                  }
+                } catch (_) { /* ignore */ } finally {
+                  setGranularLoading(false);
+                }
               }}
               onSelectSnapshot={(snap) => {
                 setSelectedSnapshot(snap);
@@ -699,6 +730,11 @@ export default function BackupsPage({ server, onBack }) {
               agentStatus={liveIndexMeta.agentStatus}
               connected={sseConnected}
             />
+          </ErrorBoundary>
+        )}
+        {serviceTab === 'verification' && (
+          <ErrorBoundary title="Verification" retryLabel="Refresh">
+            <VerificationPanel serverId={server.id} />
           </ErrorBoundary>
         )}
         {serviceTab === 'monitoring' && (
@@ -748,6 +784,41 @@ export default function BackupsPage({ server, onBack }) {
           snapshot={recoveryTarget}
           onClose={() => setRecoveryTarget(null)}
         />
+      )}
+
+      {granularRestore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-panel rounded-2xl shadow-2xl border border-border w-full max-w-2xl mx-4 flex flex-col" style={{ maxHeight: '80vh' }}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
+              <h3 className="text-sm font-bold text-text1">{t('restoreTree.title')}</h3>
+              <button onClick={() => { setGranularRestore(null); setGranularFiles([]); }} className="text-text4 hover:text-text2">
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {granularLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <FileTreeRestore
+                  files={granularFiles}
+                  onRestore={async (selectedFiles) => {
+                    try {
+                      await fetch(`${BASE_URL}/servers/${encodeURIComponent(server.id)}/restore-selected`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: selectedFiles }),
+                      });
+                    } catch (_) { /* ignore */ }
+                    setGranularRestore(null);
+                    setGranularFiles([]);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

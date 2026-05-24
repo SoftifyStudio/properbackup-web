@@ -69,7 +69,12 @@ function Step0({ snapshot, onNext }) {
       <h3 className="text-text1 font-semibold text-base mb-1">{t('recovery.wizard.step0Title')}</h3>
       <p className="text-text3 text-sm mb-5">{t('recovery.wizard.step0Intro')}</p>
       <div className="bg-surface rounded-lg px-4 mb-6">
-        <InfoRow label={t('recovery.wizard.pathLabel')} value={snapshot.node.fullPath ?? `[${snapshot.node.pathId}]`} />
+        {snapshot.node && (
+          <InfoRow label={t('recovery.wizard.pathLabel')} value={snapshot.node.fullPath ?? `[${snapshot.node.pathId}]`} />
+        )}
+        {!snapshot.node && snapshot.snap.pathId && (
+          <InfoRow label={t('recovery.wizard.pathLabel')} value={snapshot.snap.pathId} />
+        )}
         <InfoRow label={t('recovery.wizard.snapshotDateLabel')} value={dateStr} />
         <InfoRow label={t('recovery.wizard.fileLabel')} value={snapshot.snap.raw} mono />
       </div>

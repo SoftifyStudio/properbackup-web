@@ -123,6 +123,159 @@ export async function fetchActivity(serverId, sessionToken, limit = 100) {
   return res.json();
 }
 
+/** Verification results and summary (JWT). */
+export async function fetchVerification(serverId, sessionToken, limit = 20) {
+  const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/verification`);
+  u.searchParams.set('limit', String(limit));
+  const res = await fetch(u, { headers: sessionHeaders(sessionToken) });
+  if (!res.ok) throw new Error(`verification failed: ${res.status}`);
+  return res.json();
+}
+
+/** Download audit report as PDF (JWT). */
+export async function downloadAuditReport(serverId, sessionToken) {
+  const res = await fetch(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/audit-report`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`audit-report failed: ${res.status}`);
+  return res.blob();
+}
+
+/** Redeem a gift code to activate subscription (JWT). */
+export async function redeemGiftCode(code, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/redeem-gift`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = data.error;
+    throw err;
+  }
+  return data;
+}
+
+/** Validate a promo code without marking as used (JWT). */
+export async function validatePromoCode(code, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/validate-promo`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) throw new Error(`validate-promo failed: ${res.status}`);
+  return res.json();
+}
+
+/** Create Stripe Checkout session with payment mode (prorated + promo discounts). */
+export async function createStripeCheckout(plan, sessionToken, promoCode) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/checkout`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan, promoCode: promoCode || undefined }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = data.error;
+    err.reason = data.reason;
+    err.payload = data;
+    throw err;
+  }
+  return data;
+}
+
+/** Get Stripe publishable key from backend. */
+export async function fetchStripePublicKey(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/public-key`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`stripe public-key failed: ${res.status}`);
+  return res.json();
+}
+
+/** Get masked card info for user's payment method. */
+export async function fetchCardInfo(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/card-info`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`card-info failed: ${res.status}`);
+  return res.json();
+}
+
+/** Verify a Stripe Checkout session after redirect — activates plan if paid. */
+export async function verifyStripeSession(sessionId, sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/verify-session`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  });
+  if (!res.ok) throw new Error(`verify-session failed: ${res.status}`);
+  return res.json();
+}
+
+/** Cancel subscription renewal (via Stripe API). */
+export async function cancelSubscription(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/cancel-subscription`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Length': '0' },
+  });
+  if (!res.ok) throw new Error(`cancel-subscription failed: ${res.status}`);
+  return res.json();
+}
+
+export async function reactivateSubscription(sessionToken) {
+  const res = await fetch(`${BASE_URL}/payment/stripe/reactivate`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Length': '0' },
+  });
+  if (!res.ok) {
+    // Surface structured 409 errors (e.g. expired_must_recheckout) so the caller can react
+    // appropriately — without this the SubscriptionPage would show a generic "renew error".
+    let parsed = null;
+    try { parsed = await res.json(); } catch (_) { /* not JSON */ }
+    const err = new Error(`reactivate failed: ${res.status}`);
+    err.status = res.status;
+    err.code = parsed?.error;
+    err.payload = parsed;
+    throw err;
+  }
+  return res.json();
+}
+
+/** Admin: list promo codes (JWT, admin only). */
+export async function fetchPromoCodes(sessionToken) {
+  const res = await fetch(`${BASE_URL}/admin/promo-codes`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`promo-codes failed: ${res.status}`);
+  return res.json();
+}
+
+/** Admin: create promo code (JWT, admin only). */
+export async function createPromoCode(data, sessionToken) {
+  const res = await fetch(`${BASE_URL}/admin/promo-codes`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`create promo-code failed: ${res.status}`);
+  return res.json();
+}
+
+/** Admin: deactivate promo code (JWT, admin only). */
+export async function deactivatePromoCode(id, sessionToken) {
+  const res = await fetch(`${BASE_URL}/admin/promo-codes/${id}`, {
+    method: 'DELETE',
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`deactivate promo-code failed: ${res.status}`);
+  return res.json();
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
