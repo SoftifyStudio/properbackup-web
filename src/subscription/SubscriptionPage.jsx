@@ -15,7 +15,23 @@ function formatGrosze(grosze) {
   return (grosze / 100).toFixed(2);
 }
 
+function CardModeBadge({ isTestCard }) {
+  if (isTestCard) {
+    return (
+      <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 text-amber-700 border border-amber-300 rounded">
+        Test Mode
+      </span>
+    );
+  }
+  return (
+    <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-emerald-100 text-emerald-700 border border-emerald-300 rounded">
+      Live
+    </span>
+  );
+}
+
 function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, isTestMode, t }) {
+  const isTestCard = cardInfo?.isTestCard ?? isTestMode;
   return (
     <div className="rounded-xl border border-border bg-panel p-5 shadow-card">
       <div className="flex items-center gap-2 mb-4">
@@ -35,11 +51,7 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, isTestMode, t }
               <p className="text-xs text-text3">
                 {t('subscription.cardExpires', { date: `${String(cardInfo.expMonth).padStart(2, '0')}/${cardInfo.expYear}` })}
               </p>
-              {isTestMode && (
-                <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 text-amber-700 border border-amber-300 rounded">
-                  Test Mode
-                </span>
-              )}
+              <CardModeBadge isTestCard={isTestCard} />
             </div>
           </div>
           <button
@@ -53,11 +65,7 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, isTestMode, t }
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-text3">{t('subscription.noCardAttached')}</p>
-            {isTestMode && (
-              <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 text-amber-700 border border-amber-300 rounded">
-                Test Mode
-              </span>
-            )}
+            <CardModeBadge isTestCard={isTestCard} />
           </div>
           <button
             className="px-4 py-2 text-sm font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors"
@@ -289,11 +297,10 @@ export default function SubscriptionPage({ onBack }) {
   }, []);
 
   const vatRate = sub?.vatRate ?? DEFAULT_VAT_RATE;
-  // Test mode flag is server-authoritative ONLY. Previously we OR-ed in URL heuristics
-  // (localhost / 'staging' substring) and a Vite env var — those leaked the test badge into
-  // production whenever the URL or env happened to match. The backend reports stripeMode
-  // from STRIPE_MODE (test|live); trust that and only that.
-  const isTestMode = sub?.stripeMode === 'test';
+  // Per-user test mode flag: server-authoritative ONLY. The backend reports the user's
+  // stripe_test_mode flag via stripeTestMode (boolean) and stripeMode ('test'|'live').
+  // Trust the per-user flag; fall back to stripeMode for backwards compatibility.
+  const isTestMode = sub?.stripeTestMode ?? (sub?.stripeMode === 'test');
 
   const isActiveSub = sub?.status === 'active';
   const activePlanId = isActiveSub ? sub.plan : null;
