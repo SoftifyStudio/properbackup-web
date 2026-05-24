@@ -75,6 +75,7 @@ function PlanCard({
   planId, name, desc, period, isActive, cancelledButActive,
   pricing, promoResult, vatRate, checkoutLoading,
   onCheckout, onCancel, onRenew, t,
+  hideActions = false,
 }) {
   // basePriceGrosze is GROSS (brutto, VAT-inclusive). This is what Stripe charges.
   // The displayed brutto MUST match Stripe's charge — otherwise we violate consumer protection.
@@ -170,31 +171,33 @@ function PlanCard({
         ))}
       </ul>
 
-      {isActive ? (
-        <div className="flex gap-2">
-          {!cancelledButActive && (
+      {!hideActions && (
+        isActive ? (
+          <div className="flex gap-2">
+            {!cancelledButActive && (
+              <button
+                className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 text-xs font-medium rounded-lg transition-colors"
+                onClick={onCancel}
+              >
+                {t('subscription.cancelRenewal')}
+              </button>
+            )}
             <button
-              className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 text-xs font-medium rounded-lg transition-colors"
-              onClick={onCancel}
+              className={`${cancelledButActive ? 'w-full' : 'flex-1'} py-2 bg-accent hover:bg-accent/90 text-white text-xs font-semibold rounded-lg transition-colors`}
+              onClick={onRenew}
             >
-              {t('subscription.cancelRenewal')}
+              {cancelledButActive ? t('subscription.reactivate') : t('subscription.renewNow')}
             </button>
-          )}
+          </div>
+        ) : (
           <button
-            className={`${cancelledButActive ? 'w-full' : 'flex-1'} py-2 bg-accent hover:bg-accent/90 text-white text-xs font-semibold rounded-lg transition-colors`}
-            onClick={onRenew}
+            className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+            disabled={checkoutLoading === planId}
+            onClick={() => onCheckout(planId)}
           >
-            {cancelledButActive ? t('subscription.reactivate') : t('subscription.renewNow')}
+            {checkoutLoading === planId ? t('subscription.redirecting') : t('subscription.selectAndPay')}
           </button>
-        </div>
-      ) : (
-        <button
-          className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-          disabled={checkoutLoading === planId}
-          onClick={() => onCheckout(planId)}
-        >
-          {checkoutLoading === planId ? t('subscription.redirecting') : t('subscription.selectAndPay')}
-        </button>
+        )
       )}
     </div>
   );
@@ -220,6 +223,8 @@ export default function SubscriptionPage({ onBack }) {
   const [promoResult, setPromoResult] = useState(null);
   const [cardInfo, setCardInfo] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [selectedTab, setSelectedTab] = useState(null);
+  const [consentChecked, setConsentChecked] = useState(false);
   const isInitialLoad = useRef(true);
 
   const loadSub = useCallback(async (silent = false) => {
@@ -255,6 +260,13 @@ export default function SubscriptionPage({ onBack }) {
       updateSubscriptionPlan(sub.plan);
     }
   }, [sub?.plan]);
+
+  useEffect(() => {
+    if (sub && selectedTab === null) {
+      const active = sub?.status === 'active' ? sub.plan : null;
+      setSelectedTab(active || 'monthly');
+    }
+  }, [sub]);
 
   useEffect(() => { loadSub(); loadCardInfo(); }, [loadSub, loadCardInfo]);
 
@@ -500,44 +512,100 @@ export default function SubscriptionPage({ onBack }) {
                 {/* LEFT column: Available plans */}
                 <div className="rounded-xl border border-border bg-panel p-6 shadow-card">
                   <h2 className="text-lg font-bold text-text1 mb-1">{t('subscription.availablePlans')}</h2>
-                  <p className="text-sm text-text3 mb-5">{t('subscription.paymentHint')}</p>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <PlanCard
-                      planId="monthly"
-                      name={t('subscription.planMonthly')}
-                      desc={t('subscription.planMonthlyDesc')}
-                      period={t('subscription.month')}
-                      isActive={activePlanId === 'monthly'}
-                      cancelledButActive={activePlanId === 'monthly' && isCancelledButActive}
-                      pricing={{ ...sub.pricing.monthly, daysRemaining: sub.daysRemaining }}
-                      promoResult={promoResult}
-                      vatRate={vatRate}
-                      checkoutLoading={checkoutLoading}
-                      onCheckout={handleStripeCheckout}
-                      onCancel={handleCancelSubscription}
-                      onRenew={handleRenewSubscription}
-                      t={t}
-                    />
-                    <PlanCard
-                      planId="annual"
-                      name={t('subscription.planAnnual')}
-                      desc={t('subscription.planAnnualDesc')}
-                      period={t('subscription.year')}
-                      isActive={activePlanId === 'annual'}
-                      cancelledButActive={activePlanId === 'annual' && isCancelledButActive}
-                      pricing={{ ...sub.pricing.annual, daysRemaining: sub.daysRemaining }}
-                      promoResult={promoResult}
-                      vatRate={vatRate}
-                      checkoutLoading={checkoutLoading}
-                      onCheckout={handleStripeCheckout}
-                      onCancel={handleCancelSubscription}
-                      onRenew={handleRenewSubscription}
-                      t={t}
-                    />
+                  <p className="text-sm text-text3 mb-4">{t('subscription.selectPlanHint')}</p>
+
+                  {/* Plan tabs */}
+                  <div className="flex border-b border-border mb-5">
+                    {['monthly', 'annual'].map((tab) => {
+                      const isTabActive = selectedTab === tab;
+                      const isThisPlanActive = activePlanId === tab;
+                      return (
+                        <button
+                          key={tab}
+                          type="button"
+                          className={`flex-1 py-3 text-sm font-semibold text-center transition-colors relative ${
+                            isTabActive
+                              ? 'text-accent border-b-2 border-accent'
+                              : 'text-text3 hover:text-text2 hover:bg-surface/50'
+                          }`}
+                          onClick={() => { setSelectedTab(tab); setConsentChecked(false); }}
+                        >
+                          {t(`subscription.plan${tab.charAt(0).toUpperCase() + tab.slice(1)}`)}
+                          {isThisPlanActive && (
+                            <span className="ml-1.5 text-[9px] font-bold uppercase bg-accent/15 text-accent px-1.5 py-0.5 rounded-full">
+                              {t('subscription.activePlan')}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <p className="text-[11px] text-text4 leading-relaxed mt-4">
-                    {t('subscription.withdrawalWaiver')}
-                  </p>
+
+                  {/* Selected plan details */}
+                  {selectedTab && (
+                    <>
+                      <PlanCard
+                        planId={selectedTab}
+                        name={t(`subscription.plan${selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)}`)}
+                        desc={t(`subscription.plan${selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)}Desc`)}
+                        period={selectedTab === 'monthly' ? t('subscription.month') : t('subscription.year')}
+                        isActive={activePlanId === selectedTab}
+                        cancelledButActive={activePlanId === selectedTab && isCancelledButActive}
+                        pricing={{ ...sub.pricing[selectedTab], daysRemaining: sub.daysRemaining }}
+                        promoResult={promoResult}
+                        vatRate={vatRate}
+                        checkoutLoading={checkoutLoading}
+                        onCheckout={handleStripeCheckout}
+                        onCancel={handleCancelSubscription}
+                        onRenew={handleRenewSubscription}
+                        t={t}
+                        hideActions
+                      />
+
+                      {/* Consent checkbox */}
+                      <label className="flex items-start gap-3 mt-5 p-4 rounded-xl border border-border bg-surface cursor-pointer select-none group hover:border-accent/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 w-5 h-5 min-w-[1.25rem] accent-accent rounded"
+                          checked={consentChecked}
+                          onChange={(e) => setConsentChecked(e.target.checked)}
+                        />
+                        <span className="text-xs text-text3 leading-relaxed">
+                          {t('subscription.consentCheckbox')}
+                        </span>
+                      </label>
+
+                      {/* Action buttons */}
+                      <div className="mt-4">
+                        {activePlanId === selectedTab ? (
+                          <div className="flex gap-2">
+                            {!isCancelledButActive && (
+                              <button
+                                className="flex-1 py-2.5 border border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors"
+                                onClick={handleCancelSubscription}
+                              >
+                                {t('subscription.cancelRenewal')}
+                              </button>
+                            )}
+                            <button
+                              className={`${isCancelledButActive ? 'w-full' : 'flex-1'} py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors`}
+                              onClick={handleRenewSubscription}
+                            >
+                              {isCancelledButActive ? t('subscription.reactivate') : t('subscription.renewNow')}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="w-full py-3 bg-accent text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent/90"
+                            disabled={!consentChecked || checkoutLoading === selectedTab}
+                            onClick={() => handleStripeCheckout(selectedTab)}
+                          >
+                            {checkoutLoading === selectedTab ? t('subscription.redirecting') : t('subscription.selectAndPay')}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* RIGHT column (wider): Payment method + Promo code */}

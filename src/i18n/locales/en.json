@@ -434,6 +434,7 @@
     "promoDiscount": "Coupon {{code}}: -{{amount}} PLN",
     "selectAndPay": "Select & pay",
     "paymentHint": "Choose a plan and proceed to Stripe checkout.",
+    "selectPlanHint": "Select a plan tab, accept the terms, and proceed to payment.",
     "testModeBanner": "TEST MODE — test card: 4242 4242 4242 4242, any date and CVC",
     "activePlan": "Active plan",
     "cancelRenewal": "Cancel renewal",
@@ -463,7 +464,8 @@
     "nettoShort": "netto",
     "bruttoShort": "gross",
     "cardBrand": "CARD",
-    "withdrawalWaiver": "I consent to the immediate commencement of the digital service and acknowledge that I waive my right of withdrawal within 14 days from the moment the service begins (Art. 38(13) of the Consumer Rights Act)."
+    "withdrawalWaiver": "I consent to the immediate commencement of the digital service and acknowledge that I waive my right of withdrawal within 14 days from the moment the service begins (Art. 38(13) of the Consumer Rights Act).",
+    "consentCheckbox": "I confirm that I want immediate access to the service and accept that, due to the immediate commencement of the digital service, I waive my 14-day right of withdrawal (Art. 38(13) of the Consumer Rights Act). Payments are non-refundable."
   },
   "emailVerify": {
     "title": "Verify your email",

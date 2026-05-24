@@ -434,6 +434,7 @@
     "promoDiscount": "Kupon {{code}}: -{{amount}} PLN",
     "selectAndPay": "Wybierz i zapłać",
     "paymentHint": "Wybierz plan i przejdź do płatności przez Stripe.",
+    "selectPlanHint": "Wybierz zakładkę z planem, zaakceptuj warunki i przejdź do płatności.",
     "testModeBanner": "TRYB TESTOWY — karta testowa: 4242 4242 4242 4242, dowolna data i CVC",
     "activePlan": "Aktywny plan",
     "cancelRenewal": "Anuluj odnowienie",
@@ -463,7 +464,8 @@
     "nettoShort": "netto",
     "bruttoShort": "brutto",
     "cardBrand": "KARTA",
-    "withdrawalWaiver": "Wyrażam zgodę na natychmiastowe rozpoczęcie świadczenia usługi cyfrowej i przyjmuję do wiadomości, że z chwilą rozpoczęcia świadczenia tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta)."
+    "withdrawalWaiver": "Wyrażam zgodę na natychmiastowe rozpoczęcie świadczenia usługi cyfrowej i przyjmuję do wiadomości, że z chwilą rozpoczęcia świadczenia tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta).",
+    "consentCheckbox": "Potwierdzam, że chcę natychmiast uzyskać dostęp do usługi i akceptuję, że w związku z natychmiastowym rozpoczęciem świadczenia usługi cyfrowej tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta). Płatności nie podlegają zwrotowi."
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",
