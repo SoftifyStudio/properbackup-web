@@ -439,6 +439,7 @@
     "paymentHint": "Wybierz plan i przejdź do płatności przez Stripe.",
     "testModeBanner": "TRYB TESTOWY — karta testowa: 4242 4242 4242 4242, dowolna data i CVC",
     "activePlan": "Aktywny plan",
+    "downgradeBlocked": "Plan roczny jest aktywny — zmiana na miesięczny jest zablokowana do wygaśnięcia obecnego planu.",
     "cancelRenewal": "Anuluj odnowienie",
     "renewNow": "Odnów teraz",
     "storageUsage": "Wykorzystane",
