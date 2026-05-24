@@ -126,8 +126,9 @@ function PlanCard({
       <div className="mb-3">
         {hasDiscount ? (
           <>
-            <div className="flex items-baseline gap-2">
-              <span className="text-base text-text4 line-through">{formatGrosze(base)} {t('subscription.currency')}</span>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-sm text-text4 line-through">{formatGrosze(base)} {t('subscription.currency')}</span>
+              <span className="text-2xl font-bold text-accent">{formatGrosze(brutto)} {t('subscription.currency')}</span>
               <span className="text-xs text-text4">{t('subscription.bruttoShort')}</span>
             </div>
             <span className="text-xs text-text3">/ {period}</span>
