@@ -308,7 +308,14 @@ export default function SubscriptionPage({ onBack }) {
         window.location.href = checkoutUrl;
       }
     } catch (e) {
-      addToast(e.message, 'error');
+      // Map server-side rejection reasons to user-friendly toasts. Without this the user
+      // sees a raw "promo_no_longer_valid" string when the promo expired between validation
+      // and checkout (server-side race fix on the buffer).
+      if (e.status === 410 && e.code === 'promo_no_longer_valid') {
+        addToast(t('subscription.promoNoLongerValid') || 'Promo code is no longer valid — please re-enter it.', 'error');
+      } else {
+        addToast(e.message, 'error');
+      }
       setCheckoutLoading(null);
     }
   };
@@ -334,6 +341,16 @@ export default function SubscriptionPage({ onBack }) {
         addToast(t('subscription.reactivateSuccess'), 'success');
         await loadSub(true);
       } catch (e) {
+        // If the buffer responds 409 expired_must_recheckout the in-place flag-flip is no
+        // longer possible (Stripe sub already canceled or DB expiry has passed). Redirect the
+        // user back through Stripe Checkout to start a fresh subscription instead of leaving
+        // them with a vague error toast. See P2-12.
+        if (e.status === 409 && e.code === 'expired_must_recheckout' && sub?.plan) {
+          addToast(t('subscription.reactivateExpiredRedirect') || 'Your subscription has already ended — starting a fresh checkout…', 'info');
+          setCancelLoading(false);
+          handleStripeCheckout(sub.plan);
+          return;
+        }
         addToast(t('subscription.renewError'), 'error');
       } finally {
         setCancelLoading(false);
@@ -460,6 +477,31 @@ export default function SubscriptionPage({ onBack }) {
                   </p>
                 )}
               </div>
+
+              {/*
+                Stripe customer balance — credit accrued from previous downgrades or manual
+                adjustments. Stripe auto-applies this to the next invoice. We surface it as
+                explicit, persistent UI so the user doesn't have to dig through Stripe's
+                hosted invoice / dashboard to find out. Backend resolves out of Stripe
+                Customer.retrieve(...).getBalance(); 0 when no Stripe customer or blank key.
+              */}
+              {(sub.customerBalanceCreditGrosze ?? 0) > 0 && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-card mb-6 flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                    +
+                  </div>
+                  <div className="flex-1 text-sm">
+                    <p className="font-semibold text-emerald-800">
+                      {t('subscription.customerBalanceTitle', {
+                        amount: formatGrosze(sub.customerBalanceCreditGrosze),
+                      })}
+                    </p>
+                    <p className="text-emerald-700 text-xs mt-0.5">
+                      {t('subscription.customerBalanceHint')}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* 2-column layout: left = plans (in panel), right (wider 460px) = payment + promo */}
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_460px] gap-6">

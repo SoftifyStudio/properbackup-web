@@ -178,7 +178,12 @@ export async function createStripeCheckout(plan, sessionToken, promoCode) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `HTTP ${res.status}`);
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = data.error;
+    err.reason = data.reason;
+    err.payload = data;
+    throw err;
   }
   return data;
 }
@@ -227,7 +232,17 @@ export async function reactivateSubscription(sessionToken) {
     method: 'POST',
     headers: { ...sessionHeaders(sessionToken), 'Content-Length': '0' },
   });
-  if (!res.ok) throw new Error(`reactivate failed: ${res.status}`);
+  if (!res.ok) {
+    // Surface structured 409 errors (e.g. expired_must_recheckout) so the caller can react
+    // appropriately — without this the SubscriptionPage would show a generic "renew error".
+    let parsed = null;
+    try { parsed = await res.json(); } catch (_) { /* not JSON */ }
+    const err = new Error(`reactivate failed: ${res.status}`);
+    err.status = res.status;
+    err.code = parsed?.error;
+    err.payload = parsed;
+    throw err;
+  }
   return res.json();
 }
 
