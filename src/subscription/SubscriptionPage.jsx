@@ -239,6 +239,13 @@ export default function SubscriptionPage({ onBack }) {
   const [cancelLoading, setCancelLoading] = useState(false);
   const isInitialLoad = useRef(true);
 
+  // Reset checkout loading when user navigates back from Stripe (bfcache / history back).
+  useEffect(() => {
+    const reset = (e) => { if (e.persisted) setCheckoutLoading(null); };
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
+
   const loadSub = useCallback(async (silent = false) => {
     if (!token) return;
     if (!silent) setLoading(true);
