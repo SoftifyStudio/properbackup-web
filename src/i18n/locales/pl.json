@@ -418,9 +418,7 @@
     "planMonthly": "Miesięczny",
     "planMonthlyDesc": "Elastyczne rozliczenie miesięczne. Anuluj w dowolnym momencie.",
     "planAnnual": "Roczny",
-    "planAnnualDesc": "Najlepsza wartość — dwa miesiące gratis w porównaniu z miesięcznym.",
-    "annualSaving": "Oszczędzasz 38 PLN rocznie",
-    "bestValue": "Najlepsza oferta",
+    "planAnnualDesc": "Płacisz za 10 miesięcy, a korzystasz przez 12 — oszczędzasz 38 PLN rocznie.",
     "stripeSetupHint": "Zweryfikuj kartę, aby rozpocząć darmowy 30-dniowy trial. Brak opłat do końca okresu próbnego.",
     "stripeSuccess": "Płatność zakończona sukcesem! Twoja subskrypcja jest teraz aktywna.",
     "stripeCancelled": "Weryfikacja karty została anulowana. Możesz spróbować ponownie w dowolnym momencie.",
@@ -464,7 +462,8 @@
     "currency": "PLN",
     "nettoShort": "netto",
     "bruttoShort": "brutto",
-    "cardBrand": "KARTA"
+    "cardBrand": "KARTA",
+    "withdrawalWaiver": "Wyrażam zgodę na natychmiastowe rozpoczęcie świadczenia usługi cyfrowej i przyjmuję do wiadomości, że z chwilą rozpoczęcia świadczenia tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta)."
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",

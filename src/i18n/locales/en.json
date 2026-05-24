@@ -418,9 +418,7 @@
     "planMonthly": "Monthly",
     "planMonthlyDesc": "Flexible month-to-month billing. Cancel anytime.",
     "planAnnual": "Annual",
-    "planAnnualDesc": "Best value — two months free compared to monthly.",
-    "annualSaving": "Save 38 PLN per year",
-    "bestValue": "Best value",
+    "planAnnualDesc": "Pay for 10 months, use for 12 — save 38 PLN per year.",
     "stripeSetupHint": "Verify your card to start a free 30-day trial. No charges until the trial ends.",
     "stripeSuccess": "Payment successful! Your subscription is now active.",
     "stripeCancelled": "Card verification was cancelled. You can try again anytime.",
@@ -464,7 +462,8 @@
     "currency": "PLN",
     "nettoShort": "netto",
     "bruttoShort": "gross",
-    "cardBrand": "CARD"
+    "cardBrand": "CARD",
+    "withdrawalWaiver": "I consent to the immediate commencement of the digital service and acknowledge that I waive my right of withdrawal within 14 days from the moment the service begins (Art. 38(13) of the Consumer Rights Act)."
   },
   "emailVerify": {
     "title": "Verify your email",

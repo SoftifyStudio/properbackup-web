@@ -72,7 +72,7 @@ function PaymentCardSection({ cardInfo, onAddCard, onChangeCard, isTestMode, t }
 }
 
 function PlanCard({
-  planId, name, desc, period, highlight, isActive, cancelledButActive,
+  planId, name, desc, period, isActive, cancelledButActive,
   pricing, promoResult, vatRate, checkoutLoading,
   onCheckout, onCancel, onRenew, t,
 }) {
@@ -95,21 +95,14 @@ function PlanCard({
   });
 
   const borderClass = isActive
-    ? 'border-2 border-accent ring-2 ring-accent/30 bg-accent/5 shadow-lg shadow-accent/10'
-    : highlight
-    ? 'border-2 border-accent'
+    ? 'border-2 border-accent bg-accent/[0.08] shadow-lg shadow-accent/15 ring-1 ring-accent/20'
     : 'border border-border hover:border-accent/40';
 
   return (
-    <div className={`rounded-xl ${borderClass} bg-panel p-5 shadow-card ${highlight || isActive ? 'relative' : ''} transition-colors`}>
+    <div className={`rounded-xl ${borderClass} ${isActive ? '' : 'bg-panel'} p-5 shadow-card ${isActive ? 'relative' : ''} transition-colors`}>
       {isActive && (
         <div className="absolute -top-3 left-4 bg-accent text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
           {t('subscription.activePlan')}
-        </div>
-      )}
-      {!isActive && highlight && (
-        <div className="absolute -top-3 right-4 bg-accent text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
-          {t('subscription.bestValue')}
         </div>
       )}
 
@@ -164,7 +157,6 @@ function PlanCard({
         )}
       </div>
 
-      {!isActive && highlight && <p className="text-xs text-emerald-600 font-semibold mb-2">{t('subscription.annualSaving')}</p>}
       <p className="text-xs text-text3 mb-3">{desc}</p>
 
       <ul className="text-xs text-text3 space-y-1 mb-4">
@@ -515,7 +507,6 @@ export default function SubscriptionPage({ onBack }) {
                       name={t('subscription.planMonthly')}
                       desc={t('subscription.planMonthlyDesc')}
                       period={t('subscription.month')}
-                      highlight={false}
                       isActive={activePlanId === 'monthly'}
                       cancelledButActive={activePlanId === 'monthly' && isCancelledButActive}
                       pricing={{ ...sub.pricing.monthly, daysRemaining: sub.daysRemaining }}
@@ -532,7 +523,6 @@ export default function SubscriptionPage({ onBack }) {
                       name={t('subscription.planAnnual')}
                       desc={t('subscription.planAnnualDesc')}
                       period={t('subscription.year')}
-                      highlight={activePlanId !== 'annual'}
                       isActive={activePlanId === 'annual'}
                       cancelledButActive={activePlanId === 'annual' && isCancelledButActive}
                       pricing={{ ...sub.pricing.annual, daysRemaining: sub.daysRemaining }}
@@ -545,6 +535,9 @@ export default function SubscriptionPage({ onBack }) {
                       t={t}
                     />
                   </div>
+                  <p className="text-[11px] text-text4 leading-relaxed mt-4">
+                    {t('subscription.withdrawalWaiver')}
+                  </p>
                 </div>
 
                 {/* RIGHT column (wider): Payment method + Promo code */}
