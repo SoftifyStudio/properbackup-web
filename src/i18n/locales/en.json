@@ -465,7 +465,8 @@
     "bruttoShort": "gross",
     "cardBrand": "CARD",
     "withdrawalWaiver": "I consent to the immediate commencement of the digital service and acknowledge that I waive my right of withdrawal within 14 days from the moment the service begins (Art. 38(13) of the Consumer Rights Act).",
-    "consentCheckbox": "I confirm that I want immediate access to the service and accept that, due to the immediate commencement of the digital service, I waive my 14-day right of withdrawal (Art. 38(13) of the Consumer Rights Act). Payments are non-refundable."
+    "consentCheckbox": "I confirm that I want immediate access to the service and accept that, due to the immediate commencement of the digital service, I waive my 14-day right of withdrawal (Art. 38(13) of the Consumer Rights Act). Payments are non-refundable.",
+    "savingsShort": "2 months free"
   },
   "emailVerify": {
     "title": "Verify your email",

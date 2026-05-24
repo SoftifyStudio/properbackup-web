@@ -465,7 +465,8 @@
     "bruttoShort": "brutto",
     "cardBrand": "KARTA",
     "withdrawalWaiver": "Wyrażam zgodę na natychmiastowe rozpoczęcie świadczenia usługi cyfrowej i przyjmuję do wiadomości, że z chwilą rozpoczęcia świadczenia tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta).",
-    "consentCheckbox": "Potwierdzam, że chcę natychmiast uzyskać dostęp do usługi i akceptuję, że w związku z natychmiastowym rozpoczęciem świadczenia usługi cyfrowej tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta). Płatności nie podlegają zwrotowi."
+    "consentCheckbox": "Potwierdzam, że chcę natychmiast uzyskać dostęp do usługi i akceptuję, że w związku z natychmiastowym rozpoczęciem świadczenia usługi cyfrowej tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta). Płatności nie podlegają zwrotowi.",
+    "savingsShort": "2 miesiące gratis"
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",

@@ -514,26 +514,42 @@ export default function SubscriptionPage({ onBack }) {
                   <h2 className="text-lg font-bold text-text1 mb-1">{t('subscription.availablePlans')}</h2>
                   <p className="text-sm text-text3 mb-4">{t('subscription.selectPlanHint')}</p>
 
-                  {/* Plan tabs */}
-                  <div className="flex border-b border-border mb-5">
+                  {/* Plan selector — 3D paper cards */}
+                  <div className="grid grid-cols-2 gap-3 mb-5">
                     {['monthly', 'annual'].map((tab) => {
                       const isTabActive = selectedTab === tab;
                       const isThisPlanActive = activePlanId === tab;
+                      const label = t(`subscription.plan${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+                      const price = tab === 'monthly' ? '19.00' : '190.00';
+                      const period = tab === 'monthly' ? t('subscription.month') : t('subscription.year');
                       return (
                         <button
                           key={tab}
                           type="button"
-                          className={`flex-1 py-3 text-sm font-semibold text-center transition-colors relative ${
+                          className={`relative rounded-xl p-4 text-left transition-all duration-200 cursor-pointer ${
                             isTabActive
-                              ? 'text-accent border-b-2 border-accent'
-                              : 'text-text3 hover:text-text2 hover:bg-surface/50'
+                              ? 'bg-white border-2 border-accent shadow-[0_4px_20px_rgba(59,130,246,0.18)] scale-[1.02] z-10 ring-1 ring-accent/20'
+                              : 'bg-surface/80 border border-border/60 shadow-sm hover:shadow-md hover:border-accent/30 opacity-75 hover:opacity-100'
                           }`}
                           onClick={() => { setSelectedTab(tab); setConsentChecked(false); }}
                         >
-                          {t(`subscription.plan${tab.charAt(0).toUpperCase() + tab.slice(1)}`)}
                           {isThisPlanActive && (
-                            <span className="ml-1.5 text-[9px] font-bold uppercase bg-accent/15 text-accent px-1.5 py-0.5 rounded-full">
+                            <span className="absolute -top-2 right-3 text-[9px] font-bold uppercase bg-accent text-white px-2 py-0.5 rounded-full shadow-sm">
                               {t('subscription.activePlan')}
+                            </span>
+                          )}
+                          <span className={`block text-sm font-bold ${isTabActive ? 'text-accent' : 'text-text2'}`}>
+                            {label}
+                          </span>
+                          <span className={`block text-lg font-bold mt-1 ${isTabActive ? 'text-text1' : 'text-text3'}`}>
+                            {price} <span className="text-xs font-normal">{t('subscription.currency')}</span>
+                          </span>
+                          <span className={`block text-[11px] mt-0.5 ${isTabActive ? 'text-text3' : 'text-text4'}`}>
+                            {t('subscription.bruttoShort')} / {period}
+                          </span>
+                          {tab === 'annual' && (
+                            <span className={`block text-[10px] mt-1.5 font-medium ${isTabActive ? 'text-emerald-600' : 'text-emerald-600/60'}`}>
+                              {t('subscription.savingsShort')}
                             </span>
                           )}
                         </button>
