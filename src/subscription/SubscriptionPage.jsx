@@ -597,14 +597,16 @@ export default function SubscriptionPage({ onBack }) {
                           <div className="flex gap-2">
                             {!isCancelledButActive && (
                               <button
-                                className="flex-1 py-2.5 border border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors"
+                                className="flex-1 py-2.5 border border-red-300 text-red-600 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-50"
+                                disabled={!consentChecked}
                                 onClick={handleCancelSubscription}
                               >
                                 {t('subscription.cancelRenewal')}
                               </button>
                             )}
                             <button
-                              className={`${isCancelledButActive ? 'w-full' : 'flex-1'} py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors`}
+                              className={`${isCancelledButActive ? 'w-full' : 'flex-1'} py-2.5 bg-accent text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent/90`}
+                              disabled={!consentChecked}
                               onClick={handleRenewSubscription}
                             >
                               {isCancelledButActive ? t('subscription.reactivate') : t('subscription.renewNow')}
