@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { register, login, getSubscription } from './helpers/api.js';
-import { verifyEmail, setSubscriptionExpired } from './helpers/db.js';
+import { verifyEmail, setSubscriptionExpired, clearCardFingerprints } from './helpers/db.js';
 import { loginUI, goToSubscription } from './helpers/auth.js';
 import { fillStripeCheckout } from './helpers/stripe-checkout.js';
 import { uniqueEmail, TEST_PASSWORD, BASE_URL } from './helpers/fixtures.js';
 
 test.describe('GRUPA G: Interakcja z agentem i wygasanie', () => {
   test('Test 9: Wygaśnięcie trialu — blokada dostępu i UI', async ({ page }) => {
+    clearCardFingerprints();
     const email = uniqueEmail('g9-expire');
     const reg = await register(email, TEST_PASSWORD);
     verifyEmail(email);

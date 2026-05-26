@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { register, login, getSubscription } from './helpers/api.js';
-import { getUser, verifyEmail } from './helpers/db.js';
+import { getUser, verifyEmail, clearCardFingerprints } from './helpers/db.js';
 import { loginUI, goToSubscription } from './helpers/auth.js';
 import { fillStripeCheckout } from './helpers/stripe-checkout.js';
 import { uniqueEmail, TEST_PASSWORD, BASE_URL } from './helpers/fixtures.js';
 
 test.describe('GRUPA D: Zmiany planów i upgrade w trialu', () => {
   test('Test 6: Zmiana planu Monthly -> Annual w trakcie darmowego miesiąca', async ({ page }) => {
+    clearCardFingerprints();
     const email = uniqueEmail('d6-planchange');
     const reg = await register(email, TEST_PASSWORD);
     verifyEmail(email);

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { register, login, getSubscription, cancelSubscription, reactivateSubscription } from './helpers/api.js';
-import { getUser, verifyEmail } from './helpers/db.js';
+import { getUser, verifyEmail, clearCardFingerprints } from './helpers/db.js';
 import { loginUI, goToSubscription } from './helpers/auth.js';
 import { fillStripeCheckout } from './helpers/stripe-checkout.js';
 import { uniqueEmail, TEST_PASSWORD, BASE_URL } from './helpers/fixtures.js';
@@ -9,6 +9,7 @@ test.describe('GRUPA C: Zarządzanie subskrypcją w trakcie trialu', () => {
   let email, token;
 
   test.beforeAll(async ({ browser }) => {
+    clearCardFingerprints();
     email = uniqueEmail('c-cancel');
     const reg = await register(email, TEST_PASSWORD);
     token = reg.token;

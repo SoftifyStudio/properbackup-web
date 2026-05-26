@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { register, login, getSubscription } from './helpers/api.js';
-import { getUser, verifyEmail } from './helpers/db.js';
+import { getUser, verifyEmail, clearCardFingerprints } from './helpers/db.js';
 import { loginUI, goToSubscription } from './helpers/auth.js';
 import { fillStripeCheckout } from './helpers/stripe-checkout.js';
 import { uniqueEmail, TEST_PASSWORD } from './helpers/fixtures.js';
@@ -8,6 +8,11 @@ import { uniqueEmail, TEST_PASSWORD } from './helpers/fixtures.js';
 test.describe('GRUPA E: Ochrona przed oszustwami (Trial Abuse Prevention)', () => {
   test('Test 7: Próba użycia tej samej karty na drugim koncie', async ({ page, browser }) => {
     test.setTimeout(300_000); // 5 minutes — two full checkout flows
+
+    // Clear all card fingerprints so this test starts clean
+    // (previous test runs may have stored fingerprints for the same test cards)
+    clearCardFingerprints();
+
     // --- Step 1: Account A — activate trial with card 4242 ---
     const emailA = uniqueEmail('e7-acctA');
     const regA = await register(emailA, TEST_PASSWORD);

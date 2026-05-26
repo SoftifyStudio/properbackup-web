@@ -64,6 +64,10 @@ export function clearSubscriptionPaymentStatus(email) {
   sql(`UPDATE users SET subscription_payment_status = NULL WHERE email = '${email}'`);
 }
 
+export function clearCardFingerprints() {
+  sql(`UPDATE users SET stripe_card_fingerprint = NULL`);
+}
+
 export function deleteUser(email) {
   sql(`DELETE FROM users WHERE email = '${email}'`);
 }

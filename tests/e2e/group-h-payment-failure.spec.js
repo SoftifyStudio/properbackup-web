@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { register, login, getSubscription } from './helpers/api.js';
-import { verifyEmail, setSubscriptionExpired, setSubscriptionPastDue } from './helpers/db.js';
+import { verifyEmail, setSubscriptionExpired, setSubscriptionPastDue, clearCardFingerprints } from './helpers/db.js';
 import { loginUI, goToSubscription } from './helpers/auth.js';
 import { fillStripeCheckout } from './helpers/stripe-checkout.js';
 import { uniqueEmail, TEST_PASSWORD, BASE_URL } from './helpers/fixtures.js';
 
 test.describe('GRUPA H: Odmowy banków i brak środków', () => {
   test('Test 10: Symulacja odmowy płatności — past_due z grace period', async ({ page }) => {
+    clearCardFingerprints();
     const email = uniqueEmail('h10-decline');
     const reg = await register(email, TEST_PASSWORD);
     verifyEmail(email);

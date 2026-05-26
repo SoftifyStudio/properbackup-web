@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { register, getSubscription, createCheckout } from './helpers/api.js';
-import { getUser, verifyEmail } from './helpers/db.js';
+import { getUser, verifyEmail, clearCardFingerprints } from './helpers/db.js';
 import { loginUI, goToSubscription } from './helpers/auth.js';
 import { fillStripeCheckout } from './helpers/stripe-checkout.js';
 import { uniqueEmail, TEST_PASSWORD, BASE_URL } from './helpers/fixtures.js';
 
 test.describe('GRUPA B: Aktywacja trialu i Stripe Checkout', () => {
   test('Test 2: Generowanie sesji Checkout z parametrami Trial', async ({ page }) => {
+    clearCardFingerprints();
     const email = uniqueEmail('b2-checkout');
     const reg = await register(email, TEST_PASSWORD);
     verifyEmail(email);
