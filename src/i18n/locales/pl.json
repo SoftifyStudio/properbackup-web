@@ -423,14 +423,18 @@
     "stripeSetupHint": "Zweryfikuj kartę, aby rozpocząć darmowy 30-dniowy trial. Brak opłat do końca okresu próbnego.",
     "stripeSuccess": "Płatność zakończona sukcesem! Twoja subskrypcja jest teraz aktywna.",
     "stripeCancelled": "Weryfikacja karty została anulowana. Możesz spróbować ponownie w dowolnym momencie.",
+    "trialAbuseBlocked": "Ta metoda płatności była już użyta do aktywacji okresu próbnego na innym koncie.",
     "pendingPaymentHint": "Dodaj kartę płatniczą lub zrealizuj kod podarunkowy, aby rozpocząć darmowy 30-dniowy trial.",
     "status": {
       "trial": "Wersja próbna",
       "active": "Aktywna",
       "expired": "Wygasła",
       "trial_expired": "Trial wygasł",
-      "pending_payment": "Oczekuje na metodę płatności"
+      "pending_payment": "Oczekuje na metodę płatności",
+      "past_due": "Problem z płatnością"
     },
+    "pastDueTitle": "Mamy problem z pobraniem opłaty",
+    "pastDueMessage": "Ponowimy próbę obciążenia w ciągu najbliższych dni. Twój agent nadal działa, a kopie zapasowe są bezpieczne. Zaktualizuj metodę płatności, jeśli Twoja karta wygasła lub brakuje środków.",
     "proratedDiscount": "Rabat prorated: -{{amount}} PLN ({{days}} dni pozostało)",
     "promoDiscount": "Kupon {{code}}: -{{amount}} PLN",
     "selectAndPay": "Wybierz i zapłać",

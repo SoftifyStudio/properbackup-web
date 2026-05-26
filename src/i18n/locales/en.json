@@ -423,14 +423,18 @@
     "stripeSetupHint": "Verify your card to start a free 30-day trial. No charges until the trial ends.",
     "stripeSuccess": "Payment successful! Your subscription is now active.",
     "stripeCancelled": "Card verification was cancelled. You can try again anytime.",
+    "trialAbuseBlocked": "This payment method has already been used to activate a free trial on another account.",
     "pendingPaymentHint": "Add a payment card or redeem a gift code to start your free 30-day trial.",
     "status": {
       "trial": "Trial",
       "active": "Active",
       "expired": "Expired",
       "trial_expired": "Trial expired",
-      "pending_payment": "Awaiting payment method"
+      "pending_payment": "Awaiting payment method",
+      "past_due": "Payment issue"
     },
+    "pastDueTitle": "We're having trouble collecting your payment",
+    "pastDueMessage": "We'll retry the charge in the next few days. Your agent is still running and your backups are safe. Please update your payment method if your card has expired or has insufficient funds.",
     "proratedDiscount": "Prorated discount: -{{amount}} PLN ({{days}} days remaining)",
     "promoDiscount": "Coupon {{code}}: -{{amount}} PLN",
     "selectAndPay": "Select & pay",
