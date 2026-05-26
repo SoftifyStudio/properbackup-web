@@ -467,7 +467,11 @@
     "cardBrand": "CARD",
     "withdrawalWaiver": "I consent to the immediate commencement of the digital service and acknowledge that I waive my right of withdrawal within 14 days from the moment the service begins (Art. 38(13) of the Consumer Rights Act).",
     "consentCheckbox": "I confirm that I want immediate access to the service and accept that, due to the immediate commencement of the digital service, I waive my 14-day right of withdrawal (Art. 38(13) of the Consumer Rights Act). Payments are non-refundable.",
-    "savingsShort": "2 months free"
+    "savingsShort": "2 months free",
+    "noPlan": "No plan",
+    "trialEligibleHint": "Provide a payment card to activate your free {{days}}-day trial. Your card will not be charged until the trial ends.",
+    "startFreeTrial": "Start free {{days}}-day trial",
+    "trialAutoChargeHint": "After the {{days}}-day trial ends, your card will be automatically charged according to the selected plan. You can cancel at any time."
   },
   "emailVerify": {
     "title": "Verify your email",

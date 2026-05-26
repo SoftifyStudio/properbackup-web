@@ -467,7 +467,11 @@
     "cardBrand": "KARTA",
     "withdrawalWaiver": "Wyrażam zgodę na natychmiastowe rozpoczęcie świadczenia usługi cyfrowej i przyjmuję do wiadomości, że z chwilą rozpoczęcia świadczenia tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta).",
     "consentCheckbox": "Potwierdzam, że chcę natychmiast uzyskać dostęp do usługi i akceptuję, że w związku z natychmiastowym rozpoczęciem świadczenia usługi cyfrowej tracę prawo do odstąpienia od umowy w terminie 14 dni (art. 38 pkt 13 ustawy o prawach konsumenta). Płatności nie podlegają zwrotowi.",
-    "savingsShort": "2 miesiące gratis"
+    "savingsShort": "2 miesiące gratis",
+    "noPlan": "Brak planu",
+    "trialEligibleHint": "Podaj kartę płatniczą, aby aktywować darmowy {{days}}-dniowy okres próbny. Karta nie zostanie obciążona do końca okresu próbnego.",
+    "startFreeTrial": "Rozpocznij darmowy {{days}}-dniowy okres próbny",
+    "trialAutoChargeHint": "Po zakończeniu {{days}}-dniowego okresu próbnego karta zostanie automatycznie obciążona zgodnie z wybranym planem. Możesz anulować w dowolnym momencie."
   },
   "emailVerify": {
     "title": "Zweryfikuj swój email",

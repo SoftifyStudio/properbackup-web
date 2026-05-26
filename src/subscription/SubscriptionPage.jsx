@@ -381,6 +381,7 @@ export default function SubscriptionPage({ onBack }) {
 
   const planLabel = () => {
     if (!sub) return '';
+    if (sub.plan === 'none') return t('subscription.noPlan');
     if (sub.plan === 'trial') return t('subscription.trialPlan');
     if (sub.plan === 'monthly') return t('subscription.planMonthly');
     if (sub.plan === 'annual') return t('subscription.planAnnual');
@@ -416,7 +417,12 @@ export default function SubscriptionPage({ onBack }) {
                   <span className="text-sm text-text2">{planLabel()}</span>
                 </div>
 
-                {sub.status === 'pending_payment' && (
+                {sub.status === 'pending_payment' && sub.trialEligible && (
+                  <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-sm mb-4">
+                    {t('subscription.trialEligibleHint', { days: sub.trialDays || 30 })}
+                  </div>
+                )}
+                {sub.status === 'pending_payment' && !sub.trialEligible && (
                   <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm mb-4">
                     {t('subscription.pendingPaymentHint')}
                   </div>
@@ -613,13 +619,24 @@ export default function SubscriptionPage({ onBack }) {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            className="w-full py-3 bg-accent text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent/90"
-                            disabled={!consentChecked || checkoutLoading === selectedTab}
-                            onClick={() => handleStripeCheckout(selectedTab)}
-                          >
-                            {checkoutLoading === selectedTab ? t('subscription.redirecting') : t('subscription.selectAndPay')}
-                          </button>
+                          <>
+                            <button
+                              className="w-full py-3 bg-accent text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent/90"
+                              disabled={!consentChecked || checkoutLoading === selectedTab}
+                              onClick={() => handleStripeCheckout(selectedTab)}
+                            >
+                              {checkoutLoading === selectedTab
+                                ? t('subscription.redirecting')
+                                : sub.trialEligible
+                                  ? t('subscription.startFreeTrial', { days: sub.trialDays || 30 })
+                                  : t('subscription.selectAndPay')}
+                            </button>
+                            {sub.trialEligible && (
+                              <p className="text-[11px] text-text4 mt-2 text-center leading-relaxed">
+                                {t('subscription.trialAutoChargeHint', { days: sub.trialDays || 30 })}
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     </>
