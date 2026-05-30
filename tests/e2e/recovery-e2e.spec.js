@@ -154,14 +154,14 @@ test.describe('Recovery E2E — single file restore + SHA-256 verification', () 
     fs.unlinkSync(tarPath);
   });
 
-  test('It should show the backup timeline with snapshots in the panel UI', async ({ page }) => {
+  test('It should download a backup via UI, decrypt, and verify SHA-256 matches original', async ({ page }) => {
     // ── Step 1: Login via API and inject auth ──
     const loginRes = await page.request.post(`${PANEL_URL}/api/auth/login`, {
       data: { email: TEST_EMAIL, password: TEST_PASS },
     });
     expect(loginRes.ok()).toBeTruthy();
     const authData = await loginRes.json();
-    authData.emailVerified = true; // bypass deployed panel's email verification gate
+    authData.emailVerified = true;
 
     await page.goto(PANEL_URL);
     await page.evaluate((data) => {
@@ -171,34 +171,107 @@ test.describe('Recovery E2E — single file restore + SHA-256 verification', () 
     // ── Step 2: Navigate to server's backup page ──
     await page.goto(`${PANEL_URL}/servers/${SERVER_ID}?name=e2e-test-server`);
     await page.waitForLoadState('domcontentloaded');
-
-    // ── Step 3: Verify the backup page loads with server info ──
     await expect(page.locator('text=e2e-test-server').first()).toBeVisible({ timeout: 15_000 });
 
-    // ── Step 4: Switch to Timeline tab ──
+    // ── Step 3: Switch to Timeline tab ──
     const timelineTab = page.locator('button', { hasText: 'Timeline' });
     await expect(timelineTab).toBeVisible({ timeout: 10_000 });
     await timelineTab.click();
     await page.waitForTimeout(2000);
 
-    // ── Step 5: Verify timeline shows at least 1 snapshot ──
-    // The BACKUP badge is uppercase, exact match to avoid matching "ProperBackup"
+    // ── Step 4: Verify timeline shows snapshot ──
     await expect(page.getByText('backup', { exact: true })).toBeVisible({ timeout: 15_000 });
-
-    // ── Step 6: Verify snapshot metadata ──
-    // Should show "584 B" size
     await expect(page.getByText('584 B').first()).toBeVisible({ timeout: 5_000 });
 
-    // ── Step 7: Click the snapshot row to select it ──
+    // ── Step 5: Click snapshot to select it (this switches to Files tab) ──
     const backupBadge = page.getByText('backup', { exact: true });
     await backupBadge.click();
     await page.waitForTimeout(2000);
 
-    // Verify the selected snapshot detail panel appears
-    // It should show "Restore" or "Download" button
-    const hasRestore = await page.locator('button').filter({ hasText: /Restore/ }).first().isVisible();
-    const hasDownload = await page.locator('button').filter({ hasText: /Download/ }).first().isVisible();
-    expect(hasRestore || hasDownload).toBeTruthy();
+    // ── Step 6: Go back to Timeline — detail panel with Download button appears ──
+    const timelineTab2 = page.locator('button', { hasText: 'Timeline' });
+    await timelineTab2.click();
+    await page.waitForTimeout(1500);
+
+    const downloadBtn = page.locator('button').filter({ hasText: /Download/ }).first();
+    await expect(downloadBtn).toBeVisible({ timeout: 5_000 });
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30_000 }),
+      downloadBtn.click(),
+    ]);
+
+    // ── Step 7: Save downloaded file and read its content ──
+    const downloadPath = path.join('/tmp', `e2e-ui-download-${Date.now()}.enc`);
+    await download.saveAs(downloadPath);
+    const encBuffer = fs.readFileSync(downloadPath);
+    expect(encBuffer.length).toBeGreaterThan(49);
+    console.log(`UI-downloaded encrypted object: ${encBuffer.length} bytes`);
+
+    // ── Step 8: Decrypt (identical algorithm as Test 1) ──
+    const HEADER_SIZE = 49;
+    const PBKDF2_ITERS = 200_000;
+
+    expect(encBuffer[0]).toBe(0x50); // P
+    expect(encBuffer[1]).toBe(0x52); // R
+    expect(encBuffer[2]).toBe(0x4F); // O
+    expect(encBuffer[3]).toBe(0x50); // P
+    expect(encBuffer[4]).toBe(0x01); // version
+
+    const salt = encBuffer.subarray(5, 21);
+    const key = pbkdf2Sync(ENC_PASS, salt, PBKDF2_ITERS, 32, 'sha256');
+
+    const chunks = [];
+    let offset = HEADER_SIZE;
+    while (offset < encBuffer.length) {
+      if (offset + 4 > encBuffer.length) break;
+      const frameLen = encBuffer.readUInt32BE(offset);
+      offset += 4;
+      if (offset + frameLen > encBuffer.length) throw new Error(`Truncated chunk at ${offset}`);
+
+      const nonce = encBuffer.subarray(offset, offset + 12);
+      const cipherAndTag = encBuffer.subarray(offset + 12, offset + frameLen);
+      const tagStart = cipherAndTag.length - 16;
+      const ciphertext = cipherAndTag.subarray(0, tagStart);
+      const authTag = cipherAndTag.subarray(tagStart);
+      offset += frameLen;
+
+      const decipher = createDecipheriv('aes-256-gcm', key, nonce);
+      decipher.setAuthTag(authTag);
+      const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      chunks.push(plain);
+    }
+
+    const decryptedBuf = Buffer.concat(chunks);
+    console.log(`UI-decrypted tar.gz: ${decryptedBuf.length} bytes`);
+
+    // ── Step 9: Extract tar.gz ──
+    const extractDir = path.join('/tmp', `e2e-ui-extract-${Date.now()}`);
+    const tarPath = path.join('/tmp', `e2e-ui-decrypted-${Date.now()}.tar.gz`);
+    fs.mkdirSync(extractDir, { recursive: true });
+    fs.writeFileSync(tarPath, decryptedBuf);
+    execSync(`tar xzf "${tarPath}" -C "${extractDir}"`, { timeout: 10_000 });
+
+    // ── Step 10: Find and verify SHA-256 ──
+    const foundFile = findFile(extractDir, ORIGINAL_FILENAME);
+    expect(foundFile, `File '${ORIGINAL_FILENAME}' not found in extracted archive`).toBeTruthy();
+
+    const fileContent = fs.readFileSync(foundFile);
+    const sha256 = createHash('sha256').update(fileContent).digest('hex');
+
+    console.log(`\n=== UI Download SHA-256 Verification ===`);
+    console.log(`Original:  ${ORIGINAL_SHA256}`);
+    console.log(`Restored:  ${sha256}`);
+    console.log(`Match:     ${sha256 === ORIGINAL_SHA256}`);
+    console.log(`File size: ${fileContent.length} bytes`);
+    console.log(`=========================================\n`);
+
+    expect(sha256).toBe(ORIGINAL_SHA256);
+
+    // Cleanup
+    fs.rmSync(extractDir, { recursive: true, force: true });
+    fs.unlinkSync(tarPath);
+    fs.unlinkSync(downloadPath);
   });
 });
 
