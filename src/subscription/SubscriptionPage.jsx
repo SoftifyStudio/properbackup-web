@@ -8,15 +8,20 @@ import { useI18n } from '../i18n/I18nContext.jsx';
 const BASE_URL = bufferBaseUrl();
 
 async function startCheckout(token, planId) {
-  const res = await fetch(`${BASE_URL}/account/checkout?plan=${planId}`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const res = await fetch(`${BASE_URL}/account/subscription/checkout`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ plan: planId }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
-  const { checkoutUrl } = await res.json();
-  window.open(checkoutUrl, '_blank');
+  const data = await res.json();
+  window.open(data.url, '_blank');
 }
 
 export default function SubscriptionPage({ onBack }) {
@@ -27,6 +32,7 @@ export default function SubscriptionPage({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(null);
+  const [withdrawalWaiver, setWithdrawalWaiver] = useState(false);
 
   const loadSub = useCallback(async () => {
     if (!token) return;
@@ -140,6 +146,22 @@ export default function SubscriptionPage({ onBack }) {
             {/* Plans */}
             <div>
               <h2 className="text-lg font-bold text-text1 mb-4">{t('subscription.availablePlans')}</h2>
+
+              {/* Withdrawal waiver consent per art. 38 pkt 13 [TDD-A1] */}
+              {(sub.status === 'trial_expired' || sub.status === 'expired' || !sub.active) && (
+                <label className="flex items-start gap-3 mb-5 p-4 rounded-xl border border-border bg-panel cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={withdrawalWaiver}
+                    onChange={(e) => setWithdrawalWaiver(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                  />
+                  <span className="text-xs text-text3 leading-relaxed">
+                    {t('subscription.withdrawalWaiver')}
+                  </span>
+                </label>
+              )}
+
               <div className="grid sm:grid-cols-2 gap-4">
                 {(sub.plans || []).map(plan => (
                   <div key={plan.id} className="rounded-xl border border-border bg-panel p-5 shadow-card hover:border-accent/40 transition-colors">
@@ -167,7 +189,7 @@ export default function SubscriptionPage({ onBack }) {
                     </ul>
                     <button
                       className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-                      disabled={checkoutLoading === plan.id}
+                      disabled={checkoutLoading === plan.id || (!sub.active && !withdrawalWaiver)}
                       onClick={async () => {
                         setCheckoutLoading(plan.id);
                         setError('');
