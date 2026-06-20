@@ -5,6 +5,9 @@ import AdminModeBar from '../layout/AdminModeBar.jsx';
 import { buildTree } from '../tree/TreeBuilder.js';
 import DirectoryView from '../tree/DirectoryView.jsx';
 import RecoveryWizard from '../recovery/RecoveryWizard.jsx';
+import RecoveryModeOverlay from '../recovery/RecoveryModeOverlay.jsx';
+import RecoveryWarningBanner from '../recovery/RecoveryWarningBanner.jsx';
+import { useRecoveryContext } from '../recovery/RecoveryContext.jsx';
 import InventoryPanel from './InventoryPanel.jsx';
 import AgentIndexBanner from './AgentIndexBanner.jsx';
 import DocumentationTab from './DocumentationTab.jsx';
@@ -126,6 +129,7 @@ function MoreMenu({ serviceTab, setServiceTab, isSystemAdmin }) {
 export default function BackupsPage({ server, onBack }) {
   const { token, isSystemAdmin } = useAuth();
   const { t, formatDateTime } = useI18n();
+  const { isRecoveryActive, startServerRecovery } = useRecoveryContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode]               = useState('fixture');
   const [objectNames, setObjectNames] = useState(fixtureListing);
@@ -517,6 +521,7 @@ export default function BackupsPage({ server, onBack }) {
         </span>
       </AppHeader>
       {isSystemAdmin && <AdminModeBar variant="server" server={server} />}
+      <RecoveryWarningBanner currentServerId={server.id} />
 
       {/* Unified bar: tabs + verification + health score + more menu */}
       <div className="shrink-0 px-6 py-2 border-b border-border bg-panel flex items-center gap-3">
@@ -749,6 +754,8 @@ export default function BackupsPage({ server, onBack }) {
           onClose={() => setRecoveryTarget(null)}
         />
       )}
+
+      <RecoveryModeOverlay serverId={server.id} />
     </div>
   );
 }

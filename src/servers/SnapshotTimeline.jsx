@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from '
 import { useAuth } from '../auth/AuthContext.jsx';
 import { fetchArchiveSnapshots, downloadObject } from '../api/bufferClient.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import { useRecoveryContext } from '../recovery/RecoveryContext.jsx';
 
 function fmtBytes(n) {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(2)} GiB`;
@@ -209,12 +210,15 @@ function TimelineRuler({ dayEntries, onJump, currentDayKey }) {
 /* ── Main Component ── */
 export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, sseConnected, latestSnapshot }) {
   const { token } = useAuth();
-  const { formatDateTime } = useI18n();
+  const { t, formatDateTime } = useI18n();
+  const { startServerRecovery, isRecoveryActive } = useRecoveryContext();
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterFlag, setFilterFlag] = useState('all');
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [downloading, setDownloading] = useState(null);
+  const [startingRecovery, setStartingRecovery] = useState(false);
+  const [recoveryError, setRecoveryError] = useState(null);
 
 
   const handleDownload = useCallback(async (snap) => {
@@ -234,6 +238,19 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
     } catch (e) { console.error('Download failed:', e); }
     finally { setDownloading(null); }
   }, [token]);
+
+  const handleStartRecovery = useCallback(async (snap) => {
+    if (!snap?.id || isRecoveryActive(serverId)) return;
+    setStartingRecovery(true);
+    setRecoveryError(null);
+    try {
+      await startServerRecovery(serverId, snap.id);
+    } catch (e) {
+      setRecoveryError(e.code === 'RECOVERY_ALREADY_ACTIVE' ? t('recovery.mode.warningRecoveryInProgressOnThisServer') : e.message);
+    } finally {
+      setStartingRecovery(false);
+    }
+  }, [serverId, startServerRecovery, isRecoveryActive, t]);
 
   const load = useCallback(async () => {
     if (!token || !serverId) { setLoading(false); return; }
@@ -539,7 +556,18 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                     <span className="relative z-10">Restore</span>
                     <div className="tl-shine absolute inset-0 pointer-events-none" />
                   </button>
+                  <button
+                    className="tl-restore-btn text-xs py-2 px-4 font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-40 transition-all"
+                    onClick={() => handleStartRecovery(selectedSnapshot)}
+                    disabled={startingRecovery || isRecoveryActive(serverId)}
+                    title={t('recovery.mode.restoreToThisPoint')}
+                  >
+                    {startingRecovery ? '...' : t('recovery.mode.restoreToThisPoint')}
+                  </button>
                 </>
+              )}
+              {recoveryError && (
+                <div className="text-xs text-red-500 mt-1">{recoveryError}</div>
               )}
             </div>
           </div>
