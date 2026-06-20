@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { I18nProvider } from './i18n/I18nContext.jsx';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
+import { RecoveryProvider } from './recovery/RecoveryContext.jsx';
+import RecoveryMode from './recovery/RecoveryMode.jsx';
 import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
@@ -86,12 +88,15 @@ export default function App() {
   return (
     <I18nProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <AgentQueryCleaner />
-          <div className="h-full min-h-0 flex flex-col overflow-hidden">
-            <AppRoutes />
-          </div>
-        </BrowserRouter>
+        <RecoveryProvider>
+          <BrowserRouter>
+            <AgentQueryCleaner />
+            <div className="h-full min-h-0 flex flex-col overflow-hidden">
+              <AppRoutes />
+            </div>
+            <RecoveryMode />
+          </BrowserRouter>
+        </RecoveryProvider>
       </AuthProvider>
     </I18nProvider>
   );

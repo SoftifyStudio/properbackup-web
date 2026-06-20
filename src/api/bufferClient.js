@@ -123,6 +123,54 @@ export async function fetchActivity(serverId, sessionToken, limit = 100) {
   return res.json();
 }
 
+/** Start a server-wide recovery session (Time Machine restore). */
+export async function startRecovery(serverId, snapshotId, sessionToken) {
+  const res = await fetch(`${BASE_URL}/recovery/start`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ serverId, snapshotId }),
+  });
+  if (!res.ok) throw new Error(`recovery start failed: ${res.status}`);
+  return res.json();
+}
+
+/** Confirm a recovery session after DRY RUN review. */
+export async function confirmRecovery(sessionId, sessionToken) {
+  const res = await fetch(`${BASE_URL}/recovery/confirm`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  });
+  if (!res.ok) throw new Error(`recovery confirm failed: ${res.status}`);
+  return res.json();
+}
+
+/** Cancel a recovery session (triggers rollback if mid-restore). */
+export async function cancelRecovery(sessionId, reason, sessionToken) {
+  const res = await fetch(`${BASE_URL}/recovery/cancel`, {
+    method: 'POST',
+    headers: { ...sessionHeaders(sessionToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, reason }),
+  });
+  if (!res.ok) throw new Error(`recovery cancel failed: ${res.status}`);
+  return res.json();
+}
+
+/** Fetch active recovery sessions for the current user. */
+export async function fetchActiveRecoveries(sessionToken) {
+  const res = await fetch(`${BASE_URL}/recovery/active`, {
+    headers: sessionHeaders(sessionToken),
+  });
+  if (!res.ok) throw new Error(`active recoveries failed: ${res.status}`);
+  return res.json();
+}
+
+/** Create SSE EventSource for a recovery session's real-time stream. */
+export function createRecoveryStream(sessionId, sessionToken) {
+  const url = `${BASE_URL}/recovery/${encodeURIComponent(sessionId)}/stream?token=${encodeURIComponent(sessionToken)}`;
+  return new EventSource(url);
+}
+
 /** Sealed archive objects metadata (JWT). */
 export async function fetchArchiveSnapshots(serverId, sessionToken, query = {}) {
   const u = resolveUrl(`${BASE_URL}/servers/${encodeURIComponent(serverId)}/archive-snapshots`);
