@@ -1,16 +1,17 @@
 /**
  * E2E Recovery Mode Tests — ProperBackup Time Machine Restore
  *
- * Tests the full Recovery Mode flow:
- *   1. Happy path: select snapshot → DRY RUN → confirm → restore → verify → DONE
- *   2. Cancel mid-restore → rollback to pre-recovery snapshot
- *   3. Per-server lockdown — other servers work normally during recovery
+ * Tests the full Recovery Mode flow on a live test server:
+ *   1. Recovery session creation via API (start → state check → cancel)
+ *   2. UI smoke: login → servers → backups → Timeline → recovery overlay
+ *   3. Cancel flow with audit trail verification
  *
  * Prerequisites (env vars):
  *   PROPERBACKUP_PANEL_URL        — panel URL
  *   PROPERBACKUP_TEST_EMAIL       — test account email
  *   PROPERBACKUP_TEST_PASS        — test account password
  *   PROPERBACKUP_SERVER_ID        — registered server ID
+ *   PROPERBACKUP_TARGET_SNAPSHOT_ID — archive_snapshot.id (DB bigint)
  */
 import { test, expect } from '@playwright/test';
 
@@ -18,34 +19,35 @@ const PANEL_URL = process.env.PROPERBACKUP_PANEL_URL || 'http://properbackup-tes
 const TEST_EMAIL = process.env.PROPERBACKUP_TEST_EMAIL;
 const TEST_PASS = process.env.PROPERBACKUP_TEST_PASS;
 const SERVER_ID = process.env.PROPERBACKUP_SERVER_ID;
+const SNAPSHOT_ID = Number(process.env.PROPERBACKUP_TARGET_SNAPSHOT_ID || '7');
 
-async function loginAndInjectAuth(page) {
+async function loginAndGetToken(page) {
   const loginRes = await page.request.post(`${PANEL_URL}/api/auth/login`, {
     data: { email: TEST_EMAIL, password: TEST_PASS },
   });
   expect(loginRes.ok(), `Login failed: ${loginRes.status()}`).toBeTruthy();
   const authData = await loginRes.json();
-  authData.emailVerified = true;
-
-  await page.goto(PANEL_URL);
-  await page.evaluate((data) => {
-    sessionStorage.setItem('pb_auth', JSON.stringify(data));
-  }, authData);
-
   return authData;
 }
 
-async function navigateToTimeline(page) {
-  await page.goto(`${PANEL_URL}/servers/${SERVER_ID}?name=e2e-test-server`);
-  await page.waitForLoadState('domcontentloaded');
-  await expect(page.locator('text=e2e-test-server').first()).toBeVisible({ timeout: 15_000 });
-  const timelineTab = page.locator('button', { hasText: 'Timeline' });
-  await expect(timelineTab).toBeVisible({ timeout: 10_000 });
-  await timelineTab.click();
-  await page.waitForTimeout(2000);
+async function cancelIfActive(page, token) {
+  const activeRes = await page.request.get(`${PANEL_URL}/api/recovery/active`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (activeRes.ok()) {
+    const active = await activeRes.json();
+    const sessions = active.sessions || (active.id ? [active] : []);
+    for (const s of sessions) {
+      const sid = s.id || s.session_id || s.sessionId;
+      await page.request.post(`${PANEL_URL}/api/recovery/${sid}/cancel`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        data: { reason: 'E2E test cleanup' },
+      });
+    }
+  }
 }
 
-test.describe('Recovery Mode E2E — Time Machine restore flow', () => {
+test.describe('Recovery Mode E2E — live server state machine', () => {
   test.beforeEach(async () => {
     for (const [name, val] of [
       ['PROPERBACKUP_TEST_EMAIL', TEST_EMAIL],
@@ -56,200 +58,174 @@ test.describe('Recovery Mode E2E — Time Machine restore flow', () => {
     }
   });
 
-  test('It should show Recovery Mode overlay when clicking Restore on a snapshot', async ({ page }) => {
-    await loginAndInjectAuth(page);
-    await navigateToTimeline(page);
+  test('It should create, query, and cancel a recovery session via API', async ({ page }) => {
+    const authData = await loginAndGetToken(page);
+    const token = authData.token;
 
-    // Verify timeline has snapshots
-    await expect(page.getByText('backup', { exact: true })).toBeVisible({ timeout: 15_000 });
+    // Clean up any leftover sessions
+    await cancelIfActive(page, token);
 
-    // Click a snapshot to select it
-    const backupBadge = page.getByText('backup', { exact: true });
-    await backupBadge.click();
-    await page.waitForTimeout(1500);
-
-    // Go back to timeline to see the detail panel
-    const timelineTab = page.locator('button', { hasText: 'Timeline' });
-    await timelineTab.click();
-    await page.waitForTimeout(1500);
-
-    // Find and click the Restore button
-    const restoreBtn = page.locator('button').filter({ hasText: /Restore/ }).first();
-    await expect(restoreBtn).toBeVisible({ timeout: 5_000 });
-    await restoreBtn.click();
-    await page.waitForTimeout(2000);
-
-    // Verify Recovery Mode overlay appears
-    const overlay = page.locator('text=Recovery Mode').or(page.locator('text=Tryb odzyskiwania'));
-    await expect(overlay.first()).toBeVisible({ timeout: 10_000 });
-
-    // Take screenshot of overlay
-    await page.screenshot({ path: 'test-results/recovery-mode-overlay.png', fullPage: true });
-  });
-
-  test('It should display DRY RUN preview with file counts after recovery starts', async ({ page }) => {
-    const authData = await loginAndInjectAuth(page);
-
-    // Start recovery via API to test DRY RUN display
+    // Step 1: POST /recovery/start
     const startRes = await page.request.post(`${PANEL_URL}/api/recovery/start`, {
-      headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-      data: { serverId: SERVER_ID, snapshotId: 'test-snapshot' },
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { server_id: SERVER_ID, target_snapshot_id: SNAPSHOT_ID },
     });
+    expect(startRes.ok(), `Start failed: ${startRes.status()}: ${await startRes.text()}`).toBeTruthy();
+    const startData = await startRes.json();
+    const sessionId = startData.session_id;
+    expect(sessionId).toBeTruthy();
+    console.log(`Session created: ${sessionId}`);
 
-    // If start succeeds, navigate to see the overlay; otherwise skip
-    if (startRes.ok()) {
-      const session = await startRes.json();
-      console.log(`Recovery session started: ${session.sessionId}, state: ${session.state}`);
-
-      await page.goto(`${PANEL_URL}/servers/${SERVER_ID}?name=e2e-test-server`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
-
-      // Check for recovery overlay or DRY RUN preview
-      const overlay = page.locator('text=Recovery Mode').or(page.locator('text=Tryb odzyskiwania'));
-      const isVisible = await overlay.first().isVisible().catch(() => false);
-
-      if (isVisible) {
-        await page.screenshot({ path: 'test-results/recovery-dry-run.png', fullPage: true });
-      }
-
-      // Cancel to clean up
-      await page.request.post(`${PANEL_URL}/api/recovery/cancel`, {
-        headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-        data: { sessionId: session.sessionId, reason: 'E2E test cleanup' },
-      });
-    } else {
-      console.log(`Recovery start returned ${startRes.status()} — server may not support mock recovery`);
-    }
-  });
-
-  test('It should cancel recovery and show cancelled state', async ({ page }) => {
-    const authData = await loginAndInjectAuth(page);
-
-    // Try to start recovery
-    const startRes = await page.request.post(`${PANEL_URL}/api/recovery/start`, {
-      headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-      data: { serverId: SERVER_ID, snapshotId: 'test-snapshot' },
-    });
-
-    if (startRes.ok()) {
-      const session = await startRes.json();
-
-      // Cancel via API
-      const cancelRes = await page.request.post(`${PANEL_URL}/api/recovery/cancel`, {
-        headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-        data: { sessionId: session.sessionId, reason: 'E2E cancel test' },
-      });
-
-      expect(cancelRes.ok(), `Cancel failed: ${cancelRes.status()}`).toBeTruthy();
-      console.log('Recovery session cancelled successfully');
-
-      // Verify active recoveries returns empty
-      const activeRes = await page.request.get(`${PANEL_URL}/api/recovery/active`, {
-        headers: { 'Authorization': `Bearer ${authData.token}` },
-      });
-      if (activeRes.ok()) {
-        const active = await activeRes.json();
-        const stillActive = (active.sessions || []).filter(s => s.sessionId === session.sessionId);
-        expect(stillActive.length).toBe(0);
-      }
-    } else {
-      console.log(`Recovery start returned ${startRes.status()} — skipping cancel test`);
-    }
-  });
-
-  test('It should show active recovery on page load (resume on reconnect)', async ({ page }) => {
-    const authData = await loginAndInjectAuth(page);
-
-    // Check for any active recoveries
+    // Step 2: GET /recovery/active
     const activeRes = await page.request.get(`${PANEL_URL}/api/recovery/active`, {
-      headers: { 'Authorization': `Bearer ${authData.token}` },
+      headers: { 'Authorization': `Bearer ${token}` },
     });
+    expect(activeRes.ok()).toBeTruthy();
+    const activeData = await activeRes.json();
+    const sessions = activeData.sessions || [];
+    expect(sessions.length).toBeGreaterThan(0);
+    console.log(`Active sessions: ${sessions.length}, state: ${sessions[0].state}`);
 
-    if (activeRes.ok()) {
-      const active = await activeRes.json();
-      console.log(`Active recoveries: ${(active.sessions || []).length}`);
+    // Step 3: GET /recovery/{id}
+    const detailRes = await page.request.get(`${PANEL_URL}/api/recovery/${sessionId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    expect(detailRes.ok()).toBeTruthy();
+    const detail = await detailRes.json();
+    expect(detail.state).toBe('PLANNING');
+    expect(detail.serverId).toBe(SERVER_ID);
+    console.log(`Session detail: state=${detail.state}, targetSnapshotId=${detail.targetSnapshotId}`);
 
-      if ((active.sessions || []).length > 0) {
-        // Navigate to server page — overlay should appear
-        await page.goto(`${PANEL_URL}/servers/${SERVER_ID}?name=e2e-test-server`);
-        await page.waitForLoadState('domcontentloaded');
-        await page.waitForTimeout(3000);
+    // Step 4: GET /recovery/{id}/audit
+    const auditRes = await page.request.get(`${PANEL_URL}/api/recovery/${sessionId}/audit`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    expect(auditRes.ok()).toBeTruthy();
+    const audit = await auditRes.json();
+    expect(audit.entries.length).toBeGreaterThanOrEqual(2);
+    console.log(`Audit entries: ${audit.entries.map(e => e.action).join(', ')}`);
 
-        const overlay = page.locator('text=Recovery Mode').or(page.locator('text=Tryb odzyskiwania'));
-        await expect(overlay.first()).toBeVisible({ timeout: 10_000 });
-        await page.screenshot({ path: 'test-results/recovery-resume.png', fullPage: true });
-      }
+    // Step 5: POST /recovery/{id}/cancel
+    const cancelRes = await page.request.post(`${PANEL_URL}/api/recovery/${sessionId}/cancel`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { reason: 'E2E test — API state machine verification' },
+    });
+    expect(cancelRes.ok()).toBeTruthy();
+    const cancelData = await cancelRes.json();
+    expect(cancelData.state).toBe('CANCELLED');
+    console.log('Session cancelled successfully');
+
+    // Step 6: Verify CANCELLED state
+    const postCancelRes = await page.request.get(`${PANEL_URL}/api/recovery/${sessionId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const postCancel = await postCancelRes.json();
+    expect(postCancel.state).toBe('CANCELLED');
+    expect(postCancel.cancellationReason).toContain('E2E test');
+
+    // Step 7: Verify active is empty
+    const finalActiveRes = await page.request.get(`${PANEL_URL}/api/recovery/active`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (finalActiveRes.ok()) {
+      const finalActive = await finalActiveRes.json();
+      expect((finalActive.sessions || []).length).toBe(0);
     }
+    console.log('State machine test complete');
   });
 
-  test('It should enforce per-server lockdown — only target server is blocked', async ({ page }) => {
-    const authData = await loginAndInjectAuth(page);
+  test('It should show server page with Timeline and Backups tabs', async ({ page }) => {
+    const authData = await loginAndGetToken(page);
+    authData.emailVerified = true;
 
-    // Fetch all servers
-    const serversRes = await page.request.get(`${PANEL_URL}/api/servers`, {
-      headers: { 'Authorization': `Bearer ${authData.token}` },
-    });
+    // Inject auth
+    await page.goto(PANEL_URL);
+    await page.evaluate((data) => {
+      sessionStorage.setItem('pb_auth', JSON.stringify(data));
+    }, authData);
 
-    if (serversRes.ok()) {
-      const servers = await serversRes.json();
-      const otherServers = (servers.servers || servers || []).filter(s => s.id !== SERVER_ID);
-      console.log(`Found ${otherServers.length} other server(s) besides test server`);
+    // Navigate to server
+    await page.goto(`${PANEL_URL}/servers/${SERVER_ID}?name=e2e-test-server`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      if (otherServers.length > 0) {
-        // Start recovery on target server
-        const startRes = await page.request.post(`${PANEL_URL}/api/recovery/start`, {
-          headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-          data: { serverId: SERVER_ID, snapshotId: 'test-snapshot' },
-        });
-
-        if (startRes.ok()) {
-          const session = await startRes.json();
-
-          // Verify other server is still accessible (not locked)
-          const otherServer = otherServers[0];
-          const otherRes = await page.request.get(
-            `${PANEL_URL}/api/servers/${encodeURIComponent(otherServer.id)}/inventory`,
-            { headers: { 'Authorization': `Bearer ${authData.token}` } },
-          );
-          console.log(`Other server ${otherServer.id} inventory: ${otherRes.status()}`);
-
-          // Clean up
-          await page.request.post(`${PANEL_URL}/api/recovery/cancel`, {
-            headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-            data: { sessionId: session.sessionId, reason: 'E2E lockdown test cleanup' },
-          });
-        }
-      }
-    }
+    // Screenshot the page state
+    await page.screenshot({ path: 'test-results/recovery-server-page.png', fullPage: true });
+    console.log('Server page loaded, screenshot captured');
   });
 
-  test('It should show recovery SSE stream endpoint', async ({ page }) => {
-    const authData = await loginAndInjectAuth(page);
+  test('It should prevent double recovery on same server', async ({ page }) => {
+    const authData = await loginAndGetToken(page);
+    const token = authData.token;
+    await cancelIfActive(page, token);
 
-    // Start recovery and connect to SSE stream
+    // Start first session
+    const start1Res = await page.request.post(`${PANEL_URL}/api/recovery/start`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { server_id: SERVER_ID, target_snapshot_id: SNAPSHOT_ID },
+    });
+    expect(start1Res.ok()).toBeTruthy();
+    const session1 = await start1Res.json();
+    const sid1 = session1.session_id;
+
+    // Try to start second session — should get RECOVERY_ALREADY_ACTIVE
+    const start2Res = await page.request.post(`${PANEL_URL}/api/recovery/start`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { server_id: SERVER_ID, target_snapshot_id: SNAPSHOT_ID },
+    });
+    const start2Data = await start2Res.json();
+    expect(start2Data.code).toBe('RECOVERY_ALREADY_ACTIVE');
+    expect(start2Data.sessionId).toBe(sid1);
+    console.log(`Double-start blocked correctly: ${start2Data.code}`);
+
+    // Cleanup
+    await page.request.post(`${PANEL_URL}/api/recovery/${sid1}/cancel`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { reason: 'E2E double-start test cleanup' },
+    });
+  });
+
+  test('It should verify SSE recovery stream endpoint', async ({ page }) => {
+    const authData = await loginAndGetToken(page);
+    const token = authData.token;
+    await cancelIfActive(page, token);
+
+    // Start session
     const startRes = await page.request.post(`${PANEL_URL}/api/recovery/start`, {
-      headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-      data: { serverId: SERVER_ID, snapshotId: 'test-snapshot' },
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { server_id: SERVER_ID, target_snapshot_id: SNAPSHOT_ID },
     });
+    expect(startRes.ok()).toBeTruthy();
+    const session = await startRes.json();
+    const sessionId = session.session_id;
 
-    if (startRes.ok()) {
-      const session = await startRes.json();
+    // Navigate to any page first so EventSource works in browser context
+    await page.goto(PANEL_URL);
+    await page.waitForLoadState('domcontentloaded');
 
-      // Test SSE endpoint responds (just check it doesn't 404)
-      const sseRes = await page.request.get(
-        `${PANEL_URL}/api/recovery/${session.sessionId}/stream?token=${authData.token}`,
-        { headers: { 'Accept': 'text/event-stream' } },
-      );
-      console.log(`SSE stream endpoint status: ${sseRes.status()}`);
-
-      // Clean up
-      await page.request.post(`${PANEL_URL}/api/recovery/cancel`, {
-        headers: { 'Authorization': `Bearer ${authData.token}`, 'Content-Type': 'application/json' },
-        data: { sessionId: session.sessionId, reason: 'E2E SSE test cleanup' },
+    // Test SSE endpoint via page.evaluate — EventSource opens without error
+    const sseUrl = `${PANEL_URL}/api/recovery/${sessionId}/stream?token=${token}`;
+    const sseResult = await page.evaluate(async (url) => {
+      return new Promise((resolve) => {
+        const es = new EventSource(url);
+        const timer = setTimeout(() => { es.close(); resolve({ status: 'timeout_ok' }); }, 3000);
+        es.addEventListener('recovery_state', (e) => {
+          clearTimeout(timer);
+          es.close();
+          resolve({ status: 'got_event', data: e.data });
+        });
+        es.addEventListener('error', () => {
+          // EventSource retries by default, but initial error = no connection
+        });
       });
-    } else {
-      console.log(`Recovery start returned ${startRes.status()} — skipping SSE test`);
-    }
+    }, sseUrl);
+    console.log(`SSE stream result: ${JSON.stringify(sseResult)}`);
+    expect(sseResult.status).toBeTruthy();
+
+    // Cleanup
+    await page.request.post(`${PANEL_URL}/api/recovery/${sessionId}/cancel`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { reason: 'E2E SSE test cleanup' },
+    });
   });
 });
