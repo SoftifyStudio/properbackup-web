@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import AppHeader from '../layout/AppHeader.jsx';
 import { bufferBaseUrl } from '../bufferConfig.js';
@@ -21,6 +22,7 @@ async function startCheckout(token, planId) {
 export default function SubscriptionPage({ onBack }) {
   const { token } = useAuth();
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -171,6 +173,7 @@ export default function SubscriptionPage({ onBack }) {
                         setError('');
                         try {
                           await startCheckout(token, plan.id);
+                          navigate('/account/subscription/processing');
                         } catch (e) {
                           setError(e.message);
                         } finally {

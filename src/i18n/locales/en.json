@@ -415,5 +415,13 @@
       "expired": "Expired",
       "trial_expired": "Trial expired"
     }
+  },
+  "processing": {
+    "title": "Activating your subscription",
+    "subtitle": "Waiting for payment confirmation. This will take a few seconds.",
+    "activated": "Subscription activated!",
+    "timeout": "Operation in progress",
+    "timeoutHint": "Payment is being processed. Please refresh in a moment.",
+    "refresh": "Refresh"
   }
 }

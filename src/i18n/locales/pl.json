@@ -415,5 +415,13 @@
       "expired": "Wygasła",
       "trial_expired": "Trial wygasł"
     }
+  },
+  "processing": {
+    "title": "Aktywujemy Twoją subskrypcję",
+    "subtitle": "Czekamy na potwierdzenie płatności. To zajmie kilka sekund.",
+    "activated": "Subskrypcja aktywna!",
+    "timeout": "Operacja w toku",
+    "timeoutHint": "Płatność jest przetwarzana. Odśwież stronę za chwilę.",
+    "refresh": "Odśwież"
   }
 }
