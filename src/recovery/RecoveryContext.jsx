@@ -8,6 +8,15 @@ export function useRecovery() {
   return useContext(RecoveryCtx);
 }
 
+function normalizeSession(raw) {
+  if (!raw) return null;
+  return {
+    ...raw,
+    sessionId: raw.sessionId || raw.session_id || raw.id,
+    serverId: raw.serverId || raw.server_id,
+  };
+}
+
 export function RecoveryProvider({ children }) {
   const { token } = useAuth();
   const [session, setSession] = useState(null);
@@ -22,7 +31,7 @@ export function RecoveryProvider({ children }) {
     es.addEventListener('recovery_state', (e) => {
       try {
         const data = JSON.parse(e.data);
-        setSession((prev) => prev ? { ...prev, ...data } : data);
+        setSession((prev) => prev ? normalizeSession({ ...prev, ...data }) : normalizeSession(data));
       } catch {}
     });
     es.addEventListener('recovery_progress', (e) => {
@@ -46,11 +55,11 @@ export function RecoveryProvider({ children }) {
 
   useEffect(() => {
     if (!token) return;
-    fetchActiveRecoveries(token)
+    fetchActiveRecoveries(null, token)
       .then((res) => {
-        const sessions = res.sessions || [];
+        const sessions = res.sessions || (res.id ? [res] : []);
         if (sessions.length > 0) {
-          const active = sessions[0];
+          const active = normalizeSession(sessions[0]);
           setSession(active);
           connectStream(active.sessionId);
         }
@@ -63,9 +72,10 @@ export function RecoveryProvider({ children }) {
     setError(null);
     try {
       const res = await startRecovery(serverId, snapshotId, token);
-      setSession(res);
-      connectStream(res.sessionId);
-      return res;
+      const normalized = normalizeSession(res);
+      setSession(normalized);
+      connectStream(normalized.sessionId);
+      return normalized;
     } catch (e) {
       setError(e.message);
       throw e;
@@ -80,7 +90,7 @@ export function RecoveryProvider({ children }) {
     setError(null);
     try {
       const res = await confirmRecovery(session.sessionId, token);
-      setSession((prev) => ({ ...prev, ...res }));
+      setSession((prev) => normalizeSession({ ...prev, ...res }));
     } catch (e) {
       setError(e.message);
     } finally {
