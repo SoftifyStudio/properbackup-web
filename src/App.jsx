@@ -5,7 +5,10 @@ import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
 import SubscriptionPage from './subscription/SubscriptionPage.jsx';
+import AgentHealthDashboard from './monitoring/AgentHealthDashboard.jsx';
+import NotificationSettings from './notifications/NotificationSettings.jsx';
 import PlansPage from './plans/PlansPage.jsx';
+import AppHeader from './layout/AppHeader.jsx';
 
 import {
   BrowserRouter,
@@ -65,11 +68,28 @@ function SubscriptionPageWrapper() {
   return <SubscriptionPage onBack={() => navigate('/servers')} />;
 }
 
-function PlansPageWrapper() {
+function MonitoringPageWrapper() {
   const { token } = useAuth();
   const navigate = useNavigate();
   if (!token) return <Navigate to="/login" replace />;
-  return <PlansPage onBack={() => navigate('/servers')} />;
+  return (
+    <div className="h-full flex flex-col">
+      <AppHeader onBack={() => navigate('/servers')}>Agent Health</AppHeader>
+      <main className="flex-1 overflow-y-auto p-6"><AgentHealthDashboard /></main>
+    </div>
+  );
+}
+
+function NotificationsPageWrapper() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  if (!token) return <Navigate to="/login" replace />;
+  return (
+    <div className="h-full flex flex-col">
+      <AppHeader onBack={() => navigate('/servers')}>Notification Settings</AppHeader>
+      <main className="flex-1 overflow-y-auto p-6"><NotificationSettings /></main>
+    </div>
+  );
 }
 
 function AppRoutes() {
@@ -83,7 +103,9 @@ function AppRoutes() {
         <Route path="/servers" element={<AppRoutesInner />} />
         <Route path="/servers/:serverId" element={<AppRoutesInner />} />
         <Route path="/account/subscription" element={<SubscriptionPageWrapper />} />
-        <Route path="/account/plans" element={<PlansPageWrapper />} />
+        <Route path="/monitoring" element={<MonitoringPageWrapper />} />
+        <Route path="/account/notifications" element={<NotificationsPageWrapper />} />
+              <Route path="/plans" element={<PlansPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

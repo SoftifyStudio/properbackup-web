@@ -1,5 +1,9 @@
 {
-  "lang": { "label": "Language", "pl": "Polski", "en": "English" },
+  "lang": {
+    "label": "Language",
+    "pl": "Polski",
+    "en": "English"
+  },
   "common": {
     "dash": "—",
     "relativeJustNow": "just now",
@@ -475,5 +479,37 @@
     "statusVerified": "Verified",
     "dateRange": "Date range",
     "clearDates": "Clear"
+  },
+  "monitoring": {
+    "title": "Agent Health",
+    "loading": "Loading agent status...",
+    "noServers": "No servers registered yet.",
+    "filterAll": "All",
+    "statusOnline": "Online",
+    "statusWarning": "Warning",
+    "statusOffline": "Offline",
+    "lastHeartbeat": "Last heartbeat",
+    "agentPhase": "Agent phase",
+    "filesProtected": "Files protected",
+    "offlineWarning": "Agent has not sent a heartbeat in over 30 minutes.",
+    "offlineAlert": "One or more agents are offline",
+    "offlineAlertDesc": "Check that the agent process is running on affected servers. Email notifications can be configured below."
+  },
+  "notifications": {
+    "title": "Notification Settings",
+    "enableNotifications": "Enable email notifications",
+    "enableDesc": "Receive alerts when agents go offline or storage limits are near.",
+    "emailAddress": "Email address",
+    "alertTypes": "Alert Types",
+    "alertAgentOffline": "Agent offline",
+    "alertAgentOfflineDesc": "Notify when an agent is offline for >30 minutes and server is pingable.",
+    "alertStorageWarning": "Storage warning",
+    "alertStorageWarningDesc": "Notify when storage exceeds 80% of quota.",
+    "alertSubscriptionExpiry": "Subscription expiry",
+    "alertSubscriptionExpiryDesc": "Notify 7 days before subscription expires.",
+    "smsNote": "SMS notifications will be available in a future update.",
+    "save": "Save Settings",
+    "saving": "Saving...",
+    "saved": "Settings saved"
   }
 }

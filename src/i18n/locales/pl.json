@@ -1,5 +1,9 @@
 {
-  "lang": { "label": "Język", "pl": "Polski", "en": "English" },
+  "lang": {
+    "label": "Język",
+    "pl": "Polski",
+    "en": "English"
+  },
   "common": {
     "dash": "—",
     "relativeJustNow": "przed chwilą",
@@ -475,5 +479,37 @@
     "statusVerified": "Zweryfikowany",
     "dateRange": "Zakres dat",
     "clearDates": "Wyczyść"
+  },
+  "monitoring": {
+    "title": "Stan agentów",
+    "loading": "Ładowanie statusu agentów...",
+    "noServers": "Brak zarejestrowanych serwerów.",
+    "filterAll": "Wszystkie",
+    "statusOnline": "Online",
+    "statusWarning": "Ostrzeżenie",
+    "statusOffline": "Offline",
+    "lastHeartbeat": "Ostatni heartbeat",
+    "agentPhase": "Faza agenta",
+    "filesProtected": "Chronione pliki",
+    "offlineWarning": "Agent nie wysłał heartbeata od ponad 30 minut.",
+    "offlineAlert": "Jeden lub więcej agentów jest offline",
+    "offlineAlertDesc": "Sprawdź, czy proces agenta działa na serwerach. Powiadomienia email można skonfigurować poniżej."
+  },
+  "notifications": {
+    "title": "Ustawienia powiadomień",
+    "enableNotifications": "Włącz powiadomienia email",
+    "enableDesc": "Otrzymuj alerty gdy agent jest offline lub zbliżasz się do limitu.",
+    "emailAddress": "Adres email",
+    "alertTypes": "Typy alertów",
+    "alertAgentOffline": "Agent offline",
+    "alertAgentOfflineDesc": "Powiadom gdy agent jest offline >30 min i serwer jest pingable.",
+    "alertStorageWarning": "Ostrzeżenie o przestrzeni",
+    "alertStorageWarningDesc": "Powiadom gdy przestrzeń przekroczy 80% limitu.",
+    "alertSubscriptionExpiry": "Wygaśnięcie subskrypcji",
+    "alertSubscriptionExpiryDesc": "Powiadom 7 dni przed wygaśnięciem subskrypcji.",
+    "smsNote": "Powiadomienia SMS będą dostępne w przyszłej aktualizacji.",
+    "save": "Zapisz ustawienia",
+    "saving": "Zapisywanie...",
+    "saved": "Ustawienia zapisane"
   }
 }
