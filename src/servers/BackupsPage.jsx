@@ -25,6 +25,7 @@ import fixtureIdxData from '../fixtures/mock-paths-idx.json';
 
 import { bufferBaseUrl } from '../bufferConfig.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import { useRecovery } from '../recovery/RecoveryContext.jsx';
 
 const BASE_URL = bufferBaseUrl();
 
@@ -126,6 +127,7 @@ function MoreMenu({ serviceTab, setServiceTab, isSystemAdmin }) {
 export default function BackupsPage({ server, onBack }) {
   const { token, isSystemAdmin } = useAuth();
   const { t, formatDateTime } = useI18n();
+  const recovery = useRecovery();
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode]               = useState('fixture');
   const [objectNames, setObjectNames] = useState(fixtureListing);
@@ -596,9 +598,13 @@ export default function BackupsPage({ server, onBack }) {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       className="bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-5 rounded-lg text-sm shadow transition-all active:scale-[0.98]"
-                      onClick={() => setRecoveryTarget({ snap: selectedSnapshot, node: null })}
+                      onClick={() => {
+                        if (selectedSnapshot?.objectName) {
+                          recovery.start(server.id, selectedSnapshot.objectName).catch(() => {});
+                        }
+                      }}
                     >
-                      Restore to this moment
+                      {t('recovery.mode.restoreToPoint')}
                     </button>
                     <button
                       className="bg-white hover:bg-gray-50 text-[#323130] font-medium py-2 px-4 rounded-lg text-sm border border-[#edebe9] shadow-sm transition-all"
@@ -679,7 +685,9 @@ export default function BackupsPage({ server, onBack }) {
               serverId={server.id}
               onRestore={(snap) => {
                 setSelectedSnapshot(snap);
-                setRecoveryTarget({ snap, node: null });
+                if (snap.objectName) {
+                  recovery.start(server.id, snap.objectName).catch(() => {});
+                }
               }}
               onSelectSnapshot={(snap) => {
                 setSelectedSnapshot(snap);
