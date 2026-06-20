@@ -415,5 +415,24 @@
       "expired": "Expired",
       "trial_expired": "Trial expired"
     }
+  },
+  "downgrade": {
+    "title": "Backup is paused",
+    "message": "You are using {{used}} / {{limit}} (new limit). Delete data or switch back to a higher tier.",
+    "overage": "{{amount}} over your new limit",
+    "deleteData": "Delete data",
+    "keepPlan": "Keep current plan"
+  },
+  "retention": {
+    "title": "Your subscription has expired",
+    "message": "Your data is stored until {{date}}. Renew to continue backups.",
+    "messageNoDate": "Your subscription has expired. Renew to continue backups.",
+    "canRestore": "Download available",
+    "cannotRestore": "Download unavailable",
+    "canUpload": "Uploads enabled",
+    "cannotUpload": "Uploads paused",
+    "lastDay": "Last day — data will be deleted today!",
+    "daysLeft": "{{days}} days until data deletion",
+    "renewNow": "Renew Subscription"
   }
 }
