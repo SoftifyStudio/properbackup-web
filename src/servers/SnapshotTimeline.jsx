@@ -143,6 +143,11 @@ const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst,
               }`}>
                 {isAdd ? 'backup' : 'deleted'}
               </span>
+              {snap.snapshotType && snap.snapshotType !== 'AUTO' && (
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                  {snap.snapshotType}
+                </span>
+              )}
               <span className="text-xs text-text4">{dateStr}</span>
               <span className="ml-auto text-xs font-medium text-text3 tl-mono">{fmtBytes(snap.sizeBytes || 0)}</span>
             </div>
@@ -213,6 +218,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterFlag, setFilterFlag] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [downloading, setDownloading] = useState(null);
 
@@ -285,9 +291,11 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   }, [snapshots]);
 
   const filtered = useMemo(() => {
-    if (filterFlag === 'all') return snapshots;
-    return snapshots.filter((s) => s.flag === filterFlag);
-  }, [snapshots, filterFlag]);
+    let result = snapshots;
+    if (filterFlag !== 'all') result = result.filter((s) => s.flag === filterFlag);
+    if (filterType !== 'all') result = result.filter((s) => (s.snapshotType || 'AUTO') === filterType);
+    return result;
+  }, [snapshots, filterFlag, filterType]);
 
   const dayGroups = useMemo(() => groupByDay(filtered), [filtered]);
 
@@ -370,6 +378,23 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                   filterFlag === key ? 'bg-panel text-accent shadow-sm border border-accent/20' : 'text-text3 hover:text-text2'
                 }`}
                 onClick={() => setFilterFlag(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-border/50">
+            {[
+              { key: 'all', label: 'All types' },
+              { key: 'AUTO', label: 'Auto' },
+              { key: 'MANUAL', label: 'Manual' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                className={`text-xs px-3 py-1.5 rounded-md transition-all font-medium ${
+                  filterType === key ? 'bg-panel text-accent shadow-sm border border-accent/20' : 'text-text3 hover:text-text2'
+                }`}
+                onClick={() => setFilterType(key)}
               >
                 {label}
               </button>
