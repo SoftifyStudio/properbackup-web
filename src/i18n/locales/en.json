@@ -415,5 +415,32 @@
       "expired": "Expired",
       "trial_expired": "Trial expired"
     }
+  },
+  "schedule": {
+    "title": "Backup Schedule",
+    "loading": "Loading schedule...",
+    "backupInterval": "Backup Interval",
+    "intervalDesc": "How often the agent scans for changed files and creates a backup.",
+    "interval1m": "1 min",
+    "interval5m": "5 min",
+    "interval15m": "15 min",
+    "interval30m": "30 min",
+    "interval1h": "1 hour",
+    "interval6h": "6 hours",
+    "interval24h": "24 hours",
+    "ioThrottle": "I/O Throttle",
+    "ioThrottleDesc": "Limit disk read speed to reduce impact on server performance.",
+    "throttleNone": "No limit",
+    "throttle10": "10 MB/s",
+    "throttle25": "25 MB/s",
+    "throttle50": "50 MB/s",
+    "throttle100": "100 MB/s",
+    "backupWindow": "Backup Window",
+    "backupWindowDesc": "Restrict backups to a specific time window (e.g. off-peak hours).",
+    "windowFrom": "From",
+    "windowTo": "To",
+    "save": "Save Schedule",
+    "saving": "Saving...",
+    "saved": "Schedule saved"
   }
 }
