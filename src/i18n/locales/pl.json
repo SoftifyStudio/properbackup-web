@@ -1,5 +1,9 @@
 {
-  "lang": { "label": "Język", "pl": "Polski", "en": "English" },
+  "lang": {
+    "label": "Język",
+    "pl": "Polski",
+    "en": "English"
+  },
   "common": {
     "dash": "—",
     "relativeJustNow": "przed chwilą",
@@ -356,6 +360,33 @@
       "progressLabel": "Postęp odmrażania",
       "remaining": "Pozostało: {{time}}",
       "mockSeconds": "{{seconds}} s (mock)"
+    },
+    "state": {
+      "requested": "Zażądano",
+      "planning": "Obliczanie różnic plików...",
+      "awaitingConfirm": "Oczekuje na potwierdzenie",
+      "thawing": "Odtajanie z cold storage...",
+      "ready": "Gotowe do przywrócenia",
+      "agentRestoring": "Przywracanie plików...",
+      "verifying": "Weryfikacja integralności...",
+      "done": "Przywracanie zakończone",
+      "failed": "Przywracanie nieudane",
+      "cancelled": "Anulowane"
+    },
+    "overlay": {
+      "title": "Przywracanie pełnego systemu",
+      "dryRunTitle": "Podgląd przywracania (DRY RUN)",
+      "toRestore": "do przywrócenia",
+      "toDelete": "do usunięcia",
+      "unchanged": "bez zmian",
+      "totalBytes": "Łączne dane",
+      "confirmRestore": "Potwierdź i rozpocznij przywracanie",
+      "cancelBtn": "Anuluj przywracanie",
+      "doneTitle": "Przywracanie zakończone pomyślnie",
+      "doneBody": "Wszystkie pliki zostały przywrócone do stanu wybranego snapshota.",
+      "failedTitle": "Przywracanie nieudane",
+      "failedBody": "Wystąpił błąd podczas przywracania. Sprawdź audit log.",
+      "cancelledTitle": "Przywracanie zostało anulowane"
     }
   },
   "alerts": {

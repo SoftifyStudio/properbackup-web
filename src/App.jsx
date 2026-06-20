@@ -5,6 +5,8 @@ import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
 import SubscriptionPage from './subscription/SubscriptionPage.jsx';
+import { RecoverySessionProvider } from './recovery/RecoverySessionContext.jsx';
+import RecoveryOverlay from './recovery/RecoveryOverlay.jsx';
 
 import {
   BrowserRouter,
@@ -86,12 +88,15 @@ export default function App() {
   return (
     <I18nProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <AgentQueryCleaner />
-          <div className="h-full min-h-0 flex flex-col overflow-hidden">
-            <AppRoutes />
-          </div>
-        </BrowserRouter>
+        <RecoverySessionProvider>
+          <BrowserRouter>
+            <AgentQueryCleaner />
+            <div className="h-full min-h-0 flex flex-col overflow-hidden">
+              <AppRoutes />
+            </div>
+            <RecoveryOverlay />
+          </BrowserRouter>
+        </RecoverySessionProvider>
       </AuthProvider>
     </I18nProvider>
   );

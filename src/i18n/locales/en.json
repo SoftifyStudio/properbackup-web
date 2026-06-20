@@ -1,5 +1,9 @@
 {
-  "lang": { "label": "Language", "pl": "Polski", "en": "English" },
+  "lang": {
+    "label": "Language",
+    "pl": "Polski",
+    "en": "English"
+  },
   "common": {
     "dash": "—",
     "relativeJustNow": "just now",
@@ -356,6 +360,33 @@
       "progressLabel": "Thaw progress",
       "remaining": "{{time}} left",
       "mockSeconds": "{{seconds}}s (mock)"
+    },
+    "state": {
+      "requested": "Requested",
+      "planning": "Computing file diff...",
+      "awaitingConfirm": "Awaiting your confirmation",
+      "thawing": "Thawing from cold storage...",
+      "ready": "Ready to restore",
+      "agentRestoring": "Restoring files...",
+      "verifying": "Verifying integrity...",
+      "done": "Recovery complete",
+      "failed": "Recovery failed",
+      "cancelled": "Cancelled"
+    },
+    "overlay": {
+      "title": "Full-System Recovery",
+      "dryRunTitle": "Recovery Preview (DRY RUN)",
+      "toRestore": "to restore",
+      "toDelete": "to delete",
+      "unchanged": "unchanged",
+      "totalBytes": "Total data",
+      "confirmRestore": "Confirm & Start Recovery",
+      "cancelBtn": "Cancel Recovery",
+      "doneTitle": "Recovery completed successfully",
+      "doneBody": "All files have been restored to the selected snapshot state.",
+      "failedTitle": "Recovery failed",
+      "failedBody": "An error occurred during recovery. Check audit log for details.",
+      "cancelledTitle": "Recovery was cancelled"
     }
   },
   "alerts": {
