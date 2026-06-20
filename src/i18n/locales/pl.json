@@ -459,5 +459,21 @@
     "featureRestore": "Przywracanie całego systemu",
     "featureTimeTravel": "Odzyskiwanie plików z historii",
     "featureSupport": "Priorytetowe wsparcie"
+  },
+  "timeline": {
+    "filterAll": "Wszystkie",
+    "filterBackups": "Backupy",
+    "filterDeleted": "Usunięte",
+    "typeAll": "Wszystkie typy",
+    "typeAuto": "Auto",
+    "typeManual": "Ręczny",
+    "typeTombstone": "Tombstone",
+    "statusAll": "Wszystkie statusy",
+    "statusInProgress": "W toku",
+    "statusSealed": "Zapieczętowany",
+    "statusFlushed": "Wysłany",
+    "statusVerified": "Zweryfikowany",
+    "dateRange": "Zakres dat",
+    "clearDates": "Wyczyść"
   }
 }

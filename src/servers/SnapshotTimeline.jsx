@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from '
 import { useAuth } from '../auth/AuthContext.jsx';
 import { fetchArchiveSnapshots, downloadObject } from '../api/bufferClient.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import SnapshotStatusBadge, { deriveStatus } from '../timeline/SnapshotStatusBadge.jsx';
+import TimelineFilters from '../timeline/TimelineFilters.jsx';
 
 function fmtBytes(n) {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(2)} GiB`;
@@ -143,6 +145,12 @@ const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst,
               }`}>
                 {isAdd ? 'backup' : 'deleted'}
               </span>
+              <SnapshotStatusBadge snapshot={snap} />
+              {snap.snapshotType && snap.snapshotType !== 'AUTO' && (
+                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                  {snap.snapshotType}
+                </span>
+              )}
               <span className="text-xs text-text4">{dateStr}</span>
               <span className="ml-auto text-xs font-medium text-text3 tl-mono">{fmtBytes(snap.sizeBytes || 0)}</span>
             </div>
@@ -213,6 +221,10 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterFlag, setFilterFlag] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [downloading, setDownloading] = useState(null);
 
@@ -285,9 +297,20 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
   }, [snapshots]);
 
   const filtered = useMemo(() => {
-    if (filterFlag === 'all') return snapshots;
-    return snapshots.filter((s) => s.flag === filterFlag);
-  }, [snapshots, filterFlag]);
+    let result = snapshots;
+    if (filterFlag !== 'all') result = result.filter((s) => s.flag === filterFlag);
+    if (filterType !== 'all') result = result.filter((s) => (s.snapshotType || 'AUTO') === filterType);
+    if (filterStatus !== 'all') result = result.filter((s) => deriveStatus(s) === filterStatus);
+    if (dateFrom) {
+      const from = new Date(dateFrom + 'T00:00:00').getTime();
+      result = result.filter((s) => s.sealedAt && new Date(s.sealedAt).getTime() >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo + 'T23:59:59').getTime();
+      result = result.filter((s) => s.sealedAt && new Date(s.sealedAt).getTime() <= to);
+    }
+    return result;
+  }, [snapshots, filterFlag, filterType, filterStatus, dateFrom, dateTo]);
 
   const dayGroups = useMemo(() => groupByDay(filtered), [filtered]);
 
@@ -357,29 +380,18 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 border border-border/50">
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'A', label: 'Backups' },
-              { key: 'D', label: 'Deleted' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                className={`text-xs px-3 py-1.5 rounded-md transition-all font-medium ${
-                  filterFlag === key ? 'bg-panel text-accent shadow-sm border border-accent/20' : 'text-text3 hover:text-text2'
-                }`}
-                onClick={() => setFilterFlag(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <button className="btn-ghost text-xs py-1.5 px-3" onClick={load} disabled={loading}>
-            {loading ? '...' : 'Refresh'}
-          </button>
-        </div>
+        <button className="btn-ghost text-xs py-1.5 px-3" onClick={load} disabled={loading}>
+          {loading ? '...' : 'Refresh'}
+        </button>
       </div>
+
+      <TimelineFilters
+        filterFlag={filterFlag} onFilterFlagChange={setFilterFlag}
+        filterType={filterType} onFilterTypeChange={setFilterType}
+        filterStatus={filterStatus} onFilterStatusChange={setFilterStatus}
+        dateFrom={dateFrom} onDateFromChange={setDateFrom}
+        dateTo={dateTo} onDateToChange={setDateTo}
+      />
 
       {/* Verification */}
       {verification && (
