@@ -511,5 +511,32 @@
     "save": "Zapisz ustawienia",
     "saving": "Zapisywanie...",
     "saved": "Ustawienia zapisane"
+  },
+  "schedule": {
+    "title": "Harmonogram backupu",
+    "loading": "Ładowanie harmonogramu...",
+    "backupInterval": "Interwał backupu",
+    "intervalDesc": "Jak często agent skanuje zmienione pliki i tworzy backup.",
+    "interval1m": "1 min",
+    "interval5m": "5 min",
+    "interval15m": "15 min",
+    "interval30m": "30 min",
+    "interval1h": "1 godz.",
+    "interval6h": "6 godz.",
+    "interval24h": "24 godz.",
+    "ioThrottle": "Ograniczenie I/O",
+    "ioThrottleDesc": "Ogranicz prędkość odczytu dysku aby zmniejszyć obciążenie serwera.",
+    "throttleNone": "Bez limitu",
+    "throttle10": "10 MB/s",
+    "throttle25": "25 MB/s",
+    "throttle50": "50 MB/s",
+    "throttle100": "100 MB/s",
+    "backupWindow": "Okno backupowe",
+    "backupWindowDesc": "Ogranicz backupy do określonego okna czasowego (np. godziny poza szczytem).",
+    "windowFrom": "Od",
+    "windowTo": "Do",
+    "save": "Zapisz harmonogram",
+    "saving": "Zapisywanie...",
+    "saved": "Harmonogram zapisany"
   }
 }
