@@ -538,5 +538,24 @@
     "save": "Zapisz harmonogram",
     "saving": "Zapisywanie...",
     "saved": "Harmonogram zapisany"
+  },
+  "downgrade": {
+    "title": "Backup jest zatrzymany",
+    "message": "Wykorzystujesz {{used}} / {{limit}} (nowy limit). Usuń dane lub wróć na wyższy tier.",
+    "overage": "{{amount}} ponad nowy limit",
+    "deleteData": "Usuń dane",
+    "keepPlan": "Zachowaj aktualny plan"
+  },
+  "retention": {
+    "title": "Twoja subskrypcja wygasła",
+    "message": "Dane przechowywane do {{date}}. Odnów aby kontynuować backup.",
+    "messageNoDate": "Twoja subskrypcja wygasła. Odnów aby kontynuować backup.",
+    "canRestore": "Pobieranie dostępne",
+    "cannotRestore": "Pobieranie niedostępne",
+    "canUpload": "Uploady włączone",
+    "cannotUpload": "Uploady wstrzymane",
+    "lastDay": "Ostatni dzień — dane zostaną usunięte dzisiaj!",
+    "daysLeft": "{{days}} dni do usunięcia danych",
+    "renewNow": "Odnów subskrypcję"
   }
 }
