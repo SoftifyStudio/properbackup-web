@@ -415,5 +415,21 @@
       "expired": "Expired",
       "trial_expired": "Trial expired"
     }
+  },
+  "timeline": {
+    "filterAll": "All",
+    "filterBackups": "Backups",
+    "filterDeleted": "Deleted",
+    "typeAll": "All Types",
+    "typeAuto": "Auto",
+    "typeManual": "Manual",
+    "typeTombstone": "Tombstone",
+    "statusAll": "All Status",
+    "statusInProgress": "In Progress",
+    "statusSealed": "Sealed",
+    "statusFlushed": "Flushed",
+    "statusVerified": "Verified",
+    "dateRange": "Date range",
+    "clearDates": "Clear"
   }
 }
