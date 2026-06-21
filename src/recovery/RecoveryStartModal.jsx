@@ -33,7 +33,7 @@ export default function RecoveryStartModal({ serverId, snapshot, onStarted, onCl
       });
     } catch (e) {
       if (e.code === 'RECOVERY_ALREADY_ACTIVE') {
-        setError(t('recovery.mode.confirmModalReject') + ' — recovery already active');
+        setError(t('recovery.mode.conflictAlreadyActive'));
       } else {
         setError(e.message);
       }
@@ -46,7 +46,7 @@ export default function RecoveryStartModal({ serverId, snapshot, onStarted, onCl
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-panel rounded-xl2 shadow-modal w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-panel rounded-xl2 shadow-modal w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto" data-testid="recovery-start-modal">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-text1 font-bold text-lg">{t('recovery.mode.restoreToThisPoint')}</h2>
           <button
@@ -117,7 +117,7 @@ export default function RecoveryStartModal({ serverId, snapshot, onStarted, onCl
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 mb-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 mb-4" data-testid="recovery-conflict-error">
             {error}
           </div>
         )}

@@ -66,7 +66,7 @@ export default function ServerCard({ server, showOwner, onClick }) {
             </svg>
           </span>
           {recoveryActive && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800 bg-amber-100 border border-amber-300 rounded-full">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800 bg-amber-100 border border-amber-300 rounded-full" data-testid="recovery-active-badge">
               <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
               Recovery
             </span>

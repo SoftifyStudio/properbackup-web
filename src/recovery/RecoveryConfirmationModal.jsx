@@ -62,7 +62,7 @@ export default function RecoveryConfirmationModal({ session: initialSession, onC
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-panel rounded-xl2 shadow-modal w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-panel rounded-xl2 shadow-modal w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" data-testid="recovery-confirmation-modal">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-text1 font-bold text-lg">{t('recovery.mode.confirmModalTitle')}</h2>
           <button
@@ -156,6 +156,7 @@ export default function RecoveryConfirmationModal({ session: initialSession, onC
                 checked={acknowledged}
                 onChange={(e) => setAcknowledged(e.target.checked)}
                 className="mt-0.5 w-4 h-4 accent-accent"
+                data-testid="recovery-acknowledge-checkbox"
               />
               <span className="text-sm text-amber-800 leading-snug">
                 {t('recovery.mode.confirmModalAcknowledge')}
@@ -178,6 +179,7 @@ export default function RecoveryConfirmationModal({ session: initialSession, onC
             className="btn-primary text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleConfirm}
             disabled={!canConfirm || confirming}
+            data-testid="recovery-confirm-button"
           >
             {confirming ? '...' : t('recovery.mode.confirmModalAccept')}
           </button>

@@ -23,7 +23,7 @@ export default function RecoveryCancelModal({ session, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-panel rounded-xl2 shadow-modal w-full max-w-md p-6">
+      <div className="bg-panel rounded-xl2 shadow-modal w-full max-w-md p-6" data-testid="recovery-cancel-modal">
         <h3 className="text-text1 font-bold text-lg mb-2">
           {t('recovery.mode.cancelConfirmTitle')}
         </h3>
@@ -49,6 +49,7 @@ export default function RecoveryCancelModal({ session, onClose }) {
             className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg text-sm shadow transition-all active:scale-[0.98]"
             onClick={handleCancel}
             disabled={cancelling}
+            data-testid="recovery-cancel-confirm-button"
           >
             {cancelling ? '...' : t('recovery.mode.cancelConfirmAccept')}
           </button>

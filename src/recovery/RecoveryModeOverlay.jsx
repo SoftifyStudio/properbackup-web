@@ -6,6 +6,7 @@ import useRecoverySession from '../hooks/useRecoverySession.js';
 import RecoveryProgressCard from './RecoveryProgressCard.jsx';
 import RecoveryCancelModal from './RecoveryCancelModal.jsx';
 import RecoveryConfirmationModal from './RecoveryConfirmationModal.jsx';
+import ThawProgress from './ThawProgress.jsx';
 
 export default function RecoveryModeOverlay({ serverId }) {
   const { t } = useI18n();
@@ -100,7 +101,7 @@ export default function RecoveryModeOverlay({ serverId }) {
           ? 'bottom-4 right-4 w-72'
           : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[90vw]'
       }`}>
-        <div className="bg-panel rounded-xl2 shadow-modal border-2 border-accent p-6">
+        <div className="bg-panel rounded-xl2 shadow-modal border-2 border-accent p-6" data-testid="recovery-mode-overlay" data-recovery-state={session.state}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <RecoveryIcon />
@@ -118,6 +119,20 @@ export default function RecoveryModeOverlay({ serverId }) {
 
           {!minimized && <RecoveryProgressCard session={session} />}
 
+          {/* ThawProgress: shown when state is THAWING (cold tier) */}
+          {!minimized && session.state === 'THAWING' && (
+            <div className="mt-3" data-testid="thaw-progress">
+              {session.coldTier ? (
+                <ThawProgress mockMode={false} />
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-700">
+                  <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="font-medium">{t('recovery.mode.thawingLocalInstant')}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {minimized && (
             <div className="text-xs text-text3">
               {session.state === 'AGENT_RESTORING'
@@ -131,6 +146,7 @@ export default function RecoveryModeOverlay({ serverId }) {
               <button
                 onClick={() => setShowCancel(true)}
                 className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg text-xs shadow transition-all"
+                data-testid="recovery-cancel-button"
               >
                 {t('recovery.mode.cancel')}
               </button>

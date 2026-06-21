@@ -23,6 +23,7 @@ import RecoveryModeOverlay from '../recovery/RecoveryModeOverlay.jsx';
 import RecoveryWarningBanner from '../recovery/RecoveryWarningBanner.jsx';
 import RecoveryConfirmationModal from '../recovery/RecoveryConfirmationModal.jsx';
 import RecoveryStartModal from '../recovery/RecoveryStartModal.jsx';
+import { fetchRecoveryHistory } from '../api/recoveryClient.js';
 
 // Fixture imports kept only for legacy StatusBar (tree view) — not used for file list
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
@@ -136,6 +137,7 @@ export default function BackupsPage({ server, onBack }) {
   const activeRecoverySession = recoveryForServer(server.id);
   const [recoveryConfirmSession, setRecoveryConfirmSession] = useState(null);
   const [recoveryStartSnapshot, setRecoveryStartSnapshot] = useState(null);
+  const [preRecoverySnapshotIds, setPreRecoverySnapshotIds] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode]               = useState('fixture');
   const [objectNames, setObjectNames] = useState(fixtureListing);
@@ -220,6 +222,20 @@ export default function BackupsPage({ server, onBack }) {
   }, [token, server?.id, t]);
 
   useEffect(() => { fetchServerData(); }, [fetchServerData]);
+
+  // Load pre-recovery snapshot IDs from recovery history (for PRE_RECOVERY badge on timeline)
+  useEffect(() => {
+    if (!token || !server?.id) return;
+    fetchRecoveryHistory(token, server.id, 50)
+      .then(data => {
+        const sessions = data.sessions ?? data ?? [];
+        const ids = sessions
+          .filter(s => s.preRecoverySnapshotId != null)
+          .map(s => s.preRecoverySnapshotId);
+        setPreRecoverySnapshotIds(ids);
+      })
+      .catch(() => {});
+  }, [token, server?.id]);
 
   /** Logi stacku — wyłącznie endpoint admin (JWT z uprawnieniami serwisanta). */
   const fetchAdminLogs = useCallback(async () => {
@@ -589,10 +605,10 @@ export default function BackupsPage({ server, onBack }) {
         />
       </div>
 
-      {/* Recovery warning banner for this server or other servers */}
+      {/* Recovery warning banner for this server (target) — WRITE actions blocked */}
       {recoveryActive && (
         <div className="shrink-0 px-6 pb-2 w-full mx-auto max-w-6xl">
-          <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs" data-testid="recovery-target-banner">
             <svg className="w-4 h-4 text-amber-600 shrink-0" viewBox="0 0 16 16" fill="none">
               <path d="M8 1.5L14.5 13H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
               <path d="M8 6v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
@@ -725,6 +741,7 @@ export default function BackupsPage({ server, onBack }) {
               verification={liveIndexMeta.latestVerification}
               sseConnected={sseConnected}
               latestSnapshot={latestSnapshot}
+              preRecoverySnapshotIds={preRecoverySnapshotIds}
             />
           </ErrorBoundary>
         )}
