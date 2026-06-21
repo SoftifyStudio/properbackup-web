@@ -86,8 +86,11 @@ export function getArchiveSnapshots(serverId) {
 
 /**
  * Clean up recovery sessions for a server (test isolation).
+ * Handles FK: archive_snapshot.pre_recovery_session_id references recovery_session.
  */
 export function cleanRecoverySessions(serverId) {
+  // First null out FK references in archive_snapshot to avoid constraint violations
+  pgQuery(`UPDATE archive_snapshot SET pre_recovery_session_id = NULL WHERE pre_recovery_session_id IN (SELECT id FROM recovery_session WHERE server_id='${serverId}')`);
   pgQuery(`DELETE FROM recovery_session WHERE server_id='${serverId}'`);
 }
 

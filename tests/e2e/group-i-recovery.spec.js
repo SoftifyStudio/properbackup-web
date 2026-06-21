@@ -221,35 +221,30 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
     expect(auditActions).toContain('RECOVERY_DRY_RUN_COMPUTED');
     expect(auditActions).toContain('RECOVERY_USER_CONFIRMED');
 
-    // --- FILE VERIFICATION (when agent actually restores files) ---
-    // These assertions will be meaningful once real agent + local-FS restore is deployed.
-    // For now, document what SHOULD be checked:
+    // --- FILE VERIFICATION — HARD ASSERTION (not soft warn) ---
+    // Recovery is not real unless files are physically on disk with correct SHA-256.
+    // DB counter files_restored=4 is necessary but NOT sufficient.
     const restorePath = `/home/ubuntu/agent-e2e/test-data`;
+    let filesVerified = 0;
     for (const [filename, expectedHash] of Object.entries(ORIGINAL_HASHES)) {
       const filePath = `${restorePath}/${filename}`;
       const exists = fileExistsOnDedyk(filePath);
+      expect(exists).toBe(true); // [TRIAGE:AGENT] File MUST exist on disk after restore
       if (exists) {
         const actualHash = sha256OnDedyk(filePath).substring(0, 8);
-        expect(actualHash).toBe(expectedHash); // [AGENT] SHA-256 mismatch = corrupt restore
+        expect(actualHash).toBe(expectedHash); // [TRIAGE:AGENT] SHA-256 mismatch = corrupt restore
         console.log(`[test13] ${filename}: SHA-256 ${actualHash} == ${expectedHash} ✓`);
-      } else {
-        console.warn(`[TRIAGE:AGENT] File NOT on disk: ${filePath}. ` +
-          'Agent has not restored files to filesystem. ' +
-          'Either agent is not running, or storage is swift-mock (not local-FS).');
+        filesVerified++;
       }
     }
+    expect(filesVerified).toBe(Object.keys(ORIGINAL_HASHES).length); // [TRIAGE:AGENT] all files verified
 
-    // --- PRE-RECOVERY SNAPSHOT (HR-5) ---
-    // Check if a PRE_RECOVERY type snapshot was created
+    // --- PRE-RECOVERY SNAPSHOT (HR-5) — HARD ASSERTION ---
     const snapshots = getArchiveSnapshots(E2E_SERVER_ID);
     const preRecoverySnap = snapshots.find(s =>
       s.snapshot_type === 'PRE_RECOVERY' || s.object_name?.includes('pre-recovery')
     );
-    if (!preRecoverySnap) {
-      console.warn('[TRIAGE:AGENT] No PRE_RECOVERY snapshot found. ' +
-        'HR-5 requires pre-recovery snapshot before AGENT_RESTORING. ' +
-        'Agent must create it before starting file restore.');
-    }
+    expect(preRecoverySnap).toBeTruthy(); // [TRIAGE:AGENT] HR-5: pre-recovery snapshot MUST exist
 
     console.log(`[test13] Final: state=${finalState}, confirm_latency=${confirmLatencyMs}ms, audit_entries=${audit.length}`);
   });
@@ -440,20 +435,18 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
       s.snapshot_type === 'PRE_RECOVERY' || s.flag === 'P'
     );
 
-    // --- DB: also check recovery_session.pre_recovery_snapshot_id ---
+    // --- DB: check recovery_session.pre_recovery_snapshot_id — HARD ASSERTION ---
     const doneSession = getRecoverySession(sessionId);
     const preRecoverySnapshotId = doneSession.pre_recovery_snapshot_id;
 
+    // HR-5: pre_recovery_snapshot_id MUST be non-null after DONE
+    expect(preRecoverySnapshotId).toBeTruthy(); // [TRIAGE:AGENT] HR-5: pre_recovery_snapshot_id must be set
+
+    // HR-5: archive_snapshot with type PRE_RECOVERY must exist
+    expect(preRecovery).toBeTruthy(); // [TRIAGE:AGENT] HR-5: PRE_RECOVERY snapshot row must exist
     if (preRecovery) {
-      expect(preRecovery.snapshot_type).toBe('PRE_RECOVERY'); // [AGENT] type must be PRE_RECOVERY
-      console.log(`[test18] Pre-recovery snapshot found: id=${preRecovery.id}, type=${preRecovery.snapshot_type}`);
-    } else if (preRecoverySnapshotId) {
-      console.log(`[test18] recovery_session.pre_recovery_snapshot_id=${preRecoverySnapshotId} but no matching archive_snapshot with type PRE_RECOVERY`);
-    } else {
-      console.warn('[TRIAGE:AGENT] No PRE_RECOVERY snapshot created during recovery. ' +
-        'HR-5: Agent MUST create pre-recovery snapshot BEFORE AGENT_RESTORING. ' +
-        'recovery_session.pre_recovery_snapshot_id is NULL. ' +
-        'This is currently NOT implemented in the agent restore protocol.');
+      expect(preRecovery.snapshot_type).toBe('PRE_RECOVERY');
+      console.log(`[test18] Pre-recovery snapshot: id=${preRecovery.id}, type=${preRecovery.snapshot_type}`);
     }
 
     // --- UI: check timeline for pre-recovery badge ---
