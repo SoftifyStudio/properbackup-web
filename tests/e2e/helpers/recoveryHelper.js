@@ -11,7 +11,7 @@ const JWT_TOKEN = process.env.E2E_JWT_TOKEN ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMmUtdXNlci0wMDEiLCJlbWFpbCI6ImUyZS10ZXN0QHByb3BlcmJhY2t1cC5wbCIsInNhIjpmYWxzZSwiaWF0IjoxNzgyMDQzNTkyLCJleHAiOjE4MTM1Nzk1OTJ9.sifpSPdgjLJMqUSPI8utsaQxUOxnrl2nD9mzi-E4hm0';
 
 const E2E_SERVER_ID = process.env.E2E_SERVER_ID || '194efe2e-9309-4376-a240-6ccdc6afa188';
-const E2E_TARGET_SNAPSHOT_ID = parseInt(process.env.E2E_TARGET_SNAPSHOT_ID || '5', 10);
+const E2E_TARGET_SNAPSHOT_ID = parseInt(process.env.E2E_TARGET_SNAPSHOT_ID || '15', 10);
 
 /**
  * POST to buffer API with JWT auth.

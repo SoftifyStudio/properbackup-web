@@ -16,7 +16,7 @@ export default defineConfig({
   testDir: '.',
   testMatch: 'group-i-recovery.spec.js',
   outputDir: 'test-results/recovery-qa',
-  timeout: 120_000,
+  timeout: 180_000, // 3min — test13/test18 trigger real agent (restore + poll)
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,

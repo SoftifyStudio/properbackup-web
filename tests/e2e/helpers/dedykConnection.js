@@ -114,4 +114,57 @@ export function sha256OnDedyk(path) {
   return out.split(/\s+/)[0]; // full 64-char hex
 }
 
+/**
+ * Delete a file from dedyk filesystem.
+ */
+export function deleteFileOnDedyk(path) {
+  try {
+    dedykExec(`rm -f '${path}'`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Delete all files in a directory on dedyk (but keep the directory).
+ */
+export function clearDirectoryOnDedyk(dirPath) {
+  try {
+    dedykExec(`find '${dirPath}' -maxdepth 1 -type f -delete`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Trigger the real agent on dedyk (--once mode).
+ * Returns agent stdout/stderr. Timeout 120s for restore.
+ */
+export function triggerAgentOnDedyk() {
+  return dedykExec(
+    'cd /opt/pb-agent-e2e && java -jar properbackup-agent-all.jar --config conf.d/global.yml --conf-dir conf.d --once --headless 2>&1 || true',
+    { timeout: 120000 }
+  );
+}
+
+/**
+ * Poll recovery_session.state until it matches target or timeout.
+ * Returns final session row.
+ */
+export function pollSessionState(sessionId, targetStates, { timeoutMs = 90000, intervalMs = 2000 } = {}) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const session = getRecoverySession(sessionId);
+    if (session && targetStates.includes(session.state)) {
+      return session;
+    }
+    // Blocking sleep via shell (sync polling)
+    try { dedykExec('sleep 1', { timeout: 5000 }); } catch {}
+  }
+  // Return last state even on timeout
+  return getRecoverySession(sessionId);
+}
+
 export { DEDYK_HOST, BUFFER_URL, PANEL_URL };
