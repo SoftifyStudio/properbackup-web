@@ -15,15 +15,16 @@ const RESULTS_DIR = join(dirname(new URL(import.meta.url).pathname), '..', 'test
 const DOCS_DIR = join(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..', 'properbackup-docs', 'e2e-videos', 'recovery');
 
 // Map directory name fragments (from Playwright's truncated names) to test output names
+// Order matters: more specific patterns first to avoid ambiguous matches
 const KEYWORD_MAP = [
   { keywords: ['planning', 'modal'], name: 'test11-recovery-start' },
   { keywords: ['checkbox', 'dry'], name: 'test12-dry-run-preview' },
-  { keywords: ['sha-256', 'done'], name: 'test13-confirm-and-restore' },
-  { keywords: ['unaffected', 'lockdown', 'server'], name: 'test14-other-server-banner' },
+  { keywords: ['unaffected', 'lockdown'], name: 'test14-other-server-banner' },
   { keywords: ['cancelled', 'cancel'], name: 'test15-cancel-during-restoring' },
-  { keywords: ['thaw', 'cold'], name: 'test16-cold-tier-thaw' },
+  { keywords: ['instant-ready', 'tier'], name: 'test16-cold-tier-thaw' },
   { keywords: ['concurrent', '409'], name: 'test17-concurrent-recovery-409' },
-  { keywords: ['pre-recovery', 'visible', 'rollback'], name: 'test18-pre-recovery-rollback' },
+  { keywords: ['visible'], name: 'test18-pre-recovery-rollback' },  // before test13 (both have "done")
+  { keywords: ['sha-256', 'verified'], name: 'test13-confirm-and-restore' },
 ];
 
 function findVideos(dir) {

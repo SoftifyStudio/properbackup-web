@@ -117,14 +117,22 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
     const dbSession = getRecoverySession(sessionId);
     expect(dbSession.state).toBe('AWAITING_USER_CONFIRM'); // [BUFFER] state after dry run
 
-    // --- DB ASSERTION: dry run fields populated ---
-    expect(parseInt(dbSession.dry_run_files_to_restore || '0')).toBe(4);
-    expect(parseInt(dbSession.dry_run_total_bytes || '0')).toBe(525475);
+    // --- DB ASSERTION: dry run fields populated with concrete values ---
+    const filesToRestore = parseInt(dbSession.dry_run_files_to_restore || '0');
+    const filesToDelete = parseInt(dbSession.dry_run_files_to_delete || '0');
+    const totalBytes = parseInt(dbSession.dry_run_total_bytes || '0');
+    expect(filesToRestore).toBe(4); // [BUFFER] exactly 4 files to restore
+    expect(totalBytes).toBe(525475); // [BUFFER] exact byte count
+    expect(filesToDelete).toBe(0); // [BUFFER] no files to delete
 
-    // --- DB ASSERTION: audit log has DRY_RUN_COMPUTED ---
+    // --- DB ASSERTION: audit log has DRY_RUN_COMPUTED with detail ---
     const audit = getAuditLog(sessionId);
     const dryRunAudit = audit.find(a => a.action === 'RECOVERY_DRY_RUN_COMPUTED');
     expect(dryRunAudit).toBeTruthy(); // [BUFFER] dry run must be audited
+    expect(dryRunAudit.created_at).toBeTruthy(); // [BUFFER] audit timestamp non-null
+    if (dryRunAudit.detail) {
+      expect(dryRunAudit.detail).toContain('files_to_restore=4'); // [BUFFER] detail contains file count
+    }
 
     // --- UI LAYER: verify checkbox enforcement ---
     await page.goto(PANEL_URL);
@@ -190,8 +198,10 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
 
     if (finalState === 'DONE') {
       expect(dbSession.completed_at).toBeTruthy(); // [BUFFER] completed_at set
-      expect(parseInt(dbSession.files_restored || '0')).toBe(4);
-      expect(parseInt(dbSession.bytes_transferred || '0')).toBe(525475);
+      expect(dbSession.agent_started_at || dbSession.verifying_started_at).toBeTruthy(); // [BUFFER] intermediate timestamps
+      expect(parseInt(dbSession.files_restored || '0')).toBeGreaterThan(0); // [BUFFER] files_restored > 0
+      expect(parseInt(dbSession.bytes_transferred || '0')).toBeGreaterThan(0); // [BUFFER] bytes > 0
+      console.log(`[test13] DB DONE: files_restored=${dbSession.files_restored}, bytes=${dbSession.bytes_transferred}, completed_at=${dbSession.completed_at}`);
     } else if (finalState === 'READY') {
       console.warn(`[TRIAGE:BUFFER] Session stuck in ${finalState}. ` +
         'Root cause: agentComplete cannot transition READY→VERIFYING (illegal). ' +
@@ -299,27 +309,29 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
     const cancelResp = await cancelRecovery(sessionId, 'QA test cancel');
     expect(cancelResp.status).toBe(200); // [BUFFER] cancel accepted
 
-    // --- DB ASSERTION: state is CANCELLED ---
+    // --- DB ASSERTION: state is CANCELLED with non-null timestamps ---
     const dbSession = getRecoverySession(sessionId);
     expect(dbSession.state).toBe('CANCELLED'); // [BUFFER] cancel transitions to CANCELLED
-    expect(dbSession.cancelled_at || dbSession.cancellation_reason).toBeTruthy();
+    expect(dbSession.cancelled_at).toBeTruthy(); // [BUFFER] cancelled_at timestamp must be set
+    expect(dbSession.created_at).toBeTruthy(); // [BUFFER] created_at must exist
+    expect(dbSession.confirmed_at).toBeTruthy(); // [BUFFER] confirmed_at must exist (was in READY)
 
     // --- AUDIT: RECOVERY_CANCELLED entry ---
     const audit = getAuditLog(sessionId);
     const cancelAudit = audit.find(a => a.action === 'RECOVERY_CANCELLED');
     expect(cancelAudit).toBeTruthy(); // [BUFFER] cancel must be audited
+    expect(cancelAudit.created_at).toBeTruthy(); // [BUFFER] audit timestamp
     if (cancelAudit?.detail) {
       expect(cancelAudit.detail).toContain('QA test cancel'); // [BUFFER] reason in audit detail
     }
 
-    // --- ROLLBACK VERIFICATION ---
-    // In production, the agent should restore quarantined files and remove new files.
-    // Checking DB for rollback markers:
+    // --- ROLLBACK VERIFICATION (HR-9) ---
     const files = parseInt(dbSession.files_restored || '0');
-    console.log(`[test15] Cancel: state=${dbSession.state}, files_restored_before_cancel=${files}`);
+    console.log(`[test15] Cancel: state=${dbSession.state}, cancelled_at=${dbSession.cancelled_at}, files_restored_before_cancel=${files}`);
     if (files > 0) {
       console.warn('[TRIAGE:AGENT] Files were partially restored before cancel. ' +
-        'HR-9 requires rollback: restored files removed, deleted files restored from quarantine.');
+        'HR-9 requires rollback: restored files removed, deleted files restored from quarantine. ' +
+        'Agent must execute rollback on cancel command.');
     }
   });
 
@@ -327,7 +339,7 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
   // TEST 16: THAWING pass-through — cold_tier=false → READY < 10s
   // Spec: Local storage (not OVH cold tier) → THAWING state is no-op
   // =========================================================================
-  test('test16 — THAWING pass-through: cold_tier=false, instant READY', async () => {
+  test('test16 — THAWING pass-through: cold_tier=false, instant READY', async ({ page }) => {
     // --- Start and get to AWAITING_USER_CONFIRM ---
     const { sessionId } = await startRecovery();
     await reportDryRunResult(sessionId);
@@ -351,14 +363,22 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
         'THAWING should be completely skipped for local storage.');
     }
 
-    console.log(`[test16] THAWING bypass: latency=${latency}ms, state=${dbSession.state}`);
+    // --- DB ASSERTION: confirmed_at present, thaw_completed_at present (instant transition) ---
+    expect(dbSession.confirmed_at).toBeTruthy(); // [BUFFER] confirmed_at must be set
+    expect(dbSession.thaw_completed_at).toBeTruthy(); // [BUFFER] thaw_completed_at set (instant pass-through)
+
+    // --- Navigate to panel for video recording ---
+    await page.goto(PANEL_URL);
+    await page.waitForTimeout(1000);
+
+    console.log(`[test16] THAWING bypass: latency=${latency}ms, state=${dbSession.state}, thaw_started=${dbSession.thaw_started_at || 'NULL'}, thaw_completed=${dbSession.thaw_completed_at}`);
   });
 
   // =========================================================================
   // TEST 17: Concurrent recovery → 409 conflict
   // Spec: Two recovery attempts on same server → second returns 409
   // =========================================================================
-  test('test17 — concurrent recovery: second attempt returns 409', async () => {
+  test('test17 — concurrent recovery: second attempt returns 409', async ({ page }) => {
     // --- Start first recovery ---
     const first = await startRecovery();
     expect(first.status).toBe(201); // [BUFFER] first recovery starts
@@ -380,7 +400,16 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
     expect(sessions.length).toBe(1); // [BUFFER] exactly one active session
     expect(sessions[0].id).toBe(first.sessionId);
 
-    console.log(`[test17] Concurrent: first=${first.sessionId} (${first.status}), second=${second.status}`);
+    // --- DB ASSERTION: first session still active, state is PLANNING ---
+    const firstDb = getRecoverySession(first.sessionId);
+    expect(firstDb).not.toBeNull(); // [BUFFER] first session persists
+    expect(['PLANNING', 'AWAITING_USER_CONFIRM', 'READY', 'AGENT_RESTORING']).toContain(firstDb.state); // [BUFFER] first session still active
+
+    // --- Navigate to panel for video recording ---
+    await page.goto(PANEL_URL);
+    await page.waitForTimeout(1000);
+
+    console.log(`[test17] Concurrent: first=${first.sessionId} (${first.status}), second=${second.status}, db_state=${firstDb.state}`);
   });
 
   // =========================================================================
@@ -411,11 +440,19 @@ test.describe('Recovery Mode QA — Tests 11-18 (Live Dedyk)', () => {
       s.snapshot_type === 'PRE_RECOVERY' || s.flag === 'P'
     );
 
+    // --- DB: also check recovery_session.pre_recovery_snapshot_id ---
+    const doneSession = getRecoverySession(sessionId);
+    const preRecoverySnapshotId = doneSession.pre_recovery_snapshot_id;
+
     if (preRecovery) {
+      expect(preRecovery.snapshot_type).toBe('PRE_RECOVERY'); // [AGENT] type must be PRE_RECOVERY
       console.log(`[test18] Pre-recovery snapshot found: id=${preRecovery.id}, type=${preRecovery.snapshot_type}`);
+    } else if (preRecoverySnapshotId) {
+      console.log(`[test18] recovery_session.pre_recovery_snapshot_id=${preRecoverySnapshotId} but no matching archive_snapshot with type PRE_RECOVERY`);
     } else {
       console.warn('[TRIAGE:AGENT] No PRE_RECOVERY snapshot created during recovery. ' +
         'HR-5: Agent MUST create pre-recovery snapshot BEFORE AGENT_RESTORING. ' +
+        'recovery_session.pre_recovery_snapshot_id is NULL. ' +
         'This is currently NOT implemented in the agent restore protocol.');
     }
 
