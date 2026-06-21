@@ -10,7 +10,7 @@ const BASE_URL = bufferBaseUrl();
 
 /**
  * @param {string} serverId
- * @param {object} handlers  – { onAgentStatus, onFileState, onFileStateBatch, onLog, onSnapshotCreated }
+ * @param {object} handlers  – { onAgentStatus, onFileState, onFileStateBatch, onLog, onSnapshotCreated, onRecoveryState, onRecoveryProgress }
  * @param {string} [token]   – JWT token for authenticated SSE
  * @returns {{ connected: boolean, reconnecting: boolean }}
  */
@@ -70,6 +70,20 @@ export default function useServerEvents(serverId, handlers, token) {
         try {
           const data = JSON.parse(e.data);
           handlersRef.current.onSnapshotCreated?.(data);
+        } catch { /* ignore */ }
+      });
+
+      es.addEventListener('recovery_state', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handlersRef.current.onRecoveryState?.(data);
+        } catch { /* ignore */ }
+      });
+
+      es.addEventListener('recovery_progress', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handlersRef.current.onRecoveryProgress?.(data);
         } catch { /* ignore */ }
       });
 
