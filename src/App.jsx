@@ -6,6 +6,9 @@ import AuthLanding from './auth/AuthLanding.jsx';
 import ServersPage from './servers/ServersPage.jsx';
 import BackupsPage from './servers/BackupsPage.jsx';
 import SubscriptionPage from './subscription/SubscriptionPage.jsx';
+import AgentHealthDashboard from './monitoring/AgentHealthDashboard.jsx';
+import StorageQuotaDashboard from './monitoring/StorageQuotaDashboard.jsx';
+import PlanDisplay from './monitoring/PlanDisplay.jsx';
 
 import {
   BrowserRouter,
@@ -65,6 +68,22 @@ function SubscriptionPageWrapper() {
   return <SubscriptionPage onBack={() => navigate('/servers')} />;
 }
 
+function DashboardPageWrapper({ Component }) {
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  if (!token) return <Navigate to="/login" replace />;
+  return (
+    <div className="h-full min-h-0 flex flex-col bg-surface overflow-hidden">
+      <div className="shrink-0 flex items-center gap-3 px-6 py-3 border-b border-border bg-panel">
+        <button className="btn-ghost text-xs py-1.5" onClick={() => navigate('/servers')}>← Back</button>
+      </div>
+      <main className="flex-1 min-h-0 overflow-y-auto px-6 py-6 w-full mx-auto max-w-6xl">
+        <Component />
+      </main>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -76,6 +95,9 @@ function AppRoutes() {
         <Route path="/servers" element={<AppRoutesInner />} />
         <Route path="/servers/:serverId" element={<AppRoutesInner />} />
         <Route path="/account/subscription" element={<SubscriptionPageWrapper />} />
+        <Route path="/monitoring" element={<DashboardPageWrapper Component={AgentHealthDashboard} />} />
+        <Route path="/quota" element={<DashboardPageWrapper Component={StorageQuotaDashboard} />} />
+        <Route path="/plans" element={<DashboardPageWrapper Component={PlanDisplay} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

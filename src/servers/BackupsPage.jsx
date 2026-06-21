@@ -17,6 +17,7 @@ import ActivityLog from './ActivityLog.jsx';
 import SnapshotTimeline from './SnapshotTimeline.jsx';
 import AgentStatusCard, { AgentStatusStyles } from './AgentStatusCard.jsx';
 import MonitoringTab from './MonitoringTab.jsx';
+import BackupSchedulePanel from '../monitoring/BackupSchedulePanel.jsx';
 import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject, fetchActivity } from '../api/bufferClient.js';
@@ -713,7 +714,10 @@ export default function BackupsPage({ server, onBack }) {
         )}
         {serviceTab === 'settings' && (
           <ErrorBoundary title="Settings" retryLabel="Refresh">
-            <FolderConfigPanel serverId={server.id} />
+            <div className="space-y-8">
+              <FolderConfigPanel serverId={server.id} />
+              <BackupSchedulePanel serverId={server.id} />
+            </div>
           </ErrorBoundary>
         )}
         {isSystemAdmin && serviceTab === 'logs' && (
