@@ -400,7 +400,20 @@
       "failedTitle": "Recovery failed",
       "failedBody": "Reason: {{reason}}. Your system has been automatically restored to pre-recovery state.",
       "actionDisabledTooltip": "Recovery in progress; write actions blocked",
-      "restoreToThisPoint": "Restore to this point"
+      "restoreToThisPoint": "Restore to this point",
+      "fileSelector": {
+        "selectAll": "Select all",
+        "selected": "selected",
+        "searchPlaceholder": "Search files...",
+        "loading": "Loading file list...",
+        "noFiles": "No files found in this snapshot",
+        "summary": "{{selected}} of {{total}} files selected ({{size}})",
+        "title": "Select files to restore",
+        "subtitle": "Choose specific files or restore all files from this snapshot."
+      },
+      "restoreMode": "Restore mode",
+      "restoreModeFull": "Full snapshot (all files)",
+      "restoreModePartial": "Selected files only"
     }
   },
   "alerts": {

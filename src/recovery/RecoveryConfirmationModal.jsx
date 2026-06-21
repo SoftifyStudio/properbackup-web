@@ -125,6 +125,29 @@ export default function RecoveryConfirmationModal({ session: initialSession, onC
                   {t('recovery.mode.confirmModalFilesUnchanged', { count: session.dryRunFilesUnchanged ?? 0 })}
                 </span>
               </div>
+
+              {session.dryRunCriticalProtected > 0 && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <svg className="w-5 h-5 text-blue-600 shrink-0" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 2l7 4v5c0 3.87-2.94 7.48-7 8-4.06-.52-7-4.13-7-8V6l7-4z" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                  <span className="text-sm text-blue-800">
+                    {t('recovery.mode.confirmModalCriticalProtected', { count: session.dryRunCriticalProtected })}
+                  </span>
+                </div>
+              )}
+
+              {session.estimatedDurationSec > 0 && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border rounded-lg">
+                  <svg className="w-5 h-5 text-text4 shrink-0" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-sm text-text2">
+                    {t('recovery.mode.eta')}: {fmtDuration(session.estimatedDurationSec)}
+                  </span>
+                </div>
+              )}
             </div>
 
             <label className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer mb-5">

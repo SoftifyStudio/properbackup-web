@@ -400,7 +400,20 @@
       "failedTitle": "Przywracanie nieudane",
       "failedBody": "Powód: {{reason}}. Twój system został automatycznie przywrócony do stanu sprzed recovery.",
       "actionDisabledTooltip": "Recovery in progress; akcje pisarskie zablokowane",
-      "restoreToThisPoint": "Przywróć do tego punktu"
+      "restoreToThisPoint": "Przywróć do tego punktu",
+      "fileSelector": {
+        "selectAll": "Zaznacz wszystkie",
+        "selected": "zaznaczonych",
+        "searchPlaceholder": "Szukaj plików...",
+        "loading": "Ładowanie listy plików...",
+        "noFiles": "Brak plików w tym snapshocie",
+        "summary": "{{selected}} z {{total}} plików zaznaczonych ({{size}})",
+        "title": "Wybierz pliki do przywrócenia",
+        "subtitle": "Wybierz konkretne pliki lub przywróć wszystkie pliki z tego snapshota."
+      },
+      "restoreMode": "Tryb przywracania",
+      "restoreModeFull": "Cały snapshot (wszystkie pliki)",
+      "restoreModePartial": "Tylko wybrane pliki"
     }
   },
   "alerts": {

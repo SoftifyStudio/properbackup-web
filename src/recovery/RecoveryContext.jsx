@@ -53,9 +53,9 @@ export function RecoveryProvider({ children }) {
     });
   }, []);
 
-  const startRecovery = useCallback(async (serverId, targetSnapshotId) => {
+  const startRecovery = useCallback(async (serverId, targetSnapshotId, selectedPaths = null) => {
     if (!token) throw new Error('Not authenticated');
-    const result = await apiStart(token, serverId, targetSnapshotId);
+    const result = await apiStart(token, serverId, targetSnapshotId, selectedPaths);
     await refreshRecoveries();
     return result;
   }, [token, refreshRecoveries]);

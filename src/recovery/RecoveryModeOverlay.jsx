@@ -1,19 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { useRecoveryContext } from './RecoveryContext.jsx';
+import useRecoverySession from '../hooks/useRecoverySession.js';
 import RecoveryProgressCard from './RecoveryProgressCard.jsx';
 import RecoveryCancelModal from './RecoveryCancelModal.jsx';
 import RecoveryConfirmationModal from './RecoveryConfirmationModal.jsx';
 
 export default function RecoveryModeOverlay({ serverId }) {
   const { t } = useI18n();
-  const { recoveryForServer } = useRecoveryContext();
-  const session = recoveryForServer(serverId);
+  const { token } = useAuth();
+  const { recoveryForServer, updateSession } = useRecoveryContext();
+  const contextSession = recoveryForServer(serverId);
+  const sessionId = contextSession?.id || null;
+
+  // Direct polling + SSE merge via useRecoverySession for real-time progress
+  const { session: polledSession } = useRecoverySession(sessionId, token, null);
+
+  // Merge: polled data takes precedence for freshest state
+  const session = polledSession || contextSession;
+
+  // Push polled updates back to context so other components see them
+  const prevPolledRef = useRef(null);
+  useEffect(() => {
+    if (polledSession && polledSession !== prevPolledRef.current) {
+      prevPolledRef.current = polledSession;
+      updateSession(polledSession);
+    }
+  }, [polledSession, updateSession]);
+
   const [showCancel, setShowCancel] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!session) return null;
+  // Auto-dismiss terminal states after 10s
+  useEffect(() => {
+    if (!session) return;
+    if (['DONE', 'FAILED', 'CANCELLED'].includes(session.state)) {
+      const timer = setTimeout(() => setDismissed(true), 10000);
+      return () => clearTimeout(timer);
+    }
+    setDismissed(false);
+  }, [session?.state]);
+
+  if (!session || dismissed) return null;
 
   const isTerminal = ['DONE', 'FAILED', 'CANCELLED'].includes(session.state);
   const canCancel = !isTerminal && session.state !== 'VERIFYING';

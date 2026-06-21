@@ -22,7 +22,7 @@ import { useRecoveryContext } from '../recovery/RecoveryContext.jsx';
 import RecoveryModeOverlay from '../recovery/RecoveryModeOverlay.jsx';
 import RecoveryWarningBanner from '../recovery/RecoveryWarningBanner.jsx';
 import RecoveryConfirmationModal from '../recovery/RecoveryConfirmationModal.jsx';
-import { startRecovery as apiStartRecovery } from '../api/recoveryClient.js';
+import RecoveryStartModal from '../recovery/RecoveryStartModal.jsx';
 
 // Fixture imports kept only for legacy StatusBar (tree view) — not used for file list
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
@@ -135,6 +135,7 @@ export default function BackupsPage({ server, onBack }) {
   const recoveryActive = isRecoveryActive(server.id);
   const activeRecoverySession = recoveryForServer(server.id);
   const [recoveryConfirmSession, setRecoveryConfirmSession] = useState(null);
+  const [recoveryStartSnapshot, setRecoveryStartSnapshot] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode]               = useState('fixture');
   const [objectNames, setObjectNames] = useState(fixtureListing);
@@ -712,19 +713,9 @@ export default function BackupsPage({ server, onBack }) {
                 setSelectedSnapshot(snap);
                 setRecoveryTarget({ snap, node: null });
               }}
-              onRestoreToPoint={async (snap) => {
+              onRestoreToPoint={(snap) => {
                 if (recoveryActive) return;
-                try {
-                  const result = await apiStartRecovery(token, server.id, snap.id);
-                  refreshRecoveries();
-                  setRecoveryConfirmSession({ id: result.session_id, serverId: server.id, state: 'REQUESTED' });
-                } catch (e) {
-                  if (e.code === 'RECOVERY_ALREADY_ACTIVE') {
-                    refreshRecoveries();
-                  } else {
-                    console.error('Failed to start recovery:', e);
-                  }
-                }
+                setRecoveryStartSnapshot(snap);
               }}
               onSelectSnapshot={(snap) => {
                 setSelectedSnapshot(snap);
@@ -803,6 +794,19 @@ export default function BackupsPage({ server, onBack }) {
         <RecoveryConfirmationModal
           session={recoveryConfirmSession}
           onClose={() => { setRecoveryConfirmSession(null); refreshRecoveries(); }}
+        />
+      )}
+
+      {/* Pre-start modal: file selection + mode choice */}
+      {recoveryStartSnapshot && (
+        <RecoveryStartModal
+          serverId={server.id}
+          snapshot={recoveryStartSnapshot}
+          onStarted={(session) => {
+            setRecoveryStartSnapshot(null);
+            setRecoveryConfirmSession(session);
+          }}
+          onClose={() => setRecoveryStartSnapshot(null)}
         />
       )}
     </div>

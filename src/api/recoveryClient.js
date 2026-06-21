@@ -12,11 +12,15 @@ function headers(token) {
 }
 
 /** POST /recovery/start — create a new recovery session */
-export async function startRecovery(token, serverId, targetSnapshotId) {
+export async function startRecovery(token, serverId, targetSnapshotId, selectedPaths = null) {
+  const payload = { server_id: serverId, target_snapshot_id: targetSnapshotId };
+  if (selectedPaths && selectedPaths.length > 0) {
+    payload.selected_paths = selectedPaths;
+  }
   const res = await fetch(`${BASE_URL}/recovery/start`, {
     method: 'POST',
     headers: headers(token),
-    body: JSON.stringify({ server_id: serverId, target_snapshot_id: targetSnapshotId }),
+    body: JSON.stringify(payload),
   });
   if (res.status === 409) {
     const data = await res.json();
