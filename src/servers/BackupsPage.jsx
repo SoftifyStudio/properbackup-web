@@ -338,10 +338,11 @@ export default function BackupsPage({ server, onBack }) {
       addActivityEntry({ type: 'snapshotCreated', objectName: data.objectName, sizeBytes: data.sizeBytes });
     },
     onRecoveryState: (data) => {
-      updateSession(data);
+      // SSE carries the id as `sessionId`; normalize to `id` for REST parity.
+      updateSession({ ...data, id: data.id || data.sessionId });
     },
     onRecoveryProgress: (data) => {
-      updateSession(data);
+      updateSession({ ...data, id: data.id || data.sessionId });
     },
   }), [addActivityEntry, updateSession]);
 

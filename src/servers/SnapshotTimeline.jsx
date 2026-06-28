@@ -280,7 +280,7 @@ export default function SnapshotTimeline({ serverId, onRestore, onRestoreToPoint
     if (!latestSnapshot) return;
     const data = latestSnapshot;
     const newSnap = {
-      objectName: data.objectName, pathId: data.pathId, flag: data.flag,
+      id: data.id, objectName: data.objectName, pathId: data.pathId, flag: data.flag,
       sizeBytes: data.sizeBytes, sealedAt: data.sealedAt, serverId: data.serverId,
       _isNew: true,
     };

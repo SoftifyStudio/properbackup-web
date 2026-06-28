@@ -13,7 +13,20 @@ export default function RecoveryModeOverlay({ serverId }) {
   const { token } = useAuth();
   const { recoveryForServer, updateSession } = useRecoveryContext();
   const contextSession = recoveryForServer(serverId);
-  const sessionId = contextSession?.id || null;
+
+  // Latch the session id. The context drops terminal sessions (DONE/FAILED/
+  // CANCELLED) from its active map, which would otherwise pull the id out from
+  // under us and stop polling before the user ever sees the terminal state.
+  // Keep the latched id (and keep polling) until the overlay is dismissed so
+  // the "restored" confirmation is reliably shown.
+  // SSE recovery events carry the id as `sessionId`, the REST API as `id`;
+  // accept either so polling always has a valid id to track.
+  const contextSessionId = contextSession?.id || contextSession?.sessionId || null;
+  const [latchedId, setLatchedId] = useState(null);
+  useEffect(() => {
+    if (contextSessionId) setLatchedId(contextSessionId);
+  }, [contextSessionId]);
+  const sessionId = contextSessionId || latchedId;
 
   // Direct polling + SSE merge via useRecoverySession for real-time progress
   const { session: polledSession } = useRecoverySession(sessionId, token, null);
@@ -39,7 +52,7 @@ export default function RecoveryModeOverlay({ serverId }) {
   useEffect(() => {
     if (!session) return;
     if (['DONE', 'FAILED', 'CANCELLED'].includes(session.state)) {
-      const timer = setTimeout(() => setDismissed(true), 10000);
+      const timer = setTimeout(() => { setDismissed(true); setLatchedId(null); }, 10000);
       return () => clearTimeout(timer);
     }
     setDismissed(false);
