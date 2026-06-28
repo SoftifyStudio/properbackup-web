@@ -18,6 +18,12 @@ import FolderTreeView from './FolderTreeView.jsx';
 import useServerEvents from '../api/useServerEvents.js';
 import { fetchInventory, fetchInventoryMeta, fetchInventorySummary, forceFlush, fetchFileStatesAt, downloadObject, fetchActivity } from '../api/bufferClient.js';
 import { useSearchParams } from 'react-router-dom';
+import { useRecoveryContext } from '../recovery/RecoveryContext.jsx';
+import RecoveryModeOverlay from '../recovery/RecoveryModeOverlay.jsx';
+import RecoveryWarningBanner from '../recovery/RecoveryWarningBanner.jsx';
+import RecoveryConfirmationModal from '../recovery/RecoveryConfirmationModal.jsx';
+import RecoveryStartModal from '../recovery/RecoveryStartModal.jsx';
+import { fetchRecoveryHistory } from '../api/recoveryClient.js';
 
 // Fixture imports kept only for legacy StatusBar (tree view) — not used for file list
 import fixtureListing from '../fixtures/mock-bucket-listing.json';
@@ -126,6 +132,12 @@ function MoreMenu({ serviceTab, setServiceTab, isSystemAdmin }) {
 export default function BackupsPage({ server, onBack }) {
   const { token, isSystemAdmin } = useAuth();
   const { t, formatDateTime } = useI18n();
+  const { isRecoveryActive, recoveryForServer, updateSession, refreshRecoveries } = useRecoveryContext();
+  const recoveryActive = isRecoveryActive(server.id);
+  const activeRecoverySession = recoveryForServer(server.id);
+  const [recoveryConfirmSession, setRecoveryConfirmSession] = useState(null);
+  const [recoveryStartSnapshot, setRecoveryStartSnapshot] = useState(null);
+  const [preRecoverySnapshotIds, setPreRecoverySnapshotIds] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode]               = useState('fixture');
   const [objectNames, setObjectNames] = useState(fixtureListing);
@@ -210,6 +222,20 @@ export default function BackupsPage({ server, onBack }) {
   }, [token, server?.id, t]);
 
   useEffect(() => { fetchServerData(); }, [fetchServerData]);
+
+  // Load pre-recovery snapshot IDs from recovery history (for PRE_RECOVERY badge on timeline)
+  useEffect(() => {
+    if (!token || !server?.id) return;
+    fetchRecoveryHistory(token, server.id, 50)
+      .then(data => {
+        const sessions = data.sessions ?? data ?? [];
+        const ids = sessions
+          .filter(s => s.preRecoverySnapshotId != null)
+          .map(s => s.preRecoverySnapshotId);
+        setPreRecoverySnapshotIds(ids);
+      })
+      .catch(() => {});
+  }, [token, server?.id]);
 
   /** Logi stacku — wyłącznie endpoint admin (JWT z uprawnieniami serwisanta). */
   const fetchAdminLogs = useCallback(async () => {
@@ -311,7 +337,13 @@ export default function BackupsPage({ server, onBack }) {
       setLatestSnapshot(data);
       addActivityEntry({ type: 'snapshotCreated', objectName: data.objectName, sizeBytes: data.sizeBytes });
     },
-  }), [addActivityEntry]);
+    onRecoveryState: (data) => {
+      updateSession(data);
+    },
+    onRecoveryProgress: (data) => {
+      updateSession(data);
+    },
+  }), [addActivityEntry, updateSession]);
 
   const { connected: sseConnected, reconnecting: sseReconnecting } = useServerEvents(server.id, sseHandlers, token);
 
@@ -573,6 +605,22 @@ export default function BackupsPage({ server, onBack }) {
         />
       </div>
 
+      {/* Recovery warning banner for this server (target) — WRITE actions blocked */}
+      {recoveryActive && (
+        <div className="shrink-0 px-6 pb-2 w-full mx-auto max-w-6xl">
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs" data-testid="recovery-target-banner">
+            <svg className="w-4 h-4 text-amber-600 shrink-0" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5L14.5 13H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+              <path d="M8 6v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <circle cx="8" cy="11" r="0.6" fill="currentColor"/>
+            </svg>
+            <span className="text-amber-800 font-medium">
+              {t('recovery.mode.warningRecoveryInProgressOnThisServer')}
+            </span>
+          </div>
+        </div>
+      )}
+      <RecoveryWarningBanner excludeServerId={server.id} />
 
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 w-full mx-auto max-w-6xl">
         {serviceTab === 'files' && (
@@ -681,6 +729,10 @@ export default function BackupsPage({ server, onBack }) {
                 setSelectedSnapshot(snap);
                 setRecoveryTarget({ snap, node: null });
               }}
+              onRestoreToPoint={(snap) => {
+                if (recoveryActive) return;
+                setRecoveryStartSnapshot(snap);
+              }}
               onSelectSnapshot={(snap) => {
                 setSelectedSnapshot(snap);
                 if (snap) setServiceTab('files');
@@ -689,6 +741,7 @@ export default function BackupsPage({ server, onBack }) {
               verification={liveIndexMeta.latestVerification}
               sseConnected={sseConnected}
               latestSnapshot={latestSnapshot}
+              preRecoverySnapshotIds={preRecoverySnapshotIds}
             />
           </ErrorBoundary>
         )}
@@ -747,6 +800,30 @@ export default function BackupsPage({ server, onBack }) {
         <RecoveryWizard
           snapshot={recoveryTarget}
           onClose={() => setRecoveryTarget(null)}
+        />
+      )}
+
+      {/* Recovery Mode overlay for this server (HR-3) */}
+      <RecoveryModeOverlay serverId={server.id} />
+
+      {/* Recovery confirmation modal after starting a new recovery */}
+      {recoveryConfirmSession && (
+        <RecoveryConfirmationModal
+          session={recoveryConfirmSession}
+          onClose={() => { setRecoveryConfirmSession(null); refreshRecoveries(); }}
+        />
+      )}
+
+      {/* Pre-start modal: file selection + mode choice */}
+      {recoveryStartSnapshot && (
+        <RecoveryStartModal
+          serverId={server.id}
+          snapshot={recoveryStartSnapshot}
+          onStarted={(session) => {
+            setRecoveryStartSnapshot(null);
+            setRecoveryConfirmSession(session);
+          }}
+          onClose={() => setRecoveryStartSnapshot(null)}
         />
       )}
     </div>

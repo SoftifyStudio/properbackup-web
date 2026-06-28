@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from '
 import { useAuth } from '../auth/AuthContext.jsx';
 import { fetchArchiveSnapshots, downloadObject } from '../api/bufferClient.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import { useRecoveryContext } from '../recovery/RecoveryContext.jsx';
 
 function fmtBytes(n) {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(2)} GiB`;
@@ -62,7 +63,7 @@ function SyncingIcon() {
 }
 
 /* ── Day Card ── */
-const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst, filterCount, selectedSnapshot, onSelect, onSetIdx, snapToIdx }) {
+const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst, filterCount, selectedSnapshot, onSelect, onSetIdx, snapToIdx, onRestoreToPoint, recoveryActive, preRecoverySet }) {
   const shrinkPx = depth * 24;
   const opacity = Math.max(0.55, 1 - depth * 0.12);
   const shadowBlur = Math.max(2, 14 - depth * 4);
@@ -143,8 +144,23 @@ const DayCard = memo(function DayCard({ dayKey, dayLabel, snaps, depth, isFirst,
               }`}>
                 {isAdd ? 'backup' : 'deleted'}
               </span>
+              {(snap.snapshotType === 'PRE_RECOVERY' || preRecoverySet?.has(snap.id)) && (
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200" data-testid="pre-recovery-badge">
+                  PRE-RECOVERY
+                </span>
+              )}
               <span className="text-xs text-text4">{dateStr}</span>
               <span className="ml-auto text-xs font-medium text-text3 tl-mono">{fmtBytes(snap.sizeBytes || 0)}</span>
+              {snap.flag === 'A' && !recoveryActive && (
+                <button
+                  className="ml-2 text-[10px] font-semibold text-accent hover:text-accent/80 bg-accent/10 hover:bg-accent/20 px-2 py-0.5 rounded transition-all shrink-0"
+                  onClick={(e) => { e.stopPropagation(); onRestoreToPoint(snap); }}
+                  title="Restore to this point"
+                  data-testid="restore-to-point-button"
+                >
+                  Restore
+                </button>
+              )}
             </div>
           );
         })}
@@ -207,9 +223,12 @@ function TimelineRuler({ dayEntries, onJump, currentDayKey }) {
 }
 
 /* ── Main Component ── */
-export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot, selectedSnapshot, verification, sseConnected, latestSnapshot }) {
+export default function SnapshotTimeline({ serverId, onRestore, onRestoreToPoint, onSelectSnapshot, selectedSnapshot, verification, sseConnected, latestSnapshot, preRecoverySnapshotIds }) {
   const { token } = useAuth();
-  const { formatDateTime } = useI18n();
+  const { t, formatDateTime } = useI18n();
+  const { isRecoveryActive } = useRecoveryContext();
+  const recoveryActive = isRecoveryActive(serverId);
+  const preRecoverySet = useMemo(() => new Set(preRecoverySnapshotIds || []), [preRecoverySnapshotIds]);
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterFlag, setFilterFlag] = useState('all');
@@ -434,6 +453,9 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                   onSelect={onSelectSnapshot}
                   onSetIdx={setCurrentIdx}
                   snapToIdx={snapToIdx}
+                  onRestoreToPoint={onRestoreToPoint || onRestore}
+                  recoveryActive={recoveryActive}
+                  preRecoverySet={preRecoverySet}
                 />
               ))}
               {/* Ghost depth cards — show stacking effect even with few days */}
@@ -534,7 +556,10 @@ export default function SnapshotTimeline({ serverId, onRestore, onSelectSnapshot
                   </button>
                   <button
                     className="tl-restore-btn btn-primary text-xs py-2 px-6 font-semibold relative overflow-hidden"
-                    onClick={() => onRestore(selectedSnapshot)}
+                    onClick={() => (onRestoreToPoint || onRestore)(selectedSnapshot)}
+                    disabled={recoveryActive}
+                    title={recoveryActive ? 'Recovery in progress' : ''}
+                    data-testid="restore-selected-button"
                   >
                     <span className="relative z-10">Restore</span>
                     <div className="tl-shine absolute inset-0 pointer-events-none" />
