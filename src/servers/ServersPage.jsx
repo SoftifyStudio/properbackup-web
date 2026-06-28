@@ -7,6 +7,7 @@ import AddServerModal from './AddServerModal.jsx';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import { boldPartsReact } from '../i18n/bold.jsx';
 import { useSearchParams } from 'react-router-dom';
+import RecoveryWarningBanner from '../recovery/RecoveryWarningBanner.jsx';
 
 import { bufferBaseUrl } from '../bufferConfig.js';
 
@@ -211,6 +212,13 @@ export default function ServersPage({ onSelectServer }) {
             )}
 
             {!loading && !error && servers.length > 0 && (
+              <>
+              <RecoveryWarningBanner
+                onNavigate={(serverId) => {
+                  const srv = servers.find(s => s.id === serverId);
+                  if (srv) onSelectServer(srv);
+                }}
+              />
               <ul className="flex flex-col gap-3 min-h-0" role="list">
                 {servers.map(server => (
                   <li key={server.id} className="min-w-0">
@@ -222,6 +230,7 @@ export default function ServersPage({ onSelectServer }) {
                   </li>
                 ))}
               </ul>
+              </>
             )}
           </>
         )}

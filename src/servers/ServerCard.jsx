@@ -1,8 +1,11 @@
 import React from 'react';
 import { useI18n } from '../i18n/I18nContext.jsx';
+import { useRecoveryContext } from '../recovery/RecoveryContext.jsx';
 
 export default function ServerCard({ server, showOwner, onClick }) {
   const { t, formatDateTime } = useI18n();
+  const { isRecoveryActive } = useRecoveryContext();
+  const recoveryActive = isRecoveryActive(server.id);
   const lastSeenLabel = t('serverCard.lastActivityLabel');
   const lastSeen = server.lastSeen
     ? formatDateTime(server.lastSeen, { dateStyle: 'medium', timeStyle: 'short' })
@@ -62,6 +65,12 @@ export default function ServerCard({ server, showOwner, onClick }) {
               <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
+          {recoveryActive && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800 bg-amber-100 border border-amber-300 rounded-full" data-testid="recovery-active-badge">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+              Recovery
+            </span>
+          )}
         </div>
       </div>
     </button>
