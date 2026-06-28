@@ -322,6 +322,7 @@
       "step0Title": "Przywracanie snapshotu",
       "step0Intro": "Sprawdź szczegóły przed kontynuowaniem.",
       "pathLabel": "Ścieżka",
+      "entireSnapshotPath": "Cały snapshot",
       "snapshotDateLabel": "Czas snapshotu",
       "fileLabel": "Plik",
       "nextPassword": "Dalej — podaj hasło",

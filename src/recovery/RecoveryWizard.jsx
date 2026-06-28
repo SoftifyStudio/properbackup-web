@@ -6,6 +6,25 @@ import { decryptAndDownload } from '../crypto/streamingDecrypt.js';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import ThawProgress from './ThawProgress.jsx';
 
+/**
+ * The wizard is launched from two places with different snapshot shapes:
+ *  - per-file tree restore: { snap: { raw, timestamp }, node: { fullPath, pathId } }
+ *  - snapshot-level restore (Timeline): { snap: { objectName, sealedAt, ... }, node: null }
+ * These helpers normalize both so the wizard works (and never null-derefs `node`).
+ */
+function objectNameOf(snapshot) {
+  return snapshot?.snap?.raw ?? snapshot?.snap?.objectName ?? '';
+}
+function timestampOf(snapshot) {
+  return snapshot?.snap?.timestamp ?? snapshot?.snap?.sealedAt ?? null;
+}
+function pathLabelOf(snapshot, t) {
+  const node = snapshot?.node;
+  if (node?.fullPath) return node.fullPath;
+  if (node?.pathId != null) return `[${node.pathId}]`;
+  return t('recovery.wizard.entireSnapshotPath');
+}
+
 function StepIndicator({ current, labels }) {
   return (
     <div className="flex items-center mb-8">
@@ -56,7 +75,7 @@ function InfoRow({ label, value, mono }) {
 
 function Step0({ snapshot, onNext }) {
   const { t, formatDateTime } = useI18n();
-  const ts = snapshot.snap.timestamp;
+  const ts = timestampOf(snapshot);
   const dateStr =
     ts && typeof ts.toISOString === 'function'
       ? formatDateTime(ts.toISOString())
@@ -69,9 +88,9 @@ function Step0({ snapshot, onNext }) {
       <h3 className="text-text1 font-semibold text-base mb-1">{t('recovery.wizard.step0Title')}</h3>
       <p className="text-text3 text-sm mb-5">{t('recovery.wizard.step0Intro')}</p>
       <div className="bg-surface rounded-lg px-4 mb-6">
-        <InfoRow label={t('recovery.wizard.pathLabel')} value={snapshot.node.fullPath ?? `[${snapshot.node.pathId}]`} />
+        <InfoRow label={t('recovery.wizard.pathLabel')} value={pathLabelOf(snapshot, t)} />
         <InfoRow label={t('recovery.wizard.snapshotDateLabel')} value={dateStr} />
-        <InfoRow label={t('recovery.wizard.fileLabel')} value={snapshot.snap.raw} mono />
+        <InfoRow label={t('recovery.wizard.fileLabel')} value={objectNameOf(snapshot)} mono />
       </div>
       <button type="button" className="btn-primary" onClick={onNext}>
         {t('recovery.wizard.nextPassword')}
@@ -94,7 +113,7 @@ function Step1({ snapshot, onNext, onCancel, sessionToken }) {
     setVerifying(true);
     setError('');
     try {
-      const buf = await downloadObject(snapshot.snap.raw, sessionToken);
+      const buf = await downloadObject(objectNameOf(snapshot), sessionToken);
       await verifyPassword(password, buf);
       onNext(password);
     } catch (e) {
@@ -156,8 +175,9 @@ function Step3({ snapshot, password, onDone, sessionToken }) {
   const download = async () => {
     setState('downloading');
     try {
-      const buf = await downloadObject(snapshot.snap.raw, sessionToken);
-      const filename = snapshot.snap.raw.replace('.enc', '.tar.gz');
+      const objectName = objectNameOf(snapshot);
+      const buf = await downloadObject(objectName, sessionToken);
+      const filename = objectName.replace('.enc', '.tar.gz');
       await decryptAndDownload(password, buf, filename);
       setState('done');
     } catch (e) {

@@ -322,6 +322,7 @@
       "step0Title": "Restore snapshot",
       "step0Intro": "Review the details before continuing.",
       "pathLabel": "Path",
+      "entireSnapshotPath": "Entire snapshot",
       "snapshotDateLabel": "Snapshot time",
       "fileLabel": "Object",
       "nextPassword": "Next — enter password",
