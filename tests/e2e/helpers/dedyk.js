@@ -20,37 +20,58 @@ const AGENT_DIR = '/opt/pb-agent-e2e';
 const BACKUP_SOURCE = `${AGENT_DIR}/backup-source`;
 const CONF_DIR = `${AGENT_DIR}/conf.uipipe`;
 
-/** Run a shell command inside LXC 100 (SSH -> pct exec -> bash), base64-wrapped. */
+/** Single-quote a value for safe embedding in a shell command. */
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Run a shell command inside LXC 100 (SSH -> pct exec -> bash), base64-wrapped.
+ * The SSH password is passed to sshpass via the SSHPASS env var (`-e`) so it
+ * never lands in the command string (no shell-injection edge) nor in `ps`.
+ */
 export function dedykExec(cmd, { timeout = 60000 } = {}) {
   const b64 = Buffer.from(cmd).toString('base64');
   const ssh =
-    `sshpass -p '${SSH_PASSWORD}' ssh -o StrictHostKeyChecking=no ` +
+    `sshpass -e ssh -o StrictHostKeyChecking=no ` +
     `-o ConnectTimeout=15 root@${DEDYK_SSH_HOST} ` +
     `"pct exec 100 -- bash -c 'echo ${b64} | base64 -d | bash'"`;
-  return execSync(ssh, { timeout, encoding: 'utf-8' }).trim();
+  return execSync(ssh, {
+    timeout,
+    encoding: 'utf-8',
+    env: { ...process.env, SSHPASS: SSH_PASSWORD },
+  }).trim();
 }
 
-/** Run a SQL query in the buffer Postgres; returns raw psql text. */
-export function pgQuery(sql, { tuples = false } = {}) {
+/**
+ * Run a SQL query in the buffer Postgres; returns raw psql text.
+ * Values are passed as psql variables (`-v name=value`) and referenced in SQL
+ * as `:'name'`, which performs proper SQL-literal quoting/escaping rather than
+ * raw string interpolation.
+ */
+export function pgQuery(sql, { tuples = false, params = {} } = {}) {
   const flags = tuples ? '-t -A' : '';
+  const varFlags = Object.entries(params)
+    .map(([k, v]) => `-v ${k}=${shellQuote(v)}`)
+    .join(' ');
   const b64 = Buffer.from(sql).toString('base64');
   return dedykExec(
     `echo ${b64} | base64 -d | docker exec -i properbackup-postgres-1 ` +
-      `psql -U properbackup -d properbackup ${flags}`,
+      `psql -U properbackup -d properbackup ${flags} ${varFlags}`,
   );
 }
 
 /** Single scalar value from a query. */
-export function pgScalar(sql) {
-  return pgQuery(sql, { tuples: true }).trim();
+export function pgScalar(sql, opts = {}) {
+  return pgQuery(sql, { ...opts, tuples: true }).trim();
 }
 
 export function getRecoverySession(sessionId) {
   const raw = pgQuery(
     `SELECT state, target_snapshot_id, pre_recovery_snapshot_id, dry_run_files_to_restore, ` +
       `dry_run_files_to_delete, files_restored, files_deleted ` +
-      `FROM recovery_session WHERE id='${sessionId}'`,
-    { tuples: true },
+      `FROM recovery_session WHERE id=:'sessionId'`,
+    { tuples: true, params: { sessionId } },
   );
   const line = raw.split('\n').map((l) => l.trim()).find(Boolean);
   if (!line) return null;
@@ -70,11 +91,21 @@ export function getRecoverySession(sessionId) {
 
 /** Latest archive snapshot id for a server (optionally filtered by type/flag). */
 export function latestSnapshotId(serverId, { type = null, flag = null } = {}) {
-  const typeClause = type ? ` AND snapshot_type='${type}'` : '';
-  const flagClause = flag ? ` AND flag='${flag}'` : '';
+  const params = { serverId };
+  let typeClause = '';
+  if (type) {
+    typeClause = ` AND snapshot_type=:'stype'`;
+    params.stype = type;
+  }
+  let flagClause = '';
+  if (flag) {
+    flagClause = ` AND flag=:'sflag'`;
+    params.sflag = flag;
+  }
   const v = pgScalar(
-    `SELECT id FROM archive_snapshot WHERE server_id='${serverId}'${typeClause}${flagClause} ` +
+    `SELECT id FROM archive_snapshot WHERE server_id=:'serverId'${typeClause}${flagClause} ` +
       `ORDER BY id DESC LIMIT 1`,
+    { params },
   );
   return v ? parseInt(v, 10) : null;
 }
@@ -85,13 +116,16 @@ export function latestSnapshotId(serverId, { type = null, flag = null } = {}) {
  */
 export function cancelActiveRecoverySessions(serverId) {
   pgQuery(
-    `UPDATE recovery_session SET state='CANCELLED' WHERE server_id='${serverId}' ` +
+    `UPDATE recovery_session SET state='CANCELLED' WHERE server_id=:'serverId' ` +
       `AND state NOT IN ('DONE','FAILED','CANCELLED')`,
+    { params: { serverId } },
   );
 }
 
 export function snapshotType(snapshotId) {
-  return pgScalar(`SELECT snapshot_type FROM archive_snapshot WHERE id=${snapshotId}`);
+  return pgScalar(`SELECT snapshot_type FROM archive_snapshot WHERE id=:'snapshotId'`, {
+    params: { snapshotId },
+  });
 }
 
 /** Map of relative filename -> sha256 for every file in backup-source. */
@@ -184,9 +218,9 @@ export function runAgentOnceBackground({ timeout = 180000 } = {}) {
   const remote = `pct exec 100 -- bash -c 'echo ${b64} | base64 -d | bash'`;
   const child = spawn(
     'sshpass',
-    ['-p', SSH_PASSWORD, 'ssh', '-o', 'StrictHostKeyChecking=no',
+    ['-e', 'ssh', '-o', 'StrictHostKeyChecking=no',
       '-o', 'ConnectTimeout=15', `root@${DEDYK_SSH_HOST}`, remote],
-    { stdio: 'ignore' },
+    { stdio: 'ignore', env: { ...process.env, SSHPASS: SSH_PASSWORD } },
   );
   const promise = new Promise((resolve) => {
     const t = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /**/ } resolve('timeout'); }, timeout);
